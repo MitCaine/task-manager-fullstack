@@ -1,0 +1,12 @@
+# Ignore compiled files
+/target/
+
+# Ignore IntelliJ files
+.idea/
+*.iml
+
+# Ignore OS files
+.DS_Store
+
+# Ignore logs
+*.log
