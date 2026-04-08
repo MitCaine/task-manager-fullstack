@@ -17,10 +17,10 @@ public class Task {
     @NotBlank(message = "Title must not be blank")
     private String title;
 
-    @Size(max = 1000, message = "Description must be at most 1000 characters")
+    @Size(max = 1000, message = "Description must not be more than 1000 characters")
     private String description;
 
-    @Column(name = "date_time_scheduled")
+    @Column(name = "dateTimeScheduled")
     private LocalDateTime dateTimeScheduled;
 
     @Column(name = "userID")

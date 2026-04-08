@@ -1,0 +1,125 @@
+/* Reset & body styling */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #0f111a; /* deep dark background */
+  font-family: 'Inter', sans-serif;
+  color: #f5f6fa;
+}
+
+/* Main container */
+.app-container {
+  width: 500px;
+  max-width: 90%;
+  padding: 2rem;
+  background: #1a1c27;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+}
+
+/* Title */
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* Input area styling */
+input, select, button {
+  padding: 0.6rem;
+  border: none;
+  border-radius: 6px;
+  margin: 0.3rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+input, select {
+  background: #2a2d3a;
+  color: #f5f6fa;
+}
+
+button {
+  background: #6366f1; /* violet-blue */
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+button:hover {
+  background: #4f46e5;
+  transform: scale(1.03);
+}
+
+/* Format toggle buttons */
+.format-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.format-toggle button {
+  background: #374151;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.format-toggle button:hover {
+  background: #4b5563;
+}
+
+/* Task list */
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 1.5rem;
+}
+
+.task-list li {
+  background: #242735;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.task-list strong {
+  font-size: 1.1rem;
+}
+
+.task-list small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+/* Task remove button */
+.task-list button {
+  background: #ef4444;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.task-list button:hover {
+  background: #dc2626;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
