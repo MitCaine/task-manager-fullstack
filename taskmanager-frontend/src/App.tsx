@@ -1078,13 +1078,19 @@ function App(): JSX.Element {
   // ── Kanban drag ──────────────────────────────────────────────────────────────
   const handleKanbanDrop = async (statusID: number | null) => {
     if (dragTaskId === null) return;
+    const task = tasks.find(t => t.taskID === dragTaskId);
+    setDragTaskId(null);
+    // Dropping onto Done with a recurrence rule reuses toggleComplete logic
+    if (statusID === 2 && task?.recurrenceRuleID) {
+      await toggleComplete(task);
+      return;
+    }
     try {
       const saved = await patchTaskStatus(dragTaskId, statusID);
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
     } catch {
       setError('Failed to move task.');
     }
-    setDragTaskId(null);
   };
 
   // ── Attachments ──────────────────────────────────────────────────────────────
