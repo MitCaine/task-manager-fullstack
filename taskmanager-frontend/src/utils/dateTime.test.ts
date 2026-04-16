@@ -1,4 +1,6 @@
-import { buildDateTimeString } from './dateTime';
+import { buildDateTimeString, formatDate, extractDateParts } from './dateTime';
+
+// ── buildDateTimeString ───────────────────────────────────────────────────────
 
 describe('buildDateTimeString', () => {
   // -------------------------------------------------------------------------
@@ -25,7 +27,6 @@ describe('buildDateTimeString', () => {
   // -------------------------------------------------------------------------
 
   test('24-hour mode ignores ampm parameter', () => {
-    // "03 PM" in 24-hour mode should stay as hour 03, not convert to 15
     const result = buildDateTimeString('2026-04-08', '15', '30', 'PM', true);
     expect(result).toBe('2026-04-08T15:30:00');
   });
@@ -68,5 +69,114 @@ describe('buildDateTimeString', () => {
     expect(result).toHaveLength(19);
     expect(result).not.toContain('Z');
     expect(result).not.toContain('+');
+  });
+});
+
+// ── formatDate ────────────────────────────────────────────────────────────────
+
+describe('formatDate', () => {
+  test('returns empty string for null', () => {
+    expect(formatDate(null, 'en-US', false)).toBe('');
+  });
+
+  test('returns empty string for undefined', () => {
+    expect(formatDate(undefined, 'en-US', false)).toBe('');
+  });
+
+  test('midnight time is treated as date-only — no time portion shown', () => {
+    // A date stored as T00:00:00 should display just the date, no hours/minutes
+    const result = formatDate('2026-06-15T00:00:00', 'en-US', false);
+    expect(result).not.toMatch(/\d{1,2}:\d{2}/); // no HH:MM in output
+    expect(result).toContain('2026');
+  });
+
+  test('non-midnight time includes time in output', () => {
+    const result = formatDate('2026-06-15T14:30:00', 'en-US', false);
+    expect(result).toMatch(/\d{1,2}:\d{2}/); // HH:MM present
+    expect(result).toContain('2026');
+  });
+
+  test('12-hour mode output differs from 24-hour mode for afternoon times', () => {
+    const dt = '2026-06-15T14:30:00';
+    const result12 = formatDate(dt, 'en-US', false);
+    const result24 = formatDate(dt, 'en-US', true);
+    // In 12h, "2:30 PM"; in 24h, "14:30" — they should be different strings
+    expect(result12).not.toBe(result24);
+  });
+
+  test('en-GB locale formats date differently from en-US', () => {
+    const dt = '2026-06-15T00:00:00';
+    const us = formatDate(dt, 'en-US', false);
+    const gb = formatDate(dt, 'en-GB', false);
+    // Both contain the date components but in different order/format
+    expect(us).not.toBe(gb);
+    // Both should contain the year and month/day digits
+    expect(us).toContain('2026');
+    expect(gb).toContain('2026');
+  });
+
+  test('morning time (non-midnight) includes both date and time', () => {
+    const result = formatDate('2026-04-08T09:00:00', 'en-US', false);
+    expect(result.length).toBeGreaterThan(8); // more than just a date
+    expect(result).toMatch(/9|09/); // hour visible
+  });
+});
+
+// ── extractDateParts ──────────────────────────────────────────────────────────
+
+describe('extractDateParts', () => {
+  test('extracts date in YYYY-MM-DD format', () => {
+    const { date } = extractDateParts('2026-06-15T14:30:00', false);
+    expect(date).toBe('2026-06-15');
+  });
+
+  test('zero-pads single-digit months and days', () => {
+    const { date } = extractDateParts('2026-01-05T09:00:00', false);
+    expect(date).toBe('2026-01-05');
+  });
+
+  test('12h mode: afternoon hour converts to 12h (14 → 02)', () => {
+    const { hour, ampm } = extractDateParts('2026-06-15T14:30:00', false);
+    expect(hour).toBe('02');
+    expect(ampm).toBe('PM');
+  });
+
+  test('12h mode: noon (12:00) → hour=12, ampm=PM', () => {
+    const { hour, ampm } = extractDateParts('2026-06-15T12:00:00', false);
+    expect(hour).toBe('12');
+    expect(ampm).toBe('PM');
+  });
+
+  test('12h mode: midnight (00:00) → hour=12, ampm=AM', () => {
+    const { hour, ampm } = extractDateParts('2026-06-15T00:00:00', false);
+    expect(hour).toBe('12');
+    expect(ampm).toBe('AM');
+  });
+
+  test('12h mode: morning hour is AM (09:05 → hour=09, ampm=AM)', () => {
+    const { hour, ampm } = extractDateParts('2026-06-15T09:05:00', false);
+    expect(hour).toBe('09');
+    expect(ampm).toBe('AM');
+  });
+
+  test('24h mode: hour stays as-is (14 → "14")', () => {
+    const { hour, ampm } = extractDateParts('2026-06-15T14:30:00', true);
+    expect(hour).toBe('14');
+    expect(ampm).toBe('PM'); // ampm field still set but irrelevant in 24h
+  });
+
+  test('24h mode: midnight → hour=00', () => {
+    const { hour } = extractDateParts('2026-06-15T00:00:00', true);
+    expect(hour).toBe('00');
+  });
+
+  test('minutes are always zero-padded (05 not 5)', () => {
+    const { minute } = extractDateParts('2026-06-15T14:05:00', false);
+    expect(minute).toBe('05');
+  });
+
+  test('minutes at 30 return "30"', () => {
+    const { minute } = extractDateParts('2026-06-15T14:30:00', false);
+    expect(minute).toBe('30');
   });
 });

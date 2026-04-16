@@ -86,11 +86,11 @@ VALUES
 	(2, 'link_to_image', 'png', 2048, 2, 'default_value'),
 	(3, 'link_to_video', 'mp4', 4096, 3, 'default_value');
 
-INSERT INTO RecurrenceRule (recurrenceRuleID, timesOfRecurrence, stateDateTime, endDateTime, frequency, taskID) 
-VALUES 
-	(1, 5, '2024-01-01 08:00:00', '2024-01-01 09:00:00', 'daily', 1),
-	(2, 10, '2024-01-01 10:00:00', '2024-01-01 11:00:00', 'weekly', 2),
-	(3, 15, '2024-02-01 12:00:00', '2024-02-01 13:00:00', 'monthly', 3);
+INSERT INTO RecurrenceRule (recurrenceRuleID, timesOfRecurrence, startDateTime, endDateTime, frequency)
+VALUES
+	(1, 5, '2024-01-01 08:00:00', '2024-01-01 09:00:00', 'daily'),
+	(2, 10, '2024-01-01 10:00:00', '2024-01-01 11:00:00', 'weekly'),
+	(3, 15, '2024-02-01 12:00:00', '2024-02-01 13:00:00', 'monthly');
 
 INSERT INTO TaskInstance (taskInstanceID, statusID, scheduleID, recurrenceRuleID, completionDateTime) 
 VALUES 

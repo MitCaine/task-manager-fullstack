@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -12,9 +13,14 @@ import java.util.List;
 public class TaskController {
 
     private final TaskRepository taskRepository;
+    private final TagRepository tagRepository;
+    private final RecurrenceRuleRepository recurrenceRuleRepository;
 
-    public TaskController(TaskRepository taskRepository) {
+    public TaskController(TaskRepository taskRepository, TagRepository tagRepository,
+                          RecurrenceRuleRepository recurrenceRuleRepository) {
         this.taskRepository = taskRepository;
+        this.tagRepository = tagRepository;
+        this.recurrenceRuleRepository = recurrenceRuleRepository;
     }
 
     @GetMapping
@@ -50,8 +56,25 @@ public class TaskController {
                     task.setDescription(updatedTask.getDescription());
                     task.setDateTimeScheduled(updatedTask.getDateTimeScheduled());
                     task.setUserID(updatedTask.getUserID());
+                    task.setStatusID(updatedTask.getStatusID());
+                    task.setPriority(updatedTask.getPriority());
+                    task.setProjectID(updatedTask.getProjectID());
                     Task saved = taskRepository.save(task);
                     return ResponseEntity.ok(saved);
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private record StatusUpdateRequest(Long statusID) {}
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Task> patchTaskStatus(
+            @PathVariable Long id,
+            @RequestBody StatusUpdateRequest req) {
+        return taskRepository.findById(id)
+                .map(task -> {
+                    task.setStatusID(req.statusID());
+                    return ResponseEntity.ok(taskRepository.save(task));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -63,5 +86,71 @@ public class TaskController {
         }
         taskRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Recurrence ────────────────────────────────────────────────────────────
+
+    private record RepeatRequest(String frequency) {}
+
+    @GetMapping("/{id}/recurrence")
+    public ResponseEntity<RecurrenceRule> getRecurrence(@PathVariable Long id) {
+        Task task = taskRepository.findById(id).orElse(null);
+        if (task == null) return ResponseEntity.notFound().build();
+        if (task.getRecurrenceRuleID() == null) return ResponseEntity.notFound().build();
+        return recurrenceRuleRepository.findById(task.getRecurrenceRuleID())
+                .map(r -> ResponseEntity.<RecurrenceRule>ok(r))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}/repeat")
+    public ResponseEntity<Task> setRepeat(@PathVariable Long id, @RequestBody RepeatRequest req) {
+        return taskRepository.findById(id).map(task -> {
+            if (req.frequency() == null || req.frequency().isBlank()) {
+                // Clear recurrence
+                Long ruleId = task.getRecurrenceRuleID();
+                task.setRecurrenceRuleID(null);
+                taskRepository.save(task);
+                if (ruleId != null) recurrenceRuleRepository.deleteById(ruleId);
+            } else {
+                // Create or update recurrence rule
+                RecurrenceRule rule;
+                if (task.getRecurrenceRuleID() != null && recurrenceRuleRepository.existsById(task.getRecurrenceRuleID())) {
+                    rule = recurrenceRuleRepository.findById(task.getRecurrenceRuleID()).orElse(new RecurrenceRule());
+                } else {
+                    rule = new RecurrenceRule();
+                }
+                rule.setFrequency(req.frequency());
+                rule.setTimesOfRecurrence(0);
+                LocalDateTime start = task.getDateTimeScheduled() != null ? task.getDateTimeScheduled() : LocalDateTime.now();
+                rule.setStartDateTime(start);
+                rule.setEndDateTime(start.plusYears(10));
+                RecurrenceRule saved = recurrenceRuleRepository.save(rule);
+                task.setRecurrenceRuleID(saved.getRecurrenceRuleID());
+                taskRepository.save(task);
+            }
+            return ResponseEntity.ok(task);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/tags/{tagId}")
+    public ResponseEntity<Task> addTag(@PathVariable Long id, @PathVariable Long tagId) {
+        return taskRepository.findById(id).map(task ->
+            tagRepository.findById(tagId).map(tag -> {
+                if (!task.getTags().contains(tag)) {
+                    task.getTags().add(tag);
+                    taskRepository.save(task);
+                }
+                return ResponseEntity.ok(task);
+            }).orElseGet(() -> ResponseEntity.notFound().build())
+        ).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}/tags/{tagId}")
+    public ResponseEntity<Task> removeTag(@PathVariable Long id, @PathVariable Long tagId) {
+        return taskRepository.findById(id).map(task -> {
+            task.getTags().removeIf(tag -> tag.getTagID().equals(tagId));
+            taskRepository.save(task);
+            return ResponseEntity.ok(task);
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

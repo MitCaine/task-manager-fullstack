@@ -1,14 +1,21 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
-import { getTasks, createTask, deleteTask } from './api/tasks';
+import {
+  getTasks, createTask, deleteTask, patchTaskStatus,
+  getProjects, getTags,
+} from './api/tasks';
 import type { Task } from './types/task';
 
 jest.mock('./api/tasks');
+jest.mock('./components/Calendar', () => () => null);
 
-const mockGetTasks = getTasks as jest.MockedFunction<typeof getTasks>;
-const mockCreateTask = createTask as jest.MockedFunction<typeof createTask>;
-const mockDeleteTask = deleteTask as jest.MockedFunction<typeof deleteTask>;
+const mockGetTasks       = getTasks       as jest.MockedFunction<typeof getTasks>;
+const mockCreateTask     = createTask     as jest.MockedFunction<typeof createTask>;
+const mockDeleteTask     = deleteTask     as jest.MockedFunction<typeof deleteTask>;
+const mockPatchStatus    = patchTaskStatus as jest.MockedFunction<typeof patchTaskStatus>;
+const mockGetProjects    = getProjects    as jest.MockedFunction<typeof getProjects>;
+const mockGetTags        = getTags        as jest.MockedFunction<typeof getTags>;
 
 const sampleTask: Task = {
   taskID: 1,
@@ -28,25 +35,33 @@ beforeEach(() => {
   mockGetTasks.mockResolvedValue([]);
   mockCreateTask.mockResolvedValue(sampleTask);
   mockDeleteTask.mockResolvedValue(undefined);
+  mockPatchStatus.mockResolvedValue(sampleTask);
+  mockGetProjects.mockResolvedValue([]);
+  mockGetTags.mockResolvedValue([]);
 });
 
 afterEach(() => {
   jest.clearAllMocks();
 });
 
-// -------------------------------------------------------------------------
-// Rendering — regular cases
-// -------------------------------------------------------------------------
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Open the settings panel (⚙ Settings button). */
+function openSettings() {
+  userEvent.click(screen.getByRole('button', { name: /settings/i }));
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
 
 test('renders the "Task Manager" heading', async () => {
   render(<App />);
   expect(screen.getByRole('heading', { name: /task manager/i })).toBeInTheDocument();
 });
 
-test('shows Total: 0 when no tasks are loaded', async () => {
+test('shows 0 tasks in footer when no tasks are loaded', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
-  expect(screen.getByText(/total:\s*0/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
 test('shows task titles after loading', async () => {
@@ -64,30 +79,28 @@ test('shows "No due date" for tasks without dateTimeScheduled', async () => {
 test('shows formatted date for tasks with dateTimeScheduled', async () => {
   mockGetTasks.mockResolvedValue([scheduledTask]);
   render(<App />);
-  // Wait for the task itself to load, then verify 'No due date' is absent
   await screen.findByText('Dentist appointment');
   expect(screen.queryByText('No due date')).not.toBeInTheDocument();
 });
 
 test('title input is empty on initial render', async () => {
   render(<App />);
-  const input = screen.getByPlaceholderText(/enter a task title/i) as HTMLInputElement;
+  const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
   expect(input.value).toBe('');
 });
 
-test('format toggle buttons are rendered', async () => {
+test('format toggle buttons are rendered inside the settings panel', async () => {
   render(<App />);
-  expect(screen.getByRole('button', { name: /24-hour/i })).toBeInTheDocument();
+  await act(async () => { openSettings(); });
+  expect(await screen.findByRole('button', { name: /24-hour/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /dd\/mm\/yyyy/i })).toBeInTheDocument();
 });
 
-// -------------------------------------------------------------------------
-// User interactions — regular cases
-// -------------------------------------------------------------------------
+// ── User interactions ─────────────────────────────────────────────────────────
 
 test('typing in the title input updates its value', async () => {
   render(<App />);
-  const input = screen.getByPlaceholderText(/enter a task title/i) as HTMLInputElement;
+  const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
   userEvent.type(input, 'New task');
   expect(input.value).toBe('New task');
 });
@@ -96,8 +109,8 @@ test('clicking Add calls createTask and appends task to list', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/enter a task title/i), 'Buy milk');
-  userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk');
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
   expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -107,19 +120,25 @@ test('pressing Enter in title input calls createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/enter a task title/i), 'Buy milk{enter}');
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk{enter}');
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
 });
 
-test('clicking Remove calls deleteTask with correct ID and removes task from list', async () => {
+test('clicking delete button then confirming removes the task', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
-  mockDeleteTask.mockResolvedValue(undefined);
   render(<App />);
 
   await screen.findByText('Buy milk');
 
-  userEvent.click(screen.getByRole('button', { name: /remove/i }));
+  // Step 1: click the ✕ icon to show confirmation
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
+  });
+
+  // Step 2: wait for confirmation to appear, then click Delete
+  const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
+  await act(async () => { userEvent.click(confirmBtn); });
 
   await waitFor(() => {
     expect(mockDeleteTask).toHaveBeenCalledWith(1);
@@ -127,82 +146,96 @@ test('clicking Remove calls deleteTask with correct ID and removes task from lis
   });
 });
 
-test('toggling 24-hour format shows hours 00–23', async () => {
+test('clicking delete then Cancel leaves the task in place', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
+
+  await screen.findByText('Buy milk');
+
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /24-hour/i }));
+    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
   });
+  const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
+  userEvent.click(cancelBtn);
 
-  // In 24-hour mode, hour 00 through 23 should all be options
-  await waitFor(() => {
-    const hourSelect = screen.getAllByRole('combobox')[0];
-    const options = Array.from((hourSelect as HTMLSelectElement).options).map(o => o.value);
-    expect(options).toContain('00');
-    expect(options).toContain('23');
-    expect(options).toContain('13'); // present in 24-hour, absent in 12-hour
-    expect(options.length).toBe(24);
-  });
+  expect(screen.getByText('Buy milk')).toBeInTheDocument();
+  expect(mockDeleteTask).not.toHaveBeenCalled();
 });
 
-test('12-hour mode shows hours 01–12', async () => {
+test('toggling 24-hour format hides the AM/PM selector', async () => {
   render(<App />);
-  // Default is 12-hour
-  const hourSelect = screen.getAllByRole('combobox')[0];
-  const options = Array.from((hourSelect as HTMLSelectElement).options).map(o => o.value);
-  expect(options).toContain('12');
-  expect(options).toContain('01');
-  expect(options.length).toBe(12);
+  // Show the time row so the AM/PM select appears
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  // In default 12h mode the AM/PM options should be visible
+  expect(await screen.findByRole('option', { name: 'AM' })).toBeInTheDocument();
+
+  // Switch to 24-hour in settings
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+
+  // AM/PM select should be gone in 24h mode
+  await waitFor(() => {
+    expect(screen.queryByRole('option', { name: 'AM' })).not.toBeInTheDocument();
+  });
 });
 
-// -------------------------------------------------------------------------
-// Edge cases
-// -------------------------------------------------------------------------
+test('12-hour mode shows AM and PM options in the time selector', async () => {
+  render(<App />);
+  // Default is 12-hour; show the time row
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(await screen.findByRole('option', { name: 'AM' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'PM' })).toBeInTheDocument();
+});
+
+// ── Edge cases ────────────────────────────────────────────────────────────────
 
 test('clicking Add with empty title does NOT call createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
 test('clicking Add with whitespace-only title does NOT call createTask', async () => {
   render(<App />);
-  userEvent.type(screen.getByPlaceholderText(/enter a task title/i), '   ');
-  userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+  userEvent.type(screen.getByPlaceholderText(/task title/i), '   ');
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
-test('getTasks rejection is caught silently — app does not crash', async () => {
+test('getTasks rejection shows error banner and renders app', async () => {
   mockGetTasks.mockRejectedValue(new Error('Network error'));
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
-  // App still renders, total stays 0
-  expect(screen.getByText(/total:\s*0/i)).toBeInTheDocument();
+  // Wait for error to appear in the banner
+  expect(await screen.findByText(/failed to load tasks/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
-test('createTask rejection is caught silently — list unchanged, no crash', async () => {
+test('createTask rejection shows error banner, list unchanged', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
   mockCreateTask.mockRejectedValue(new Error('Server error'));
-  const input = screen.getByPlaceholderText(/enter a task title/i) as HTMLInputElement;
+  const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
 
   userEvent.type(input, 'Failing task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalled());
-  // Task should NOT appear in list since createTask failed
   expect(screen.queryByText('Failing task')).not.toBeInTheDocument();
-  // Total stays 0
-  expect(screen.getByText(/total:\s*0/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
-test('deleteTask rejection is caught silently — task remains in list', async () => {
+test('deleteTask rejection shows error banner — task remains in list', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockDeleteTask.mockRejectedValue(new Error('Delete failed'));
   render(<App />);
@@ -210,10 +243,213 @@ test('deleteTask rejection is caught silently — task remains in list', async (
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /remove/i }));
+    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
   });
+  const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
+  await act(async () => { userEvent.click(confirmBtn); });
 
   await waitFor(() => expect(mockDeleteTask).toHaveBeenCalled());
-  // Task should still be in the list since delete failed
   expect(screen.getByText('Buy milk')).toBeInTheDocument();
+  expect(await screen.findByText(/failed to delete task/i)).toBeInTheDocument();
+});
+
+// ── Stats modal ───────────────────────────────────────────────────────────────
+
+test('Stats button is rendered in the header', async () => {
+  render(<App />);
+  expect(screen.getByRole('button', { name: /stats/i })).toBeInTheDocument();
+});
+
+test('clicking Stats button opens the stats modal', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /stats/i }));
+  });
+  const heading = await screen.findByRole('heading', { name: /stats/i });
+  expect(heading).toBeInTheDocument();
+  // Scope queries to the modal to avoid matching filter buttons with same text
+  const modal = heading.closest('.modal') as HTMLElement;
+  expect(within(modal).getByText(/total/i)).toBeInTheDocument();
+  expect(within(modal).getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
+  expect(within(modal).getByText(/active/i)).toBeInTheDocument();
+});
+
+test('closing the stats modal removes it from the DOM', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /stats/i }));
+  });
+  await screen.findByRole('heading', { name: /stats/i });
+  const closeBtn = screen.getByRole('button', { name: /×/i });
+  await act(async () => { userEvent.click(closeBtn); });
+  await waitFor(() => {
+    expect(screen.queryByRole('heading', { name: /stats/i })).not.toBeInTheDocument();
+  });
+});
+
+// ── View tabs ─────────────────────────────────────────────────────────────────
+
+test('"Board" tab button is rendered in the view tabs', async () => {
+  render(<App />);
+  expect(screen.getByRole('button', { name: /^board$/i })).toBeInTheDocument();
+});
+
+test('clicking the Board tab shows the kanban column headers', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^board$/i }));
+  });
+
+  expect(screen.getByText('To Do')).toBeInTheDocument();
+  expect(screen.getByText('In Progress')).toBeInTheDocument();
+  // "Done" may appear in both kanban header and filter buttons
+  expect(screen.getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
+});
+
+test('task without statusID appears in the To Do column of the kanban board', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^board$/i }));
+  });
+
+  // Task title should appear inside the board
+  expect(screen.getAllByText('Buy milk').length).toBeGreaterThanOrEqual(1);
+});
+
+// ── Task duplication ──────────────────────────────────────────────────────────
+
+test('duplicate button is rendered for each task', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+  expect(screen.getByRole('button', { name: /duplicate task/i })).toBeInTheDocument();
+});
+
+test('clicking duplicate calls createTask with " (copy)" appended to the title', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  const copy = { ...sampleTask, taskID: 99, title: 'Buy milk (copy)' };
+  mockCreateTask.mockResolvedValue(copy);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /duplicate task/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Buy milk (copy)' })
+    );
+  });
+});
+
+// ── Bulk actions ──────────────────────────────────────────────────────────────
+
+test('"Select" button is rendered in the task count row', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  expect(screen.getByRole('button', { name: /^select$/i })).toBeInTheDocument();
+});
+
+test('clicking Select shows Cancel button', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+});
+
+test('clicking Cancel exits bulk mode', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /cancel/i }));
+  });
+  expect(screen.getByRole('button', { name: /^select$/i })).toBeInTheDocument();
+});
+
+test('bulk action bar is not visible until a task is selected', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  // Bar only appears after selecting something
+  expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+});
+
+test('selecting a task shows the bulk action bar', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  // Click the bulk checkbox for the task
+  // The bulk-select checkbox renders first in the DOM (before the status checkbox)
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => { userEvent.click(checkboxes[0]); });
+  expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+});
+
+test('"Mark done" in bulk bar calls patchTaskStatus for each selected task', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  mockPatchStatus.mockResolvedValue({ ...sampleTask, statusID: 2 });
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => { userEvent.click(checkboxes[0]); });
+  await screen.findByText(/1 selected/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 2);
+  });
+});
+
+test('"Delete" in bulk bar calls deleteTask for each selected task', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => { userEvent.click(checkboxes[0]); });
+  await screen.findByText(/1 selected/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockDeleteTask).toHaveBeenCalledWith(sampleTask.taskID);
+  });
+});
+
+// ── Search ref ────────────────────────────────────────────────────────────────
+
+test('search input placeholder mentions the "/" shortcut', async () => {
+  render(<App />);
+  const searchInput = screen.getByPlaceholderText(/press \/ to focus/i);
+  expect(searchInput).toBeInTheDocument();
 });

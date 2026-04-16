@@ -12,6 +12,7 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- -----------------------------------------------------
 
 CREATE SCHEMA taskmanagementdb;
+USE taskmanagementdb;
 
 -- -----------------------------------------------------
 -- Table `User`
@@ -19,7 +20,7 @@ CREATE SCHEMA taskmanagementdb;
 DROP TABLE IF EXISTS `User` ;
 
 CREATE TABLE IF NOT EXISTS `User` (
-  `userID` INT NOT NULL,
+  `userID` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(45) NOT NULL,
   `email` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`userID`),
@@ -34,7 +35,7 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `Account` ;
 
 CREATE TABLE IF NOT EXISTS `Account` (
-  `accountID` INT NOT NULL,
+  `accountID` INT NOT NULL AUTO_INCREMENT,
   `creationDate` DATETIME NOT NULL,
   `status` VARCHAR(20) NULL,
   `userID` INT NOT NULL,
@@ -79,34 +80,50 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `Task` ;
 
 CREATE TABLE IF NOT EXISTS `Task` (
-  `taskID` INT NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(100) NOT NULL,
-  `description` TEXT NULL,
-  `dateTimeScheduled` DATETIME NULL,
-  `statusID` INT NULL,
-  `userID` INT NULL,
-  `scheduleID` INT NULL,
-  `recurrenceRuleID` INT NULL,
-  PRIMARY KEY (`taskID`),
-  INDEX `FK_Task_userID_idx` (`userID` ASC),
-  INDEX `FK_Task_statusID_idx` (`statusID` ASC),
-  INDEX `FK_Task_scheduleID_idx` (`scheduleID` ASC),
-  CONSTRAINT `FK_Task_userID`
-    FOREIGN KEY (`userID`)
-    REFERENCES `User` (`userID`)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE,
-  CONSTRAINT `FK_Task_statusID`
-    FOREIGN KEY (`statusID`)
-    REFERENCES `Status` (`statusID`)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE,
-  CONSTRAINT `FK_Task_scheduleID`
-    FOREIGN KEY (`scheduleID`)
-    REFERENCES `Schedule` (`scheduleID`)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE)
-ENGINE = InnoDB;
+    `taskID` INT NOT NULL AUTO_INCREMENT,
+    `title` VARCHAR(100) NOT NULL,
+    `description` TEXT NULL,
+    `dateTimeScheduled` DATETIME NULL,
+    `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `statusID` INT NULL,
+    `userID` INT NULL,
+    `scheduleID` INT NULL,
+    `recurrenceRuleID` INT NULL,
+    `projectID` INT NULL,
+    `priority` VARCHAR(20) NULL DEFAULT NULL CHECK (`priority` IN ('LOW', 'MEDIUM', 'HIGH')),
+    PRIMARY KEY (`taskID`),
+    INDEX `FK_Task_userID_idx` (`userID` ASC),
+    INDEX `FK_Task_statusID_idx` (`statusID` ASC),
+    INDEX `FK_Task_scheduleID_idx` (`scheduleID` ASC),
+    INDEX `FK_Task_recurrenceRuleID_idx` (`recurrenceRuleID` ASC),
+    INDEX `FK_Task_projectID_idx` (`projectID` ASC),
+    INDEX `idx_Task_userID_dateTimeScheduled` (`userID` ASC, `dateTimeScheduled` ASC),
+    CONSTRAINT `FK_Task_userID`
+      FOREIGN KEY (`userID`)
+      REFERENCES `User` (`userID`)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE,
+    CONSTRAINT `FK_Task_statusID`
+      FOREIGN KEY (`statusID`)
+      REFERENCES `Status` (`statusID`)
+      ON DELETE RESTRICT
+      ON UPDATE CASCADE,
+    CONSTRAINT `FK_Task_scheduleID`
+      FOREIGN KEY (`scheduleID`)
+      REFERENCES `Schedule` (`scheduleID`)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE,
+    CONSTRAINT `FK_Task_recurrenceRuleID`
+      FOREIGN KEY (`recurrenceRuleID`)
+      REFERENCES `RecurrenceRule` (`recurrenceRuleID`)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE,
+    CONSTRAINT `FK_Task_projectID`
+      FOREIGN KEY (`projectID`)
+      REFERENCES `Project` (`projectID`)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE)
+  ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
@@ -119,7 +136,6 @@ CREATE TABLE IF NOT EXISTS `Tag` (
   `title` VARCHAR(100) NOT NULL,
   `color` VARCHAR(20) NULL,
   `userID` INT NULL,
-  `Tagcol` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`tagID`),
   INDEX `FK_Tag_userID_idx` (`userID` ASC),
   CONSTRAINT `FK_Tag_userID`
@@ -183,7 +199,6 @@ CREATE TABLE IF NOT EXISTS `Subtask` (
   `statusID` INT NOT NULL,
   `dateTimeScheduled` DATETIME NULL,
   `parentTaskID` INT NULL,
-  `Subtaskcol` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`subTaskID`),
   INDEX `FK_Subtask_statusID_idx` (`statusID` ASC),
   INDEX `FK_Subtask_parentTaskID_idx` (`parentTaskID` ASC),
@@ -222,6 +237,29 @@ CREATE TABLE IF NOT EXISTS `TaskDependency` (
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+  -- Table `TaskTag`
+  -- -----------------------------------------------------
+  DROP TABLE IF EXISTS `TaskTag` ;
+
+  CREATE TABLE IF NOT EXISTS `TaskTag` (
+    `taskID` INT NOT NULL,
+    `tagID` INT NOT NULL,
+    PRIMARY KEY (`taskID`, `tagID`),
+    INDEX `FK_TaskTag_tagID_idx` (`tagID` ASC),
+    CONSTRAINT `FK_TaskTag_taskID`
+      FOREIGN KEY (`taskID`)
+      REFERENCES `Task` (`taskID`)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE,
+    CONSTRAINT `FK_TaskTag_tagID`
+      FOREIGN KEY (`tagID`)
+      REFERENCES `Tag` (`tagID`)
+      ON DELETE CASCADE
+      ON UPDATE CASCADE)
+  ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
@@ -317,7 +355,6 @@ CREATE TABLE IF NOT EXISTS `Attachment` (
   `metadata` TEXT NULL,
   `fileSize` INT NOT NULL,
   `taskID` INT NULL,
-  `Attachmentcol` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`attachmentID`),
   INDEX `FK_Attachment_taskID_idx` (`taskID` ASC),
   CONSTRAINT `FK_Attachment_taskID`
@@ -334,20 +371,13 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `RecurrenceRule` ;
 
 CREATE TABLE IF NOT EXISTS `RecurrenceRule` (
-  `recurrenceRuleID` INT NOT NULL AUTO_INCREMENT,
-  `timesOfRecurrence` INT NOT NULL,
-  `stateDateTime` DATETIME NOT NULL,
-  `endDateTime` DATETIME NOT NULL,
-  `frequency` VARCHAR(45) NOT NULL,
-  `taskID` INT NOT NULL,
-  PRIMARY KEY (`recurrenceRuleID`),
-  INDEX `FK_RecurrenceRule_taskID_idx` (`taskID` ASC),
-  CONSTRAINT `FK_RecurrenceRule_taskID`
-    FOREIGN KEY (`taskID`)
-    REFERENCES `Task` (`taskID`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE)
-ENGINE = InnoDB;
+    `recurrenceRuleID` INT NOT NULL AUTO_INCREMENT,
+    `timesOfRecurrence` INT NOT NULL,
+    `startDateTime` DATETIME NOT NULL,
+    `endDateTime` DATETIME NOT NULL,
+    `frequency` VARCHAR(45) NOT NULL,
+    PRIMARY KEY (`recurrenceRuleID`))
+  ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------

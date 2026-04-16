@@ -30,6 +30,12 @@ class TaskControllerTest {
     @MockBean
     private TaskRepository taskRepository;
 
+    @MockBean
+    private TagRepository tagRepository;
+
+    @MockBean
+    private RecurrenceRuleRepository recurrenceRuleRepository;
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -295,5 +301,173 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(taskRepository, never()).deleteById(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // PATCH /tasks/{id}/status
+    // -------------------------------------------------------------------------
+
+    @Test
+    void patchTaskStatus_found_updatesStatus() throws Exception {
+        Task task = makeTask(1L, "Some task", 1L, null);
+        task.setStatusID(null);
+        Task updated = makeTask(1L, "Some task", 1L, null);
+        updated.setStatusID(2L);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenReturn(updated);
+
+        mockMvc.perform(patch("/tasks/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statusID\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusID").value(2));
+    }
+
+    @Test
+    void patchTaskStatus_notFound_returns404() throws Exception {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(patch("/tasks/99/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"statusID\":2}"))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /tasks/{id}/recurrence
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getRecurrence_taskHasRule_returnsRule() throws Exception {
+        RecurrenceRule rule = new RecurrenceRule();
+        rule.setRecurrenceRuleID(10L);
+        rule.setFrequency("weekly");
+        rule.setTimesOfRecurrence(0);
+        rule.setStartDateTime(LocalDateTime.of(2026, 1, 1, 0, 0));
+        rule.setEndDateTime(LocalDateTime.of(2036, 1, 1, 0, 0));
+
+        Task task = makeTask(1L, "Repeating task", null, null);
+        task.setRecurrenceRuleID(10L);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(recurrenceRuleRepository.findById(10L)).thenReturn(Optional.of(rule));
+
+        mockMvc.perform(get("/tasks/1/recurrence"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.frequency").value("weekly"));
+    }
+
+    @Test
+    void getRecurrence_noRule_returns404() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        task.setRecurrenceRuleID(null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+
+        mockMvc.perform(get("/tasks/1/recurrence"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getRecurrence_taskNotFound_returns404() throws Exception {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/tasks/99/recurrence"))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
+    // PATCH /tasks/{id}/repeat
+    // -------------------------------------------------------------------------
+
+    @Test
+    void setRepeat_withFrequency_createsRule() throws Exception {
+        Task task = makeTask(1L, "Task", null, LocalDateTime.of(2026, 6, 1, 9, 0));
+        task.setRecurrenceRuleID(null);
+        RecurrenceRule savedRule = new RecurrenceRule();
+        savedRule.setRecurrenceRuleID(5L);
+        savedRule.setFrequency("daily");
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenReturn(savedRule);
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"frequency\":\"daily\"}"))
+                .andExpect(status().isOk());
+
+        verify(recurrenceRuleRepository).save(any(RecurrenceRule.class));
+    }
+
+    @Test
+    void setRepeat_emptyFrequency_clearsRule() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        task.setRecurrenceRuleID(7L);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"frequency\":\"\"}"))
+                .andExpect(status().isOk());
+
+        verify(recurrenceRuleRepository).deleteById(7L);
+    }
+
+    @Test
+    void setRepeat_taskNotFound_returns404() throws Exception {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(patch("/tasks/99/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"frequency\":\"daily\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /tasks/{id}/tags/{tagId}
+    // -------------------------------------------------------------------------
+
+    @Test
+    void addTag_bothExist_returns200WithTaskContainingTag() throws Exception {
+        Tag tag = new Tag();
+        tag.setTagID(3L);
+        tag.setTitle("Urgent");
+
+        Task task = makeTask(1L, "Task", null, null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(tagRepository.findById(3L)).thenReturn(Optional.of(tag));
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        mockMvc.perform(post("/tasks/1/tags/3"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void addTag_taskNotFound_returns404() throws Exception {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/tasks/99/tags/3"))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
+    // DELETE /tasks/{id}/tags/{tagId}
+    // -------------------------------------------------------------------------
+
+    @Test
+    void removeTag_taskFound_returns200() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        mockMvc.perform(delete("/tasks/1/tags/3"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void removeTag_taskNotFound_returns404() throws Exception {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/tasks/99/tags/3"))
+                .andExpect(status().isNotFound());
     }
 }
