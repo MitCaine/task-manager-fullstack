@@ -1,6 +1,7 @@
 package com.example.taskmanager;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,10 +39,10 @@ public class ReminderController {
                 .body(saved);
     }
 
-    private record DueDateUpdate(LocalDateTime dueDate) {}
+    private record DueDateUpdate(@NotNull(message = "Due date must not be null") LocalDateTime dueDate) {}
 
     @PatchMapping("/reminders/{id}")
-    public ResponseEntity<Reminder> patchReminder(@PathVariable Long id, @RequestBody DueDateUpdate req) {
+    public ResponseEntity<Reminder> patchReminder(@PathVariable Long id, @Valid @RequestBody DueDateUpdate req) {
         return reminderRepository.findById(id).map(r -> {
             r.setDueDate(req.dueDate());
             return ResponseEntity.ok(reminderRepository.save(r));

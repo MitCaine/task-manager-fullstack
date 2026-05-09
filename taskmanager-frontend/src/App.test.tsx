@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import App from './App';
 import {
   getTasks, createTask, deleteTask, patchTaskStatus,
-  getProjects, getTags,
+  getProjects, getTags, getRecurrence, setRepeat,
 } from './api/tasks';
 import type { Task } from './types/task';
 
@@ -16,6 +16,8 @@ const mockDeleteTask     = deleteTask     as jest.MockedFunction<typeof deleteTa
 const mockPatchStatus    = patchTaskStatus as jest.MockedFunction<typeof patchTaskStatus>;
 const mockGetProjects    = getProjects    as jest.MockedFunction<typeof getProjects>;
 const mockGetTags        = getTags        as jest.MockedFunction<typeof getTags>;
+const mockGetRecurrence  = getRecurrence  as jest.MockedFunction<typeof getRecurrence>;
+const mockSetRepeat      = setRepeat      as jest.MockedFunction<typeof setRepeat>;
 
 const sampleTask: Task = {
   taskID: 1,
@@ -38,6 +40,18 @@ beforeEach(() => {
   mockPatchStatus.mockResolvedValue(sampleTask);
   mockGetProjects.mockResolvedValue([]);
   mockGetTags.mockResolvedValue([]);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-01-01T00:00:00',
+    endDateTime: '2036-01-01T00:00:00',
+  });
+  mockSetRepeat.mockImplementation(async (taskId, frequency) => ({
+    ...sampleTask,
+    taskID: taskId,
+    recurrenceRuleID: frequency ? 11 : null,
+  }));
 });
 
 afterEach(() => {
@@ -346,6 +360,74 @@ test('clicking duplicate calls createTask with " (copy)" appended to the title',
     expect(mockCreateTask).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Buy milk (copy)' })
     );
+  });
+});
+
+test('clicking duplicate increments copy suffix when duplicating a copy', async () => {
+  const copiedTask: Task = { ...sampleTask, taskID: 2, title: 'Buy milk (copy)' };
+  mockGetTasks.mockResolvedValue([sampleTask, copiedTask]);
+  mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 99, title: 'Buy milk (copy 2)' });
+
+  render(<App />);
+  await screen.findByText('Buy milk (copy)');
+
+  const copiedItem = screen.getByText('Buy milk (copy)').closest('li');
+  expect(copiedItem).not.toBeNull();
+
+  await act(async () => {
+    userEvent.click(within(copiedItem as HTMLElement).getByRole('button', { name: /duplicate task/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Buy milk (copy 2)' })
+    );
+  });
+});
+
+test('clicking duplicate reuses the lowest missing copy suffix', async () => {
+  const copiedTask: Task = { ...sampleTask, taskID: 2, title: 'Buy milk (copy 2)' };
+  mockGetTasks.mockResolvedValue([sampleTask, copiedTask]);
+  mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 99, title: 'Buy milk (copy)' });
+
+  render(<App />);
+  await screen.findByText('Buy milk (copy 2)');
+
+  await act(async () => {
+    userEvent.click(screen.getAllByRole('button', { name: /duplicate task/i })[0]);
+  });
+
+  await waitFor(() => {
+    expect(mockCreateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Buy milk (copy)' })
+    );
+  });
+});
+
+test('clicking duplicate carries over the recurrence rule', async () => {
+  const recurringTask: Task = { ...sampleTask, recurrenceRuleID: 10 };
+  const copy = { ...recurringTask, taskID: 99, title: 'Buy milk (copy)', recurrenceRuleID: null };
+  mockGetTasks.mockResolvedValue([recurringTask]);
+  mockCreateTask.mockResolvedValue(copy);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'monthly',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-01-01T00:00:00',
+    endDateTime: '2036-01-01T00:00:00',
+  });
+  mockSetRepeat.mockResolvedValue({ ...copy, recurrenceRuleID: 12 });
+
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /duplicate task/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockGetRecurrence).toHaveBeenCalledWith(1);
+    expect(mockSetRepeat).toHaveBeenCalledWith(99, 'monthly');
   });
 });
 

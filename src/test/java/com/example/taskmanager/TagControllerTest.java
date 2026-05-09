@@ -90,6 +90,26 @@ class TagControllerTest {
     }
 
     @Test
+    void createTag_titleTooLong_returns400() throws Exception {
+        String longTitle = "A".repeat(26);
+
+        mockMvc.perform(post("/tags")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + longTitle + "\",\"color\":\"#6366f1\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").exists());
+    }
+
+    @Test
+    void createTag_invalidColor_returns400() throws Exception {
+        mockMvc.perform(post("/tags")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Work\",\"color\":\"blue\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.color").exists());
+    }
+
+    @Test
     void createTag_idInBodyIsIgnored() throws Exception {
         Tag saved = makeTag(99L, "Work", "#6366f1");
         when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> {
@@ -146,6 +166,17 @@ class TagControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"color\":\"#ff0000\"}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateTag_invalidColor_returns400() throws Exception {
+        mockMvc.perform(patch("/tags/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"color\":\"not-a-color\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.color").exists());
+
+        verify(tagRepository, never()).save(any());
     }
 
     // -------------------------------------------------------------------------

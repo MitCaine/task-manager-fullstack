@@ -1,6 +1,7 @@
 package com.example.taskmanager;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,6 +13,7 @@ public class Reminder {
     private Long reminderID;
 
     @Column(name = "dueDate")
+    @NotNull(message = "Due date must not be null")
     private LocalDateTime dueDate;
 
     @Column(name = "notificationMethod")

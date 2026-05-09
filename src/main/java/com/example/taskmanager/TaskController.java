@@ -2,11 +2,15 @@ package com.example.taskmanager;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/tasks")
@@ -15,6 +19,7 @@ public class TaskController {
     private final TaskRepository taskRepository;
     private final TagRepository tagRepository;
     private final RecurrenceRuleRepository recurrenceRuleRepository;
+    private static final Set<String> ALLOWED_REPEAT_FREQUENCIES = Set.of("daily", "weekly", "monthly");
 
     public TaskController(TaskRepository taskRepository, TagRepository tagRepository,
                           RecurrenceRuleRepository recurrenceRuleRepository) {
@@ -105,21 +110,21 @@ public class TaskController {
     @PatchMapping("/{id}/repeat")
     public ResponseEntity<Task> setRepeat(@PathVariable Long id, @RequestBody RepeatRequest req) {
         return taskRepository.findById(id).map(task -> {
-            if (req.frequency() == null || req.frequency().isBlank()) {
+            String frequency = req.frequency() == null ? null : req.frequency().trim().toLowerCase();
+            if (frequency == null || frequency.isBlank()) {
                 // Clear recurrence
                 Long ruleId = task.getRecurrenceRuleID();
                 task.setRecurrenceRuleID(null);
                 taskRepository.save(task);
                 if (ruleId != null) recurrenceRuleRepository.deleteById(ruleId);
             } else {
-                // Create or update recurrence rule
-                RecurrenceRule rule;
-                if (task.getRecurrenceRuleID() != null && recurrenceRuleRepository.existsById(task.getRecurrenceRuleID())) {
-                    rule = recurrenceRuleRepository.findById(task.getRecurrenceRuleID()).orElse(new RecurrenceRule());
-                } else {
-                    rule = new RecurrenceRule();
+                if (!ALLOWED_REPEAT_FREQUENCIES.contains(frequency)) {
+                    throw new ResponseStatusException(BAD_REQUEST, "Frequency must be daily, weekly, or monthly");
                 }
-                rule.setFrequency(req.frequency());
+                RecurrenceRule rule = task.getRecurrenceRuleID() == null
+                        ? new RecurrenceRule()
+                        : recurrenceRuleRepository.findById(task.getRecurrenceRuleID()).orElseGet(RecurrenceRule::new);
+                rule.setFrequency(frequency);
                 rule.setTimesOfRecurrence(0);
                 LocalDateTime start = task.getDateTimeScheduled() != null ? task.getDateTimeScheduled() : LocalDateTime.now();
                 rule.setStartDateTime(start);

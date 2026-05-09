@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, isValidElement, Children, Fragment } from 'react';
-import type { ReactElement, RefObject, SelectHTMLAttributes } from 'react';
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import type { RefObject } from 'react';
 import './App.css';
 import type { Attachment, Note, Project, RecurrenceRule, Reminder, Subtask, Tag, Task } from './types/task';
 import {
@@ -59,37 +59,6 @@ function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
     minute: String(now.getMinutes()).padStart(2, '0'),
     ampm: h >= 12 ? 'PM' : 'AM',
   };
-}
-
-function SizedSelect({ value, onChange, children, className }: SelectHTMLAttributes<HTMLSelectElement>) {
-  const spanRef = useRef<HTMLSpanElement>(null);
-  const selectRef = useRef<HTMLSelectElement>(null);
-
-  const selectedText = Children.toArray(children)
-    .filter((c): c is ReactElement => isValidElement(c))
-    .find(c => String(c.props.value) === String(value ?? ''))?.props.children ?? '';
-
-  useLayoutEffect(() => {
-    if (spanRef.current && selectRef.current) {
-      selectRef.current.style.width = spanRef.current.offsetWidth + 'px';
-    }
-  }, [selectedText]);
-
-  return (
-    <span style={{ position: 'relative', display: 'inline-block' }}>
-      <span
-        ref={spanRef}
-        className={className}
-        aria-hidden="true"
-        style={{ position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap', pointerEvents: 'none', top: 0, left: 0 }}
-      >
-        {selectedText}
-      </span>
-      <select ref={selectRef} value={value} onChange={onChange} className={className}>
-        {children}
-      </select>
-    </span>
-  );
 }
 
 function App(): JSX.Element {
@@ -366,8 +335,15 @@ function App(): JSX.Element {
     return doneToBottom([...list].sort((a, b) => (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '')));
   }, [tasks, search, filterStatus, sortBy]);
 
-  const completedCount = useMemo(() => tasks.filter(t => t.statusID === 2).length, [tasks]);
-  const overdueCount   = useMemo(() => tasks.filter(t => isTaskOverdue(t)).length, [tasks]);
+  const { completedCount, overdueCount } = useMemo(() => {
+    let completedCount = 0;
+    let overdueCount = 0;
+    for (const task of tasks) {
+      if (task.statusID === 2) completedCount += 1;
+      if (isTaskOverdue(task)) overdueCount += 1;
+    }
+    return { completedCount, overdueCount };
+  }, [tasks]);
 
   const displayedTasks = useMemo(() => {
     let list = filteredTasks;
@@ -759,6 +735,13 @@ function App(): JSX.Element {
     loadTaskSections(task.taskID);
   };
 
+  const openTaskFromCalendar = async (taskId: number) => {
+    focusTaskById(taskId);
+    if (selectedTaskId === taskId) return;
+    const task = tasks.find(t => t.taskID === taskId);
+    if (task) await openPanel(task);
+  };
+
   const togglePanelSection = (name: string) =>
     setOpenSections(prev => {
       const next = new Set(prev);
@@ -1003,10 +986,35 @@ function App(): JSX.Element {
   };
 
   // ── Task duplication ─────────────────────────────────────────────────────────
+  const parseCopyTitle = (title: string) => {
+    const match = title.match(/^(.*)\s\(copy(?:\s+(\d+))?\)$/);
+    if (!match) return null;
+    const copyNumber = match[2] ? Number(match[2]) : 1;
+    if (!Number.isInteger(copyNumber) || copyNumber < 1) return null;
+    return { baseTitle: match[1], copyNumber };
+  };
+
+  const nextCopyTitle = (title: string) => {
+    const parsedTitle = parseCopyTitle(title);
+    const baseTitle = parsedTitle?.baseTitle ?? title;
+    const usedCopyNumbers = new Set<number>();
+
+    for (const existingTask of tasks) {
+      const parsedExisting = parseCopyTitle(existingTask.title);
+      if (parsedExisting?.baseTitle === baseTitle) {
+        usedCopyNumbers.add(parsedExisting.copyNumber);
+      }
+    }
+
+    let copyNumber = 1;
+    while (usedCopyNumbers.has(copyNumber)) copyNumber += 1;
+    return `${baseTitle} (copy${copyNumber === 1 ? '' : ` ${copyNumber}`})`;
+  };
+
   const duplicateTask = async (task: Task) => {
     try {
       const saved = await createTask({
-        title: task.title + ' (copy)',
+        title: nextCopyTitle(task.title),
         description: task.description ?? '',
         dateTimeScheduled: task.dateTimeScheduled ?? null,
         userID: task.userID,
@@ -1014,11 +1022,17 @@ function App(): JSX.Element {
         priority: task.priority ?? null,
         projectID: task.projectID ?? null,
       });
+      const duplicatedTask: Task = { ...saved };
       if (task.tags && task.tags.length > 0) {
         await Promise.all(task.tags.map(tag => addTagToTask(saved.taskID, tag.tagID)));
-        saved.tags = task.tags;
+        duplicatedTask.tags = task.tags;
       }
-      setTasks(prev => [...prev, saved]);
+      if (task.recurrenceRuleID) {
+        const rule = await getRecurrence(task.taskID);
+        const repeatedTask = await setRepeat(saved.taskID, rule.frequency);
+        duplicatedTask.recurrenceRuleID = repeatedTask.recurrenceRuleID ?? null;
+      }
+      setTasks(prev => [...prev, duplicatedTask]);
     } catch {
       setError('Failed to duplicate task.');
     }
@@ -1281,6 +1295,46 @@ function App(): JSX.Element {
     return { total, done, active, overdue, doneThisWeek, high, medium, low, noPriority, completionRate };
   }, [tasks]);
 
+  const hasActiveListFilters =
+    search.trim() !== '' ||
+    filterStatus !== 'all' ||
+    filterProjectID !== '' ||
+    filterTagID !== '';
+
+  const emptyState = (() => {
+    if (search.trim() !== '') {
+      return {
+        title: 'No matching tasks',
+        body: 'Try a different search term or reset the current filters.',
+      };
+    }
+    if (hasActiveListFilters) {
+      return {
+        title: 'No tasks in this filter',
+        body: 'Reset filters to bring the rest of your tasks back into view.',
+      };
+    }
+    if (viewTab !== 'all') {
+      return {
+        title: `No tasks ${viewTab === 'today' ? 'today' : viewTab === 'week' ? 'this week' : 'this month'}`,
+        body: 'Anything scheduled for this view will show up here.',
+      };
+    }
+    return {
+      title: 'No tasks yet',
+      body: 'Add your first task from the form on the left.',
+    };
+  })();
+
+  const showFilterValue: FilterStatus =
+    filterStatus === 'high' || filterStatus === 'medium' || filterStatus === 'low'
+      ? 'all'
+      : filterStatus;
+  const priorityFilterValue: FilterStatus =
+    filterStatus === 'high' || filterStatus === 'medium' || filterStatus === 'low'
+      ? filterStatus
+      : 'all';
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="app">
@@ -1340,6 +1394,7 @@ function App(): JSX.Element {
         </div>
       )}
 
+      <div className="app__planner">
       <div className="card app__add">
 
         {/* Header */}
@@ -1679,7 +1734,18 @@ function App(): JSX.Element {
 
       </div>{/* /app__add */}
 
-      <div className={`card app__list${selectedTaskId !== null ? ' app__list--narrow' : ''}`}>
+      <Calendar
+        tasks={calTasks}
+        projects={projects}
+        is24Hour={is24Hour}
+        isEuropeanDate={isEuropeanDate}
+        onEditTask={openTaskFromCalendar}
+        hideCompleted={calHideCompleted}
+        onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
+      />
+      </div>{/* /app__planner */}
+
+      <div className={`card app__list${selectedTaskId !== null && viewTab !== 'board' ? ' app__list--narrow' : ''}${viewTab === 'board' ? ' app__list--board' : ''}`}>
 
         {/* View tabs */}
         <div className="view-tabs">
@@ -1696,90 +1762,72 @@ function App(): JSX.Element {
 
         {/* Sort / filter controls */}
         <div className="list-controls list-controls--with-reset">
-          <div className="list-controls__group">
-            <span className="list-controls__label">Sort</span>
-            {([
-              ['dueAsc',       '↑ Date'],
-              ['dueDesc',      '↓ Date'],
-              ['titleAsc',     'A–Z'],
-              ['priorityDesc', 'Priority'],
-              ['overdueFirst', 'Overdue first'],
-            ] as [SortBy, string][]).map(([val, label]) => (
-              <button
-                key={val}
-                className={`btn btn--ghost btn--sm${sortBy === val ? ' btn--active' : ''}`}
-                onClick={() => setSortBy(val)}
+          <div className="list-controls__row list-controls__row--primary">
+            <label className="filter-field">
+              <span className="filter-field__label">Sort</span>
+              <select className="select select--sm filter-field__select" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
+                <option value="dueAsc">Date ↑</option>
+                <option value="dueDesc">Date ↓</option>
+                <option value="titleAsc">A-Z</option>
+                <option value="priorityDesc">Priority</option>
+                <option value="overdueFirst">Overdue first</option>
+              </select>
+            </label>
+            <label className="filter-field">
+              <span className="filter-field__label">Show</span>
+              <select className="select select--sm filter-field__select" value={showFilterValue} onChange={e => setFilterStatus(e.target.value as FilterStatus)}>
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="completed">Done</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </label>
+            <label className="filter-field">
+              <span className="filter-field__label">Priority</span>
+              <select className="select select--sm filter-field__select" value={priorityFilterValue} onChange={e => setFilterStatus(e.target.value as FilterStatus)}>
+                <option value="all">All</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
+          <div className="list-controls__row list-controls__row--secondary">
+            <label className="filter-field">
+              <span className="filter-field__label">Project</span>
+              <select
+                className="select select--sm filter-field__select"
+                value={filterProjectID}
+                onChange={e => setFilterProjectID(e.target.value === '' ? '' : Number(e.target.value))}
               >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="list-controls__group">
-            <span className="list-controls__label">Show</span>
-            {([
-              ['all',       'All'],
-              ['active',    'Active'],
-              ['completed', 'Done'],
-              ['overdue',   'Overdue'],
-            ] as [FilterStatus, string][]).map(([val, label]) => (
-              <button
-                key={val}
-                className={`btn btn--ghost btn--sm${filterStatus === val ? ' btn--active' : ''}`}
-                onClick={() => setFilterStatus(val)}
+                <option value="">All</option>
+                {projects.map(p => (
+                  <option key={p.projectID} value={p.projectID}>{p.title}</option>
+                ))}
+              </select>
+            </label>
+            <label className="filter-field">
+              <span className="filter-field__label">Tag</span>
+              <select
+                className="select select--sm filter-field__select"
+                value={filterTagID}
+                onChange={e => setFilterTagID(e.target.value === '' ? '' : Number(e.target.value))}
               >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="list-controls__group">
-            <span className="list-controls__label">Priority</span>
-            {([
-              ['all',    null,      'All'],
-              ['high',   '#f87171', 'High'],
-              ['medium', '#fbbf24', 'Med'],
-              ['low',    '#4ade80', 'Low'],
-            ] as [FilterStatus, string | null, string][]).map(([val, color, label]) => (
+                <option value="">All</option>
+                {tags.map(tag => (
+                  <option key={tag.tagID} value={tag.tagID}>{tag.title}</option>
+                ))}
+              </select>
+            </label>
+            {(sortBy !== 'dueAsc' || filterStatus !== 'all' || filterProjectID !== '' || filterTagID !== '' || search !== '') && (
               <button
-                key={val}
-                className={`btn btn--ghost btn--sm${filterStatus === val ? ' btn--active' : ''}`}
-                onClick={() => setFilterStatus(val)}
+                className="btn btn--ghost btn--sm btn--reset-filters"
+                onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
               >
-                {color && <span className="priority-dot" style={{ background: color }} />}{label}
+                ✕ Reset filters
               </button>
-            ))}
+            )}
           </div>
-          <div className="list-controls__group">
-            <span className="list-controls__label">Project</span>
-            <SizedSelect
-              className="select select--sm"
-              value={filterProjectID}
-              onChange={e => setFilterProjectID(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">All</option>
-              {projects.map(p => (
-                <option key={p.projectID} value={p.projectID}>{p.title}</option>
-              ))}
-            </SizedSelect>
-            <span className="list-controls__label">Tag</span>
-            <SizedSelect
-              className="select select--sm"
-              value={filterTagID}
-              onChange={e => setFilterTagID(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">All</option>
-              {tags.map(tag => (
-                <option key={tag.tagID} value={tag.tagID}>{tag.title}</option>
-              ))}
-            </SizedSelect>
-          </div>
-          {(sortBy !== 'dueAsc' || filterStatus !== 'all' || filterProjectID !== '' || filterTagID !== '' || search !== '') && (
-            <button
-              className="btn btn--ghost btn--sm btn--reset-filters"
-              onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
-            >
-              ✕ Reset filters
-            </button>
-          )}
         </div>
 
         {/* Search */}
@@ -1871,6 +1919,9 @@ function App(): JSX.Element {
                       )}
                     </div>
                   ))}
+                  {colTasks.length === 0 && (
+                    <div className="kanban__empty">Drop tasks here</div>
+                  )}
                 </div>
               );
             })}
@@ -1887,7 +1938,17 @@ function App(): JSX.Element {
           <ul className="list">
             {tabTasks.length === 0 && (
               <li className="empty">
-                {search ? 'No tasks match your search.' : viewTab !== 'all' ? `No tasks for ${viewTab === 'today' ? 'today' : viewTab === 'week' ? 'this week' : 'this month'}.` : 'No tasks yet — add one above!'}
+                <span className="empty__title">{emptyState.title}</span>
+                <span className="empty__body">{emptyState.body}</span>
+                {hasActiveListFilters && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+                  >
+                    Reset filters
+                  </button>
+                )}
               </li>
             )}
 
@@ -2429,15 +2490,6 @@ function App(): JSX.Element {
         );
       })()}
 
-      <Calendar
-        tasks={calTasks}
-        projects={projects}
-        is24Hour={is24Hour}
-        isEuropeanDate={isEuropeanDate}
-        onEditTask={focusTaskById}
-        hideCompleted={calHideCompleted}
-        onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
-      />
     </div>
   );
 }

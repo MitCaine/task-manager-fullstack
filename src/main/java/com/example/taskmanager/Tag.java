@@ -2,6 +2,8 @@ package com.example.taskmanager;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "Tag")
@@ -12,8 +14,10 @@ public class Tag {
     private Long tagID;
 
     @NotBlank(message = "Title must not be blank")
+    @Size(max = 25, message = "Title must not exceed 25 characters")
     private String title;
 
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "Color must be a 6-digit hex value")
     @Column(name = "color")
     private String color;
 

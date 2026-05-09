@@ -123,6 +123,19 @@ class ReminderControllerTest {
                 .andExpect(status().isCreated());
     }
 
+    @Test
+    void createReminder_missingDueDate_returns400() throws Exception {
+        when(taskRepository.existsById(1L)).thenReturn(true);
+
+        mockMvc.perform(post("/tasks/1/reminders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"No due date\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.dueDate").exists());
+
+        verify(reminderRepository, never()).save(any());
+    }
+
     // -------------------------------------------------------------------------
     // PATCH /reminders/{id}
     // -------------------------------------------------------------------------
@@ -149,6 +162,17 @@ class ReminderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"dueDate\":\"2026-07-01T09:00:00\"}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void patchReminder_missingDueDate_returns400() throws Exception {
+        mockMvc.perform(patch("/reminders/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.dueDate").exists());
+
+        verify(reminderRepository, never()).save(any());
     }
 
     // -------------------------------------------------------------------------

@@ -398,6 +398,40 @@ class TaskControllerTest {
     }
 
     @Test
+    void setRepeat_uppercaseFrequency_normalizesBeforeSave() throws Exception {
+        Task task = makeTask(1L, "Task", null, LocalDateTime.of(2026, 6, 1, 9, 0));
+        RecurrenceRule savedRule = new RecurrenceRule();
+        savedRule.setRecurrenceRuleID(5L);
+        savedRule.setFrequency("weekly");
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+        when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenAnswer(inv -> {
+            RecurrenceRule rule = inv.getArgument(0);
+            assert "weekly".equals(rule.getFrequency()) : "frequency should be normalized";
+            return savedRule;
+        });
+        when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"frequency\":\" WEEKLY \"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void setRepeat_invalidFrequency_returns400() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"frequency\":\"yearly\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(recurrenceRuleRepository, never()).save(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
     void setRepeat_emptyFrequency_clearsRule() throws Exception {
         Task task = makeTask(1L, "Task", null, null);
         task.setRecurrenceRuleID(7L);

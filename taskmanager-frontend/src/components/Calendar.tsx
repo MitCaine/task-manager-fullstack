@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Task, Project } from '../types/task';
 import { isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
@@ -9,6 +9,7 @@ const MONTH_NAMES = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
+const YEAR_RANGE_LABELS = ['Jan - Apr', 'May - Aug', 'Sep - Dec'];
 const DAY_ABBR  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_SHORT = ['S','M','T','W','T','F','S'];
 
@@ -24,14 +25,6 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getISOWeek(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-}
-
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -41,6 +34,14 @@ function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, i) =>
     cells.slice(i * 7, i * 7 + 7)
   );
+}
+
+function buildFixedMonthGrid(year: number, month: number): (Date | null)[][] {
+  const grid = buildMonthGrid(year, month);
+  while (grid.length < 6) {
+    grid.push(Array(7).fill(null));
+  }
+  return grid.slice(0, 6);
 }
 
 type DayTaskStatus = 'none' | 'upcoming' | 'overdue' | 'mixed' | 'completed';
@@ -65,17 +66,69 @@ function weekStart(date: Date): Date {
   return d;
 }
 
+function sameDate(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function formatWeekLabel(start: Date, locale: string): string {
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return `${start.toLocaleDateString(locale, { month: 'short', day: 'numeric' })} – ` +
+    `${end.toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`;
+}
+
+function buildWeekOptions(year: number, month: number, locale: string) {
+  return buildMonthGrid(year, month)
+    .map(week => week.filter((d): d is Date => d !== null))
+    .filter(realDays => realDays.length > 0)
+    .map(realDays => {
+      const start = weekStart(realDays[0]);
+      return { start, label: formatWeekLabel(start, locale) };
+    });
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, onEditTask, hideCompleted, onToggleHideCompleted }: Props) {
   const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
   const [view,     setView]     = useState<CalView>('week');
   const [selMonth, setSelMonth] = useState(() => new Date().getMonth());
+  const [yearRange, setYearRange] = useState(() => Math.floor(new Date().getMonth() / 4));
   const [selWeek,  setSelWeek]  = useState(() => weekStart(new Date()));
   const [selDay,   setSelDay]   = useState(() => new Date());
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showHalfPicker, setShowHalfPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const yearPickerRef = useRef<HTMLDivElement>(null);
+  const halfPickerRef = useRef<HTMLDivElement>(null);
+  const monthPickerRef = useRef<HTMLDivElement>(null);
+  const weekPickerRef = useRef<HTMLDivElement>(null);
+  const selectedYearRef = useRef<HTMLButtonElement>(null);
 
   const locale   = isEuropeanDate ? 'en-GB' : 'en-US';
   const todayKey = toKey(new Date());
+
+  useEffect(() => {
+    const closePickers = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!yearPickerRef.current?.contains(target)) setShowYearPicker(false);
+      if (!halfPickerRef.current?.contains(target)) setShowHalfPicker(false);
+      if (!monthPickerRef.current?.contains(target)) setShowMonthPicker(false);
+      if (!weekPickerRef.current?.contains(target)) setShowWeekPicker(false);
+    };
+
+    document.addEventListener('mousedown', closePickers);
+    return () => document.removeEventListener('mousedown', closePickers);
+  }, []);
+
+  useEffect(() => {
+    if (showYearPicker) {
+      selectedYearRef.current?.scrollIntoView({ block: 'center' });
+    }
+  }, [showYearPicker, calYear]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -108,57 +161,233 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     setView('day');
   };
 
+  const goYearView = () => {
+    setYearRange(Math.floor(selMonth / 4));
+    setView('year');
+  };
+
   // ── Breadcrumb trail ───────────────────────────────────────────────────────
   const renderBreadcrumbs = () => {
-    const weekEnd = new Date(selWeek);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const weekLabel =
-      `${selWeek.toLocaleDateString(locale, { month: 'short', day: 'numeric' })} – ` +
-      `${weekEnd.toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`;
+    const weekLabel = formatWeekLabel(selWeek, locale);
     const dayLabel = selDay.toLocaleDateString(locale, {
       weekday: 'short', month: 'short', day: 'numeric',
     });
 
-    type Crumb = { label: string; action?: () => void };
-    const crumbs: Crumb[] = [];
+    if (view === 'year') {
+      const yearOptions = Array.from({ length: 201 }, (_, i) => calYear - 100 + i)
+        .filter(year => year >= 1 && year <= 9999);
+      const selectRange = (index: number) => {
+        const month = index * 4;
+        setYearRange(index);
+        setSelMonth(month);
+        setSelWeek(weekStart(new Date(calYear, month, 1)));
+        setSelDay(new Date(calYear, month, 1));
+        setShowHalfPicker(false);
+        setShowMonthPicker(false);
+        setShowWeekPicker(false);
+      };
+      const weekOptions = buildWeekOptions(calYear, selMonth, locale);
 
-    // Year crumb — always present, clickable unless we're already in year view
-    crumbs.push({
-      label: String(calYear),
-      action: view !== 'year' ? () => setView('year') : undefined,
-    });
+      return (
+        <nav className="cal-breadcrumb">
+          <div className="cal-breadcrumb__picker" ref={yearPickerRef}>
+            <button
+              type="button"
+              className="cal-breadcrumb__choice cal-breadcrumb__choice--year"
+              onClick={() => setShowYearPicker(open => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={showYearPicker}
+            >
+              {calYear}
+            </button>
+            {showYearPicker && (
+              <div className="cal-breadcrumb__menu cal-breadcrumb__menu--year" role="listbox">
+                {yearOptions.map(year => (
+                  <button
+                    key={year}
+                    ref={year === calYear ? selectedYearRef : undefined}
+                    type="button"
+                    className={`cal-breadcrumb__option${year === calYear ? ' cal-breadcrumb__option--active' : ''}`}
+                    onClick={() => {
+                      setCalYear(year);
+                      setShowYearPicker(false);
+                    }}
+                    role="option"
+                    aria-selected={year === calYear}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="cal-breadcrumb__sep">›</span>
+          <div className="cal-breadcrumb__picker" ref={halfPickerRef}>
+            <button
+              type="button"
+              className="cal-breadcrumb__choice cal-breadcrumb__choice--half"
+              onClick={() => setShowHalfPicker(open => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={showHalfPicker}
+            >
+              {YEAR_RANGE_LABELS[yearRange]}
+            </button>
+            {showHalfPicker && (
+              <div className="cal-breadcrumb__menu cal-breadcrumb__menu--half" role="listbox">
+                {YEAR_RANGE_LABELS.map((label, index) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`cal-breadcrumb__option${index === yearRange ? ' cal-breadcrumb__option--active' : ''}`}
+                    onClick={() => selectRange(index)}
+                    role="option"
+                    aria-selected={index === yearRange}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="cal-breadcrumb__sep">›</span>
+          <div className="cal-breadcrumb__picker" ref={weekPickerRef}>
+            <button
+              type="button"
+              className="cal-breadcrumb__choice cal-breadcrumb__choice--week"
+              onClick={() => setShowWeekPicker(open => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={showWeekPicker}
+            >
+              {weekLabel}
+            </button>
+            {showWeekPicker && (
+              <div className="cal-breadcrumb__menu cal-breadcrumb__menu--week" role="listbox">
+                {weekOptions.map(option => (
+                  <button
+                    key={toKey(option.start)}
+                    type="button"
+                    className={`cal-breadcrumb__option${sameDate(option.start, selWeek) ? ' cal-breadcrumb__option--active' : ''}`}
+                    onClick={() => {
+                      setSelWeek(option.start);
+                      setSelDay(option.start);
+                      setShowWeekPicker(false);
+                      setView('week');
+                    }}
+                    role="option"
+                    aria-selected={sameDate(option.start, selWeek)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </nav>
+      );
+    }
 
     if (view === 'month' || view === 'week' || view === 'day') {
-      crumbs.push({
-        label: MONTH_NAMES[selMonth],
-        action: view !== 'month' ? () => setView('month') : undefined,
-      });
+      const selectMonth = (month: number) => {
+        setSelMonth(month);
+        setYearRange(Math.floor(month / 4));
+        setSelWeek(weekStart(new Date(calYear, month, 1)));
+        setSelDay(new Date(calYear, month, 1));
+        setShowMonthPicker(false);
+        setShowWeekPicker(false);
+        setView('month');
+      };
+
+      const monthPicker = view === 'month' ? (
+        <div className="cal-breadcrumb__picker" ref={monthPickerRef}>
+          <button
+            type="button"
+            className="cal-breadcrumb__choice cal-breadcrumb__choice--month"
+            onClick={() => setShowMonthPicker(open => !open)}
+            aria-haspopup="listbox"
+            aria-expanded={showMonthPicker}
+          >
+            {MONTH_NAMES[selMonth]}
+          </button>
+          {showMonthPicker && (
+            <div className="cal-breadcrumb__menu cal-breadcrumb__menu--month" role="listbox">
+              {MONTH_NAMES.map((month, index) => (
+                <button
+                  key={month}
+                  type="button"
+                  className={`cal-breadcrumb__option${index === selMonth ? ' cal-breadcrumb__option--active' : ''}`}
+                  onClick={() => selectMonth(index)}
+                  role="option"
+                  aria-selected={index === selMonth}
+                >
+                  {month}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <button className="cal-breadcrumb__link" onClick={() => setView('month')}>
+          {MONTH_NAMES[selMonth]}
+        </button>
+      );
+
+      const weekOptions = buildWeekOptions(calYear, selMonth, locale);
+
+      return (
+        <nav className="cal-breadcrumb">
+          <button className="cal-breadcrumb__link" onClick={goYearView}>{calYear}</button>
+          <span className="cal-breadcrumb__sep">›</span>
+          {monthPicker}
+          <span className="cal-breadcrumb__sep">›</span>
+          {view === 'week' ? (
+            <div className="cal-breadcrumb__picker" ref={weekPickerRef}>
+              <button
+                type="button"
+                className="cal-breadcrumb__choice cal-breadcrumb__choice--week"
+                onClick={() => setShowWeekPicker(open => !open)}
+                aria-haspopup="listbox"
+                aria-expanded={showWeekPicker}
+              >
+                {weekLabel}
+              </button>
+              {showWeekPicker && (
+                <div className="cal-breadcrumb__menu cal-breadcrumb__menu--week" role="listbox">
+                  {weekOptions.map(option => (
+                    <button
+                      key={toKey(option.start)}
+                      type="button"
+                      className={`cal-breadcrumb__option${sameDate(option.start, selWeek) ? ' cal-breadcrumb__option--active' : ''}`}
+                      onClick={() => {
+                        setSelWeek(option.start);
+                        setSelDay(option.start);
+                        setShowWeekPicker(false);
+                        setView('week');
+                      }}
+                      role="option"
+                      aria-selected={sameDate(option.start, selWeek)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="cal-breadcrumb__link" onClick={() => setView('week')}>
+              {weekLabel}
+            </button>
+          )}
+          {view === 'day' && (
+            <>
+              <span className="cal-breadcrumb__sep">›</span>
+              <span className="cal-breadcrumb__current">{dayLabel}</span>
+            </>
+          )}
+        </nav>
+      );
     }
 
-    if (view === 'week' || view === 'day') {
-      crumbs.push({
-        label: weekLabel,
-        action: view === 'day' ? () => setView('week') : undefined,
-      });
-    }
-
-    if (view === 'day') {
-      crumbs.push({ label: dayLabel });
-    }
-
-    return (
-      <nav className="cal-breadcrumb">
-        {crumbs.map((c, i) => (
-          <span key={i} className="cal-breadcrumb__item">
-            {i > 0 && <span className="cal-breadcrumb__sep">›</span>}
-            {c.action
-              ? <button className="cal-breadcrumb__link" onClick={c.action}>{c.label}</button>
-              : <span className="cal-breadcrumb__current">{c.label}</span>
-            }
-          </span>
-        ))}
-      </nav>
-    );
+    return null;
   };
 
   const fmtDate = (dt: string) =>
@@ -166,6 +395,16 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
   const fmtShortDate = (dt: string) =>
     new Date(dt).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+
+  const upcomingAgenda = useMemo(() => {
+    const now = Date.now();
+    return [...tasks]
+      .filter(t => {
+        if (!t.dateTimeScheduled || t.statusID === 2) return false;
+        return new Date(t.dateTimeScheduled).getTime() >= now;
+      })
+      .sort((a, b) => a.dateTimeScheduled!.localeCompare(b.dateTimeScheduled!));
+  }, [tasks]);
 
   // ── Shared task list ───────────────────────────────────────────────────────
   const renderTasks = (items: Task[], showDate = false) => {
@@ -228,29 +467,84 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     );
   };
 
+  const renderUpcomingAgenda = () => (
+    <div className="cal-section cal-section--agenda">
+      <div className="cal-section__hdr">
+        Upcoming
+        {upcomingAgenda.length > 0 && (
+          <span className="cal-badge cal-badge--sm">{upcomingAgenda.length}</span>
+        )}
+      </div>
+      {upcomingAgenda.length === 0 ? (
+        <p className="cal-empty">No upcoming scheduled tasks.</p>
+      ) : (
+        <ul className="cal-agenda">
+          {upcomingAgenda.map(task => {
+            const project = task.projectID
+              ? projects.find(p => p.projectID === Number(task.projectID))
+              : null;
+
+            return (
+              <li
+                key={task.taskID}
+                className="cal-agenda__item"
+                onClick={() => onEditTask(task.taskID)}
+                title="Edit task"
+              >
+                <span className="cal-agenda__when">
+                  <span>{fmtShortDate(task.dateTimeScheduled!)}</span>
+                  <span>{fmtTime(task.dateTimeScheduled!)}</span>
+                </span>
+                <span className="cal-agenda__body">
+                  <span className="cal-agenda__title">{task.title}</span>
+                  {(task.priority || project) && (
+                    <span className="cal-agenda__meta">
+                      {task.priority && (
+                        <span className={`cal-item__priority cal-item__priority--${task.priority.toLowerCase()}`}>
+                          {task.priority[0] + task.priority.slice(1).toLowerCase()}
+                        </span>
+                      )}
+                      {project && <span className="cal-item__project-chip">{project.title}</span>}
+                    </span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+
   // ── Year view ──────────────────────────────────────────────────────────────
   if (view === 'year') {
+    const rangeMonths = Array.from({ length: 4 }, (_, offset) => yearRange * 4 + offset);
+
     return (
-      <div className="cal-card">
+      <div className="cal-card cal-card--year">
         <div className="cal-nav">
           {renderBreadcrumbs()}
           <div className="cal-nav__ctrl">
             <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
               {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
             </button>
-            <button className="btn btn--ghost btn--icon" onClick={() => setCalYear(y => y - 1)}>‹</button>
-            <button className="btn btn--ghost btn--icon" onClick={() => setCalYear(y => y + 1)}>›</button>
           </div>
         </div>
 
         <div className="cal-year-grid">
-          {MONTH_NAMES.map((name, m) => {
-            const grid = buildMonthGrid(calYear, m);
+          {rangeMonths.map(m => {
+            const name = MONTH_NAMES[m];
+            const grid = buildFixedMonthGrid(calYear, m);
             return (
               <div key={m} className="cal-mini">
                 <button
                   className="cal-mini__name"
-                  onClick={() => { setSelMonth(m); setView('month'); }}
+                  onClick={() => {
+                    setSelMonth(m);
+                    setSelWeek(weekStart(new Date(calYear, m, 1)));
+                    setSelDay(new Date(calYear, m, 1));
+                    setView('month');
+                  }}
                 >
                   {name}
                 </button>
@@ -264,7 +558,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
                   {grid.map((week, wi) => {
                     const realDays  = week.filter((d): d is Date => d !== null);
-                    if (realDays.length === 0) return null;
                     const firstReal = realDays[0];
                     const hasWkTasks  = realDays.some(d => byDate.has(toKey(d)));
                     const isThisWeek  = realDays.some(d => toKey(d) === todayKey);
@@ -273,12 +566,18 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                         key={wi}
                         className={[
                           'cal-mini__week-row',
+                          realDays.length === 0 ? 'cal-mini__week-row--empty' : '',
                           hasWkTasks ? 'cal-mini__week-row--tasks' : '',
                           isThisWeek ? 'cal-mini__week-row--current' : '',
                         ].filter(Boolean).join(' ')}
-                        onClick={() => { setSelMonth(m); setSelWeek(firstReal); setView('week'); }}
-                        role="button"
-                        title="View this week"
+                        onClick={() => {
+                          if (!firstReal) return;
+                          setSelMonth(m);
+                          setSelWeek(weekStart(firstReal));
+                          setView('week');
+                        }}
+                        role={firstReal ? 'button' : undefined}
+                        title={firstReal ? 'View this week' : undefined}
                       >
                         {week.map((date, di) => {
                           if (!date) return <span key={`p${di}`} className="cal-mini__day" />;
@@ -313,6 +612,8 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             );
           })}
         </div>
+
+        {renderUpcomingAgenda()}
       </div>
     );
   }
@@ -320,15 +621,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   // ── Month view ─────────────────────────────────────────────────────────────
   if (view === 'month') {
     const grid = buildMonthGrid(calYear, selMonth);
-
-    const shiftMonth = (delta: number) => {
-      let m = selMonth + delta;
-      let y = calYear;
-      if (m < 0)  { m = 11; y--; }
-      if (m > 11) { m = 0;  y++; }
-      setSelMonth(m);
-      setCalYear(y);
-    };
 
     const monthTasks = sorted(tasks.filter(t => {
       if (!t.dateTimeScheduled) return false;
@@ -346,8 +638,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
               {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
             </button>
-            <button className="btn btn--ghost btn--icon" onClick={() => shiftMonth(-1)}>‹</button>
-            <button className="btn btn--ghost btn--icon" onClick={() => shiftMonth(+1)}>›</button>
           </div>
         </div>
 
@@ -372,7 +662,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                     isThisWeek            ? 'cal-table__row--current' : '',
                     weekTasks.length > 0  ? 'cal-table__row--tasks'   : '',
                   ].filter(Boolean).join(' ')}
-                  onClick={() => { setSelWeek(firstReal); setView('week'); }}
+                  onClick={() => { setSelWeek(weekStart(firstReal)); setView('week'); }}
                   role="button"
                   title="View this week"
                 >
@@ -440,13 +730,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       return d;
     });
 
-    const shiftWeek = (delta: number) => {
-      const w = new Date(selWeek);
-      w.setDate(w.getDate() + delta * 7);
-      setSelWeek(w);
-      setSelMonth(w.getMonth());
-    };
-
     const allWeekTasks  = days.flatMap(d => byDate.get(toKey(d)) ?? []);
     const overdueThisWeek  = sorted(allWeekTasks.filter(t => isTaskOverdue(t)));
     const upcomingThisWeek = new Set(overdueThisWeek.map(t => t.taskID));
@@ -459,8 +742,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
               {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
             </button>
-            <button className="btn btn--ghost btn--icon" onClick={() => shiftWeek(-1)}>‹</button>
-            <button className="btn btn--ghost btn--icon" onClick={() => shiftWeek(+1)}>›</button>
           </div>
         </div>
 
