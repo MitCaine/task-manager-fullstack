@@ -24,9 +24,7 @@ class TagControllerTest {
     @MockBean
     private TagRepository tagRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Tag makeTag(Long id, String title, String color) {
         Tag t = new Tag();
@@ -36,9 +34,7 @@ class TagControllerTest {
         return t;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tags
-    // -------------------------------------------------------------------------
 
     @Test
     void getTags_returnsList() throws Exception {
@@ -62,9 +58,7 @@ class TagControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // -------------------------------------------------------------------------
     // POST /tags
-    // -------------------------------------------------------------------------
 
     @Test
     void createTag_valid_returns201WithLocation() throws Exception {
@@ -124,9 +118,7 @@ class TagControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    // -------------------------------------------------------------------------
     // PATCH /tags/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void updateTag_found_updatesColorAndTitle() throws Exception {
@@ -179,9 +171,7 @@ class TagControllerTest {
         verify(tagRepository, never()).save(any());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /tags/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteTag_found_returns204() throws Exception {

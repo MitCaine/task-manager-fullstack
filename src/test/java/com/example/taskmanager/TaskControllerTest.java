@@ -36,9 +36,7 @@ class TaskControllerTest {
     @MockBean
     private RecurrenceRuleRepository recurrenceRuleRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Task makeTask(Long id, String title, Long userID, LocalDateTime scheduled) {
         Task t = new Task();
@@ -50,9 +48,7 @@ class TaskControllerTest {
         return t;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks
-    // -------------------------------------------------------------------------
 
     @Test
     void getAllTasks_returnsList() throws Exception {
@@ -96,9 +92,7 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void getTaskById_found_returnsTask() throws Exception {
@@ -119,9 +113,7 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks
-    // -------------------------------------------------------------------------
 
     @Test
     void createTask_validPayload_returns201WithLocation() throws Exception {
@@ -143,11 +135,11 @@ class TaskControllerTest {
 
     @Test
     void createTask_taskIdInBodyIsIgnored() throws Exception {
-        // taskID sent in request body must be nulled out before save
+        // Clients cannot choose the generated task ID.
         Task saved = makeTask(42L, "Task with forced ID", null, null);
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
             Task arg = invocation.getArgument(0);
-            // Controller must call setTaskID(null) before save
+            // Persistence must receive a task without a caller-supplied ID.
             assert arg.getTaskID() == null : "taskID should be null before save";
             return saved;
         });
@@ -230,9 +222,7 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.dateTimeScheduled").exists());
     }
 
-    // -------------------------------------------------------------------------
     // PUT /tasks/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void updateTask_found_returnsUpdatedTask() throws Exception {
@@ -279,9 +269,7 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.title").exists());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /tasks/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteTask_found_returns204() throws Exception {
@@ -303,9 +291,7 @@ class TaskControllerTest {
         verify(taskRepository, never()).deleteById(any());
     }
 
-    // -------------------------------------------------------------------------
     // PATCH /tasks/{id}/status
-    // -------------------------------------------------------------------------
 
     @Test
     void patchTaskStatus_found_updatesStatus() throws Exception {
@@ -333,9 +319,7 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{id}/recurrence
-    // -------------------------------------------------------------------------
 
     @Test
     void getRecurrence_taskHasRule_returnsRule() throws Exception {
@@ -374,9 +358,7 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // PATCH /tasks/{id}/repeat
-    // -------------------------------------------------------------------------
 
     @Test
     void setRepeat_withFrequency_createsRule() throws Exception {
@@ -456,9 +438,7 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks/{id}/tags/{tagId}
-    // -------------------------------------------------------------------------
 
     @Test
     void addTag_bothExist_returns200WithTaskContainingTag() throws Exception {
@@ -483,9 +463,7 @@ class TaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /tasks/{id}/tags/{tagId}
-    // -------------------------------------------------------------------------
 
     @Test
     void removeTag_taskFound_returns200() throws Exception {

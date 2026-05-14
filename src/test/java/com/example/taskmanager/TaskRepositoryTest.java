@@ -19,9 +19,7 @@ class TaskRepositoryTest {
     @Autowired
     private TaskRepository taskRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Task persist(String title, Long userID, LocalDateTime scheduled) {
         Task t = new Task();
@@ -31,9 +29,7 @@ class TaskRepositoryTest {
         return entityManager.persistAndFlush(t);
     }
 
-    // -------------------------------------------------------------------------
     // findAllByOrderByDateTimeScheduledAsc
-    // -------------------------------------------------------------------------
 
     @Test
     void findAll_returnsTasksInChronologicalOrder() {
@@ -54,7 +50,7 @@ class TaskRepositoryTest {
 
         List<Task> results = taskRepository.findAllByOrderByDateTimeScheduledAsc();
 
-        // Nulls sort before non-nulls in H2 and MySQL ASC ordering
+        // H2 and MySQL place null scheduled dates before non-null values in ascending order.
         assertThat(results).hasSize(2);
         assertThat(results.get(0).getDateTimeScheduled()).isNull();
     }
@@ -65,9 +61,7 @@ class TaskRepositoryTest {
         assertThat(results).isEmpty();
     }
 
-    // -------------------------------------------------------------------------
     // findByUserIDOrderByDateTimeScheduledAsc
-    // -------------------------------------------------------------------------
 
     @Test
     void findByUserID_returnsOnlyThatUsersTasksInOrder() {
@@ -101,9 +95,7 @@ class TaskRepositoryTest {
         assertThat(results).hasSize(2);
     }
 
-    // -------------------------------------------------------------------------
     // Persistence edge cases
-    // -------------------------------------------------------------------------
 
     @Test
     void saveTask_withMaxLengthDescription_persists() {
@@ -122,7 +114,7 @@ class TaskRepositoryTest {
     void saveTask_withNullOptionalFields_persists() {
         Task t = new Task();
         t.setTitle("Minimal task");
-        // description, dateTimeScheduled, userID all null
+        // Optional task fields may be persisted as null.
         entityManager.persistAndFlush(t);
 
         List<Task> results = taskRepository.findAllByOrderByDateTimeScheduledAsc();

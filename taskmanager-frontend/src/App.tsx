@@ -62,16 +62,16 @@ function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
 }
 
 function App(): JSX.Element {
-  // ── Core state ─────────────────────────────────────────────────────────────
+  // Tasks loaded from the API and top-level request state.
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Workspace name ──────────────────────────────────────────────────────────
+  // Workspace label is persisted locally because it is UI-only.
   const [workspaceName, setWorkspaceName] = useState(() => localStorage.getItem('workspaceName') ?? 'Task Manager');
   const [editingWorkspaceName, setEditingWorkspaceName] = useState(false);
 
-  // ── Add form state ──────────────────────────────────────────────────────────
+  // Draft values for the task creation form.
   const [input, setInput] = useState('');
   const [titleError, setTitleError] = useState(false);
   const [description, setDescription] = useState('');
@@ -87,7 +87,7 @@ function App(): JSX.Element {
   const [endAmpm, setEndAmpm] = useState<Ampm>('AM');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
 
-  // ── UI preferences ──────────────────────────────────────────────────────────
+  // UI preferences and transient dropdown state.
   const [is24Hour, setIs24Hour] = useState(false);
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -101,12 +101,12 @@ function App(): JSX.Element {
     () => (localStorage.getItem('theme') as Theme) ?? 'system'
   );
 
-  // ── Search / sort / filter ──────────────────────────────────────────────────
+  // List controls applied before rendering tasks.
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('dueAsc');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
-  // ── Edit state ──────────────────────────────────────────────────────────────
+  // Draft values for the selected task editor.
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -127,21 +127,21 @@ function App(): JSX.Element {
   const [showInlineEditProject, setShowInlineEditProject] = useState(false);
   const [showInlineEditTag, setShowInlineEditTag] = useState(false);
 
-  // ── Delete confirmation ─────────────────────────────────────────────────────
+  // Delete confirmation is tracked by task ID.
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  // ── Detail panel ────────────────────────────────────────────────────────────
+  // Detail panel state for the selected task.
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null);
   const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
 
-  // ── Expanded sections data (subtasks / notes / reminders) ───────────────────
+  // Related task data is cached by task ID after a panel section is opened.
   const [subtasks, setSubtasks] = useState<Record<number, Subtask[]>>({});
   const [notes, setNotes] = useState<Record<number, Note[]>>({});
   const [reminders, setReminders] = useState<Record<number, Reminder[]>>({});
 
-  // ── New subtask / note / reminder forms ─────────────────────────────────────
+  // Draft values for panel section forms.
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newReminderDate, setNewReminderDate] = useState('');
@@ -150,34 +150,34 @@ function App(): JSX.Element {
   const [newReminderAmpm, setNewReminderAmpm] = useState<Ampm>('AM');
   const [newReminderMessage, setNewReminderMessage] = useState('');
 
-  // ── Calendar preferences ────────────────────────────────────────────────────
+  // Calendar-specific display preferences.
   const [calHideCompleted, setCalHideCompleted] = useState(false);
 
-  // ── Bulk actions ─────────────────────────────────────────────────────────────
+  // Bulk selection state for list actions.
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<number>>(new Set());
 
-  // ── Stats panel ──────────────────────────────────────────────────────────────
+  // Stats modal visibility.
   const [showStats, setShowStats] = useState(false);
 
-  // ── In-app reminder toasts ───────────────────────────────────────────────────
+  // Reminder toasts are queued independently from persisted reminders.
   type Toast = { id: number; reminderID: number; taskID: number; taskTitle: string; message: string };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 
-  // ── Kanban drag ──────────────────────────────────────────────────────────────
+  // Current drag source for the board view.
   const [dragTaskId, setDragTaskId] = useState<number | null>(null);
 
-  // ── Attachments ──────────────────────────────────────────────────────────────
+  // Link attachments are loaded lazily per task.
   const [attachments, setAttachments] = useState<Record<number, Attachment[]>>({});
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
   const [newAttachmentLabel, setNewAttachmentLabel] = useState('');
 
-  // ── Recurring tasks ──────────────────────────────────────────────────────────
+  // Repeat editor keeps the persisted value so autosave can detect changes.
   const [editRepeatFrequency, setEditRepeatFrequency] = useState<'daily' | 'weekly' | 'monthly' | ''>('');
   const [originalRepeatFrequency, setOriginalRepeatFrequency] = useState<string>('');
 
-  // ── Projects ────────────────────────────────────────────────────────────────
+  // Project lists and selectors shared by create and edit flows.
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectID, setNewProjectID] = useState<number | ''>('');
   const [editProjectID, setEditProjectID] = useState<number | ''>('');
@@ -185,14 +185,14 @@ function App(): JSX.Element {
   const [showInlineProject, setShowInlineProject] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState('');
 
-  // ── Tags ────────────────────────────────────────────────────────────────────
+  // Tag lists, filters, and inline color editing state.
   const [tags, setTags] = useState<Tag[]>([]);
   const [filterTagID, setFilterTagID] = useState<number | ''>('');
   const [newTagTitle, setNewTagTitle] = useState('');
   const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [colorPickerTagId, setColorPickerTagId] = useState<number | null>(null);
 
-  // ── Keyboard shortcut ref ───────────────────────────────────────────────────
+  // Element refs used for shortcuts, dropdown positioning, and focus return.
   const titleInputRef = useRef<HTMLInputElement>(null);
   const workspaceInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -207,15 +207,15 @@ function App(): JSX.Element {
   const inlineEditProjectInputRef = useRef<HTMLInputElement>(null);
   const inlineEditTagInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Auto-save refs ───────────────────────────────────────────────────────────
+  // Refs keep the debounced auto-save callback pointed at current state.
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const saveEditRef  = useRef<(task: Task) => Promise<void>>(async () => {});
   const tasksRef     = useRef<Task[]>([]);
 
-  // ── Reminder notification dedup ─────────────────────────────────────────────
+  // Prevent the same due reminder from opening duplicate toasts.
   const firedReminders = useRef<Set<number>>(new Set());
 
-  // ── Effects ─────────────────────────────────────────────────────────────────
+  // Initial API hydration.
   useEffect(() => {
     getTasks()
       .then(data => { setTasks(data); setLoading(false); })
@@ -266,7 +266,7 @@ function App(): JSX.Element {
     }
   }, [theme]);
 
-  // Reminder polling — shows in-app toasts when a reminder's time arrives
+  // Poll loaded reminders and enqueue an in-app toast once each reminder is due.
   useEffect(() => {
     const allReminders = Object.values(reminders).flat();
     if (allReminders.length === 0) return;
@@ -292,7 +292,7 @@ function App(): JSX.Element {
     return () => clearInterval(id);
   }, [reminders, tasks]);
 
-  // ── Computed ────────────────────────────────────────────────────────────────
+  // Derived view data.
   const hourOptions = useMemo(
     () => is24Hour
       ? Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
@@ -331,7 +331,7 @@ function App(): JSX.Element {
       const bO = isTaskOverdue(b) ? 0 : 1;
       return aO - bO || (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '');
     }));
-    // Default: dueAsc
+    // dueAsc keeps unscheduled tasks behind scheduled work while preserving the done-to-bottom rule.
     return doneToBottom([...list].sort((a, b) => (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '')));
   }, [tasks, search, filterStatus, sortBy]);
 
@@ -389,7 +389,7 @@ function App(): JSX.Element {
 
   const themeLabel: Record<Theme, string> = { system: '💻 System', light: '☀️ Light', dark: '🌙 Dark' };
 
-  // ── Formatters ───────────────────────────────────────────────────────────────
+  // Date and time formatting helpers used by the form controls.
   const fmtDate = (dt: string | null | undefined) => formatDate(dt, locale, is24Hour) || 'No due date';
 
   const formatDateTime = (dt: string) =>
@@ -398,7 +398,7 @@ function App(): JSX.Element {
       hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
     });
 
-  // ── Task handlers ────────────────────────────────────────────────────────────
+  // Task create, update, completion, and focus handlers.
   const toggleAddEndTime = () => {
     if (showAddEndTime) { setShowAddEndTime(false); return; }
     if (is24Hour) {
@@ -448,7 +448,7 @@ function App(): JSX.Element {
   };
 
   const toggleComplete = async (task: Task) => {
-    // ── Recurring: spawn next occurrence → delete original ───────────────────
+      // Completing a recurring task creates its next scheduled occurrence.
     if (task.recurrenceRuleID) {
       try {
         const rule = await getRecurrence(task.taskID);
@@ -480,7 +480,7 @@ function App(): JSX.Element {
           { ...nextTask, recurrenceRuleID: fresh.recurrenceRuleID },
         ]);
         if (selectedTaskId === task.taskID) setSelectedTaskId(null);
-        // Flash the newly spawned card so the user can track it
+        // Highlight the next occurrence after it becomes visible in the list.
         setTimeout(() => {
           const el = document.getElementById(`task-${nextTask.taskID}`);
           if (!el) return;
@@ -494,7 +494,7 @@ function App(): JSX.Element {
       return;
     }
 
-    // ── Non-recurring: toggle done ↔ active ──────────────────────────────────
+    // Non-recurring tasks only toggle between active and done.
     const newStatusID = task.statusID === 2 ? null : 2;
     try {
       const saved = await patchTaskStatus(task.taskID, newStatusID);
@@ -530,7 +530,7 @@ function App(): JSX.Element {
       setEditShowTime(false);
       setEditDate(''); setEditHour('12'); setEditMinute('00'); setEditAmpm('AM');
     }
-    // Fetch fresh task from backend to get authoritative tag list
+    // Reload the task so the panel starts with the backend's tag ordering.
     try {
       const fresh = await getTask(task.taskID);
       setEditTaskTagIDs((fresh.tags ?? []).map(t => t.tagID));
@@ -538,7 +538,7 @@ function App(): JSX.Element {
     } catch {
       setEditTaskTagIDs((task.tags ?? []).map(t => t.tagID));
     }
-    // Load recurrence rule for repeat dropdown
+    // The task only stores a rule ID, so load the rule before editing repeat.
     if (!task.recurrenceRuleID) {
       setEditRepeatFrequency(''); setOriginalRepeatFrequency('');
     } else {
@@ -554,12 +554,12 @@ function App(): JSX.Element {
   const cancelEdit = () => setEditingId(null);
 
   const focusTaskById = (taskId: number) => {
-    // Clear all filters so the task is guaranteed to be visible in the list
+    // Reset list controls before jumping to the opened task.
     setSearch('');
     setFilterStatus('all');
     setFilterProjectID('');
     setFilterTagID('');
-    // Scroll and flash after state settles
+    // Wait for React to render the task before scrolling to it.
     setTimeout(() => {
       const el = document.getElementById(`task-${taskId}`);
       if (!el) return;
@@ -585,7 +585,7 @@ function App(): JSX.Element {
   };
 
   const shiftTime = (unit: 'hour' | 'day') => {
-    // Build a Date from current edit state (or now if no date set)
+    // Use the edit form as the base date; fall back to the current clock when empty.
     let base: Date;
     if (editDate) {
       const [ey, em, ed] = editDate.split('-').map(Number);
@@ -597,7 +597,7 @@ function App(): JSX.Element {
         }
         base = new Date(ey, em - 1, ed, hr, parseInt(editMinute, 10));
       } else {
-        // No time shown — for +1 hour use current wall-clock time; for +1 day keep midnight
+        // Date-only tasks preserve midnight unless the hour shortcut needs a wall-clock time.
         const now = new Date();
         base = new Date(ey, em - 1, ed, unit === 'hour' ? now.getHours() : 0, unit === 'hour' ? now.getMinutes() : 0);
       }
@@ -628,7 +628,7 @@ function App(): JSX.Element {
       setEditMinute(mins);
       setEditShowTime(true);
     }
-    // +1 day: preserve whatever time state already exists
+    // The day shortcut keeps the task's current time selection.
 
     scheduleAutoSave(0);
   };
@@ -649,7 +649,7 @@ function App(): JSX.Element {
         priority: editPriority || null,
         projectID: editProjectID !== '' ? editProjectID : null,
       });
-      // Sync tags
+      // Reconcile tag assignments after the base task save succeeds.
       const currentTagIDs = (task.tags ?? []).map(t => t.tagID);
       const toAdd = editTaskTagIDs.filter(id => !currentTagIDs.includes(id));
       const toRemove = currentTagIDs.filter(id => !editTaskTagIDs.includes(id));
@@ -660,7 +660,7 @@ function App(): JSX.Element {
       const tagObjects = tags.filter(t => editTaskTagIDs.includes(t.tagID));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...saved, tags: tagObjects } : t));
       if (selectedTaskId === null) setEditingId(null);
-      // Persist repeat if changed
+      // Save repeat changes separately because recurrence is managed by its own endpoint.
       if (editRepeatFrequency !== originalRepeatFrequency) {
         try {
           await setRepeat(task.taskID, editRepeatFrequency || null);
@@ -697,7 +697,7 @@ function App(): JSX.Element {
     setConfirmDeleteId(null);
   };
 
-  // ── Panel open / close ───────────────────────────────────────────────────────
+  // Detail panel open and close helpers.
   const loadTaskSections = async (taskId: number) => {
     setNewSubtaskTitle('');
     setNewNoteContent('');
@@ -757,7 +757,7 @@ function App(): JSX.Element {
     setEditingId(null);
   };
 
-  // ── Subtask handlers ─────────────────────────────────────────────────────────
+  // Subtask loading and mutation handlers.
   const addSubtask = async (taskId: number) => {
     if (!newSubtaskTitle.trim()) return;
     try {
@@ -801,7 +801,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Note handlers ────────────────────────────────────────────────────────────
+  // Note loading and mutation handlers.
   const addNote = async (taskId: number) => {
     if (!newNoteContent.trim()) return;
     try {
@@ -822,7 +822,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Reminder handlers ────────────────────────────────────────────────────────
+  // Reminder loading and mutation handlers.
   const addReminder = async (taskId: number) => {
     if (!newReminderDate) return;
     if ('Notification' in window && Notification.permission === 'default') {
@@ -849,7 +849,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Project handlers ─────────────────────────────────────────────────────────
+  // Project creation, deletion, and task detachment handlers.
   const addProject = async () => {
     if (!newProjectTitle.trim()) return;
     try {
@@ -899,7 +899,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Tag handlers ─────────────────────────────────────────────────────────────
+  // Tag creation, color changes, deletion, and task assignment handlers.
   const addTag = async (applyToTaskId?: number) => {
     if (!newTagTitle.trim()) return;
     try {
@@ -985,7 +985,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Task duplication ─────────────────────────────────────────────────────────
+  // Task duplication preserves metadata that belongs to the task itself.
   const parseCopyTitle = (title: string) => {
     const match = title.match(/^(.*)\s\(copy(?:\s+(\d+))?\)$/);
     if (!match) return null;
@@ -1038,7 +1038,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Bulk actions ─────────────────────────────────────────────────────────────
+  // Bulk actions operate on the current selected task IDs.
   const toggleBulkSelect = (taskId: number) => {
     setBulkSelectedIds(prev => {
       const next = new Set(prev);
@@ -1071,7 +1071,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Toast (snooze reminders) ─────────────────────────────────────────────────
+  // Reminder toast dismissal and snooze behavior.
   const dismissToast = (toastId: number) =>
     setToasts(prev => prev.filter(t => t.id !== toastId));
 
@@ -1089,12 +1089,12 @@ function App(): JSX.Element {
     dismissToast(toast.id);
   };
 
-  // ── Kanban drag ──────────────────────────────────────────────────────────────
+  // Board drop handler writes the task's target status.
   const handleKanbanDrop = async (statusID: number | null) => {
     if (dragTaskId === null) return;
     const task = tasks.find(t => t.taskID === dragTaskId);
     setDragTaskId(null);
-    // Dropping onto Done with a recurrence rule reuses toggleComplete logic
+    // Recurring tasks need completion logic so the next occurrence is created.
     if (statusID === 2 && task?.recurrenceRuleID) {
       await toggleComplete(task);
       return;
@@ -1107,7 +1107,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Attachments ──────────────────────────────────────────────────────────────
+  // Link attachment loading and mutation handlers.
   const loadAttachments = async (taskId: number) => {
     try {
       const data = await getAttachments(taskId);
@@ -1137,7 +1137,7 @@ function App(): JSX.Element {
     }
   };
 
-  // ── Time select (custom dropdown to avoid Chrome native-select rendering bug) ─
+  // Custom time dropdown keeps the selected option visible when opened.
   const TimeSelect = ({ value, options, onChange }: {
     value: string; options: string[]; onChange: (v: string) => void;
   }) => {
@@ -1195,7 +1195,7 @@ function App(): JSX.Element {
     );
   };
 
-  // ── Shared date + time row ───────────────────────────────────────────────────
+  // Shared date and optional start/end time controls.
   const DateTimeRow = ({
     dateVal, hourVal, minuteVal, ampmVal,
     onDate, onHour, onMinute, onAmpm,
@@ -1275,11 +1275,11 @@ function App(): JSX.Element {
     </div>
   );
 
-  // ── Keep auto-save refs fresh every render ───────────────────────────────────
+  // Keep auto-save refs fresh for the debounced callback.
   saveEditRef.current = saveEdit;
   tasksRef.current    = tasks;
 
-  // ── Computed stats ───────────────────────────────────────────────────────────
+  // Stats are derived from the loaded task list.
   const statsData = useMemo(() => {
     const total = tasks.length;
     const done = tasks.filter(t => t.statusID === 2).length;
@@ -1335,10 +1335,8 @@ function App(): JSX.Element {
       ? filterStatus
       : 'all';
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="app">
-      {/* ── In-app reminder toasts ───────────────────────────────────────────── */}
       {toasts.length > 0 && (
         <div className="toasts">
           {toasts.map(toast => (
@@ -1358,7 +1356,6 @@ function App(): JSX.Element {
         </div>
       )}
 
-      {/* ── Stats modal ──────────────────────────────────────────────────────── */}
       {showStats && (
         <div className="modal-overlay" onClick={() => setShowStats(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -1397,7 +1394,6 @@ function App(): JSX.Element {
       <div className="app__planner">
       <div className="card app__add">
 
-        {/* Header */}
         <div className="spread">
           {editingWorkspaceName ? (
             <input
@@ -1443,7 +1439,6 @@ function App(): JSX.Element {
           )}
         </p>
 
-        {/* Settings panel */}
         {showSettings && (
           <div className="settings-panel">
             <button className="btn btn--ghost btn--sm" onClick={() => setIs24Hour(p => !p)}>
@@ -1463,7 +1458,6 @@ function App(): JSX.Element {
           </div>
         )}
 
-        {/* Error banner */}
         {error && (
           <div className="error-banner">
             <span>{error}</span>
@@ -1471,7 +1465,6 @@ function App(): JSX.Element {
           </div>
         )}
 
-        {/* Add form */}
         <div className="controls">
           <input
             ref={titleInputRef}
@@ -1732,7 +1725,7 @@ function App(): JSX.Element {
           <button className="btn" onClick={addTask}>Add Task</button>
         </div>
 
-      </div>{/* /app__add */}
+      </div>
 
       <Calendar
         tasks={calTasks}
@@ -1743,11 +1736,10 @@ function App(): JSX.Element {
         hideCompleted={calHideCompleted}
         onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
       />
-      </div>{/* /app__planner */}
+      </div>
 
       <div className={`card app__list${selectedTaskId !== null && viewTab !== 'board' ? ' app__list--narrow' : ''}${viewTab === 'board' ? ' app__list--board' : ''}`}>
 
-        {/* View tabs */}
         <div className="view-tabs">
           {(['all', 'today', 'week', 'month', 'board'] as const).map(tab => (
             <button
@@ -1760,7 +1752,6 @@ function App(): JSX.Element {
           ))}
         </div>
 
-        {/* Sort / filter controls */}
         <div className="list-controls list-controls--with-reset">
           <div className="list-controls__row list-controls__row--primary">
             <label className="filter-field">
@@ -1830,7 +1821,6 @@ function App(): JSX.Element {
           </div>
         </div>
 
-        {/* Search */}
         <input
           ref={searchInputRef}
           className="input search mtop"
@@ -1840,7 +1830,6 @@ function App(): JSX.Element {
           placeholder="Search tasks… (press / to focus)"
         />
 
-        {/* Task count */}
         <div className="spread mtop small">
           <div className="task-count-row">
             <span className="task-count">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
@@ -1861,7 +1850,6 @@ function App(): JSX.Element {
           </div>
         </div>
 
-        {/* Bulk action bar */}
         {bulkMode && bulkSelectedIds.size > 0 && (
           <div className="bulk-bar">
             <span className="bulk-bar__count">{bulkSelectedIds.size} selected</span>
@@ -1870,7 +1858,6 @@ function App(): JSX.Element {
           </div>
         )}
 
-        {/* Kanban board */}
         {viewTab === 'board' && !loading && (
           <div className="kanban">
             {([
@@ -1928,7 +1915,6 @@ function App(): JSX.Element {
           </div>
         )}
 
-        {/* Task list */}
         {loading ? (
           <div className="loading">
             <span className="loading__spinner" />
@@ -1984,7 +1970,6 @@ function App(): JSX.Element {
                   ].filter(Boolean).join(' ')}
                 >
                   <>
-                    {/* Main row */}
                     <div className="item__main" onClick={() => bulkMode ? toggleBulkSelect(task.taskID) : openPanel(task)} style={{ cursor: 'pointer' }}>
                         {bulkMode && (
                           <input
@@ -2064,7 +2049,6 @@ function App(): JSX.Element {
                         </div>
                       </div>
 
-                      {/* Delete confirmation */}
                       {confirmDeleteId === task.taskID && (
                         <div className="confirm-delete">
                           <span>Delete &quot;{task.title}&quot;?</span>
@@ -2081,9 +2065,8 @@ function App(): JSX.Element {
           </ul>
         )}
 
-      </div>{/* /app__list */}
+        </div>
 
-      {/* ── Detail panel ──────────────────────────────────────────────────────── */}
       {selectedTaskId !== null && (() => {
         const panelTask = tasks.find(t => t.taskID === selectedTaskId);
         if (!panelTask) return null;
@@ -2095,7 +2078,6 @@ function App(): JSX.Element {
 
         return (
           <div className="card app__detail">
-            {/* Header */}
             <div className="detail__header">
               <input
                 className="input detail__title-input"
@@ -2118,7 +2100,6 @@ function App(): JSX.Element {
               </div>
             )}
 
-            {/* Editable fields */}
             <div className="detail__fields">
               <div className="desc-wrap">
                 <textarea
@@ -2154,7 +2135,6 @@ function App(): JSX.Element {
               </div>
 
               <div className="form-row">
-                {/* Priority */}
                 <div className="tag-select" ref={editPriorityDropdownRef}>
                   <button
                     type="button"
@@ -2178,7 +2158,6 @@ function App(): JSX.Element {
                   )}
                 </div>
 
-                {/* Project */}
                 <div className="tag-select" ref={editProjectDropdownRef}>
                   <button
                     type="button"
@@ -2209,7 +2188,6 @@ function App(): JSX.Element {
                   )}
                 </div>
 
-                {/* Tags */}
                 <div className="tag-select" ref={editTagDropdownRef}>
                   <button
                     type="button"
@@ -2295,7 +2273,6 @@ function App(): JSX.Element {
                 </div>
               )}
 
-              {/* Repeat */}
               <div className="detail__repeat-row">
                 <span className="detail__field-label">Repeat</span>
                 <select
@@ -2312,7 +2289,6 @@ function App(): JSX.Element {
 
             </div>
 
-            {/* Subtasks section */}
             <div className="detail__section">
               <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('subtasks')}>
                 <span className="detail__section-title">Subtasks</span>
@@ -2372,7 +2348,6 @@ function App(): JSX.Element {
               )}
             </div>
 
-            {/* Notes section */}
             <div className="detail__section">
               <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('notes')}>
                 <span className="detail__section-title">Notes</span>
@@ -2403,7 +2378,6 @@ function App(): JSX.Element {
               )}
             </div>
 
-            {/* Reminders section */}
             <div className="detail__section">
               <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('reminders')}>
                 <span className="detail__section-title">Reminders</span>
@@ -2438,7 +2412,6 @@ function App(): JSX.Element {
               )}
             </div>
 
-            {/* Links / Attachments section */}
             <div className="detail__section">
               <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('attachments')}>
                 <span className="detail__section-title">Links</span>

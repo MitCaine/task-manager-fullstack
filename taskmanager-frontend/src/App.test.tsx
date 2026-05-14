@@ -58,14 +58,14 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Render helper supplies the common app setup for interaction tests.
 
 /** Open the settings panel (⚙ Settings button). */
 function openSettings() {
   userEvent.click(screen.getByRole('button', { name: /settings/i }));
 }
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
+// Rendering behavior.
 
 test('renders the "Task Manager" heading', async () => {
   render(<App />);
@@ -110,7 +110,7 @@ test('format toggle buttons are rendered inside the settings panel', async () =>
   expect(screen.getByRole('button', { name: /dd\/mm\/yyyy/i })).toBeInTheDocument();
 });
 
-// ── User interactions ─────────────────────────────────────────────────────────
+// User interaction behavior.
 
 test('typing in the title input updates its value', async () => {
   render(<App />);
@@ -205,7 +205,7 @@ test('12-hour mode shows AM and PM options in the time selector', async () => {
   expect(screen.getByRole('option', { name: 'PM' })).toBeInTheDocument();
 });
 
-// ── Edge cases ────────────────────────────────────────────────────────────────
+// Edge-case behavior.
 
 test('clicking Add with empty title does NOT call createTask', async () => {
   render(<App />);
@@ -267,7 +267,7 @@ test('deleteTask rejection shows error banner — task remains in list', async (
   expect(await screen.findByText(/failed to delete task/i)).toBeInTheDocument();
 });
 
-// ── Stats modal ───────────────────────────────────────────────────────────────
+// Stats modal behavior.
 
 test('Stats button is rendered in the header', async () => {
   render(<App />);
@@ -301,7 +301,7 @@ test('closing the stats modal removes it from the DOM', async () => {
   });
 });
 
-// ── View tabs ─────────────────────────────────────────────────────────────────
+// View tab behavior.
 
 test('"Board" tab button is rendered in the view tabs', async () => {
   render(<App />);
@@ -336,7 +336,7 @@ test('task without statusID appears in the To Do column of the kanban board', as
   expect(screen.getAllByText('Buy milk').length).toBeGreaterThanOrEqual(1);
 });
 
-// ── Task duplication ──────────────────────────────────────────────────────────
+// Task duplication behavior.
 
 test('duplicate button is rendered for each task', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
@@ -431,7 +431,7 @@ test('clicking duplicate carries over the recurrence rule', async () => {
   });
 });
 
-// ── Bulk actions ──────────────────────────────────────────────────────────────
+// Bulk action behavior.
 
 test('"Select" button is rendered in the task count row', async () => {
   render(<App />);
@@ -528,7 +528,7 @@ test('"Delete" in bulk bar calls deleteTask for each selected task', async () =>
   });
 });
 
-// ── Search ref ────────────────────────────────────────────────────────────────
+// Search focus behavior.
 
 test('search input placeholder mentions the "/" shortcut', async () => {
   render(<App />);

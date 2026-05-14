@@ -93,7 +93,7 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Recurrence ────────────────────────────────────────────────────────────
+    // Recurrence endpoints manage the rule referenced by a task.
 
     private record RepeatRequest(String frequency) {}
 
@@ -112,7 +112,7 @@ public class TaskController {
         return taskRepository.findById(id).map(task -> {
             String frequency = req.frequency() == null ? null : req.frequency().trim().toLowerCase();
             if (frequency == null || frequency.isBlank()) {
-                // Clear recurrence
+                // Detach the task before deleting its now-unused recurrence rule.
                 Long ruleId = task.getRecurrenceRuleID();
                 task.setRecurrenceRuleID(null);
                 taskRepository.save(task);

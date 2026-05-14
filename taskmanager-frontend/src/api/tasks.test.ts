@@ -10,7 +10,7 @@ import {
 } from './tasks';
 import type { Task, Subtask, Note, Reminder, Project, Tag, Attachment, RecurrenceRule } from '../types/task';
 
-// ── Mock helpers ──────────────────────────────────────────────────────────────
+// Fetch mocks keep endpoint tests focused on request shape and parsing.
 
 function mockFetch(ok: boolean, body: unknown): jest.SpyInstance {
   return jest.spyOn(global, 'fetch').mockResolvedValue({
@@ -25,7 +25,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-// ── Sample fixtures ───────────────────────────────────────────────────────────
+// Shared fixtures mirror the API response shapes used by callers.
 
 const mockTask: Task = { taskID: 1, title: 'Test task', description: 'A description', dateTimeScheduled: null, userID: null };
 const mockSubtask: Subtask = { subTaskID: 1, title: 'Step one', statusID: 1, parentTaskID: 1 };
@@ -36,7 +36,7 @@ const mockTag: Tag = { tagID: 1, title: 'Urgent', color: '#f87171' };
 const mockAttachment: Attachment = { attachmentID: 1, fileORLink: 'https://example.com', fileSize: 0, taskID: 1 };
 const mockRecurrence: RecurrenceRule = { recurrenceRuleID: 1, frequency: 'weekly', timesOfRecurrence: 0, startDateTime: '2026-01-01T00:00:00', endDateTime: '2036-01-01T00:00:00' };
 
-// ── Tasks ─────────────────────────────────────────────────────────────────────
+// Task endpoint tests.
 
 describe('getTasks', () => {
   test('makes a GET request to /tasks and returns parsed tasks', async () => {
@@ -139,7 +139,7 @@ describe('deleteTask', () => {
   });
 });
 
-// ── Subtasks ──────────────────────────────────────────────────────────────────
+// Subtask endpoint tests.
 
 describe('getSubtasks', () => {
   test('makes a GET request to /tasks/{id}/subtasks', async () => {
@@ -219,7 +219,7 @@ describe('deleteSubtask', () => {
   });
 });
 
-// ── Notes ─────────────────────────────────────────────────────────────────────
+// Note endpoint tests.
 
 describe('getNotes', () => {
   test('makes a GET request to /tasks/{id}/notes', async () => {
@@ -265,7 +265,7 @@ describe('deleteNote', () => {
   });
 });
 
-// ── Reminders ─────────────────────────────────────────────────────────────────
+// Reminder endpoint tests.
 
 describe('getReminders', () => {
   test('makes a GET request to /tasks/{id}/reminders', async () => {
@@ -328,7 +328,7 @@ describe('patchReminderDate', () => {
   });
 });
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// Project endpoint tests.
 
 describe('getProjects', () => {
   test('makes a GET request to /projects', async () => {
@@ -375,7 +375,7 @@ describe('deleteProject', () => {
   });
 });
 
-// ── Tags ──────────────────────────────────────────────────────────────────────
+// Tag endpoint tests.
 
 describe('getTags', () => {
   test('makes a GET request to /tags', async () => {
@@ -465,7 +465,7 @@ describe('removeTagFromTask', () => {
   });
 });
 
-// ── Attachments ───────────────────────────────────────────────────────────────
+// Link attachment endpoint tests.
 
 describe('getAttachments', () => {
   test('makes a GET request to /tasks/{id}/attachments', async () => {
@@ -511,7 +511,7 @@ describe('deleteAttachment', () => {
   });
 });
 
-// ── Recurrence ────────────────────────────────────────────────────────────────
+// Recurrence endpoint tests.
 
 describe('getRecurrence', () => {
   test('makes a GET request to /tasks/{id}/recurrence', async () => {

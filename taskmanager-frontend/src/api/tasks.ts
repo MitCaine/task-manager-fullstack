@@ -7,7 +7,7 @@ const REMINDERS_URL = '/reminders';
 const PROJECTS_URL  = '/projects';
 const TAGS_URL      = '/tags';
 
-// ── Fetch helpers ─────────────────────────────────────────────────────────────
+// Shared fetch wrappers raise HTTP status codes as errors.
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
@@ -26,7 +26,7 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-// ── Tasks ─────────────────────────────────────────────────────────────────────
+// Task endpoints.
 
 export function getTasks(): Promise<Task[]> {
   return apiFetch(BASE_URL);
@@ -52,7 +52,7 @@ export function deleteTask(id: number): Promise<void> {
   return apiDelete(`${BASE_URL}/${id}`);
 }
 
-// ── Subtasks ──────────────────────────────────────────────────────────────────
+// Subtask endpoints.
 
 export function getSubtasks(taskId: number): Promise<Subtask[]> {
   return apiFetch(`${BASE_URL}/${taskId}/subtasks`);
@@ -74,7 +74,7 @@ export function deleteSubtask(subTaskID: number): Promise<void> {
   return apiDelete(`${SUBTASKS_URL}/${subTaskID}`);
 }
 
-// ── Notes ─────────────────────────────────────────────────────────────────────
+// Note endpoints.
 
 export function getNotes(taskId: number): Promise<Note[]> {
   return apiFetch(`${BASE_URL}/${taskId}/notes`);
@@ -88,7 +88,7 @@ export function deleteNote(noteId: number): Promise<void> {
   return apiDelete(`${NOTES_URL}/${noteId}`);
 }
 
-// ── Reminders ─────────────────────────────────────────────────────────────────
+// Reminder endpoints.
 
 export function getReminders(taskId: number): Promise<Reminder[]> {
   return apiFetch(`${BASE_URL}/${taskId}/reminders`);
@@ -102,7 +102,7 @@ export function deleteReminder(reminderId: number): Promise<void> {
   return apiDelete(`${REMINDERS_URL}/${reminderId}`);
 }
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// Project endpoints.
 
 export function getProjects(): Promise<Project[]> {
   return apiFetch(PROJECTS_URL);
@@ -116,7 +116,7 @@ export function deleteProject(id: number): Promise<void> {
   return apiDelete(`${PROJECTS_URL}/${id}`);
 }
 
-// ── Tags ──────────────────────────────────────────────────────────────────────
+// Tag endpoints.
 
 export function getTags(): Promise<Tag[]> {
   return apiFetch(TAGS_URL);
@@ -142,7 +142,7 @@ export function removeTagFromTask(taskId: number, tagId: number): Promise<void> 
   return apiDelete(`/tasks/${taskId}/tags/${tagId}`);
 }
 
-// ── Attachments ───────────────────────────────────────────────────────────────
+// Link attachment endpoints.
 
 export function getAttachments(taskId: number): Promise<Attachment[]> {
   return apiFetch(`${BASE_URL}/${taskId}/attachments`);
@@ -156,7 +156,7 @@ export function deleteAttachment(id: number): Promise<void> {
   return apiDelete(`/attachments/${id}`);
 }
 
-// ── Recurrence ────────────────────────────────────────────────────────────────
+// Recurrence endpoints.
 
 export function getRecurrence(taskId: number): Promise<RecurrenceRule> {
   return apiFetch(`${BASE_URL}/${taskId}/recurrence`);

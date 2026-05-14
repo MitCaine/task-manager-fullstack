@@ -1,11 +1,9 @@
 import { buildDateTimeString, formatDate, extractDateParts } from './dateTime';
 
-// ── buildDateTimeString ───────────────────────────────────────────────────────
+// buildDateTimeString converts form fields into backend LocalDateTime strings.
 
 describe('buildDateTimeString', () => {
-  // -------------------------------------------------------------------------
-  // Regular cases — 12-hour mode
-  // -------------------------------------------------------------------------
+// Regular cases in 12-hour mode.
 
   test('12-hour PM converts hour correctly', () => {
     const result = buildDateTimeString('2026-04-08', '03', '30', 'PM', false);
@@ -22,9 +20,7 @@ describe('buildDateTimeString', () => {
     expect(result).toBe('2026-06-15T14:45:00');
   });
 
-  // -------------------------------------------------------------------------
-  // Regular cases — 24-hour mode
-  // -------------------------------------------------------------------------
+// Regular cases in 24-hour mode.
 
   test('24-hour mode ignores ampm parameter', () => {
     const result = buildDateTimeString('2026-04-08', '15', '30', 'PM', true);
@@ -36,9 +32,7 @@ describe('buildDateTimeString', () => {
     expect(result).toBe('2026-04-08T09:00:00');
   });
 
-  // -------------------------------------------------------------------------
-  // Edge cases — 12 AM / 12 PM (midnight / noon)
-  // -------------------------------------------------------------------------
+// Edge cases for 12 AM, 12 PM, midnight, and noon.
 
   test('12 PM stays as hour 12 (noon)', () => {
     const result = buildDateTimeString('2026-01-01', '12', '00', 'PM', false);
@@ -50,9 +44,7 @@ describe('buildDateTimeString', () => {
     expect(result).toBe('2026-01-01T00:00:00');
   });
 
-  // -------------------------------------------------------------------------
-  // Edge cases — boundary times
-  // -------------------------------------------------------------------------
+// Boundary times stay on the provided local date.
 
   test('24-hour 00:00 produces midnight string', () => {
     const result = buildDateTimeString('2026-04-08', '00', '00', 'AM', true);
@@ -72,7 +64,7 @@ describe('buildDateTimeString', () => {
   });
 });
 
-// ── formatDate ────────────────────────────────────────────────────────────────
+// formatDate hides midnight times for date-only tasks.
 
 describe('formatDate', () => {
   test('returns empty string for null', () => {
@@ -100,7 +92,7 @@ describe('formatDate', () => {
     const dt = '2026-06-15T14:30:00';
     const result12 = formatDate(dt, 'en-US', false);
     const result24 = formatDate(dt, 'en-US', true);
-    // In 12h, "2:30 PM"; in 24h, "14:30" — they should be different strings
+// 12-hour and 24-hour displays should use different time text.
     expect(result12).not.toBe(result24);
   });
 
@@ -122,7 +114,7 @@ describe('formatDate', () => {
   });
 });
 
-// ── extractDateParts ──────────────────────────────────────────────────────────
+// extractDateParts maps stored datetimes back to form fields.
 
 describe('extractDateParts', () => {
   test('extracts date in YYYY-MM-DD format', () => {

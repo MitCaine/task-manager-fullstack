@@ -23,7 +23,7 @@ interface Props {
   onToggleHideCompleted: () => void;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Date helpers keep calendar calculations normalized to local day boundaries.
 
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const firstDay    = new Date(year, month, 1).getDay();
@@ -89,7 +89,7 @@ function buildWeekOptions(year: number, month: number, locale: string) {
     });
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// Calendar renders year, month, week, and day views over scheduled tasks.
 
 export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, onEditTask, hideCompleted, onToggleHideCompleted }: Props) {
   const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
@@ -166,7 +166,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     setView('year');
   };
 
-  // ── Breadcrumb trail ───────────────────────────────────────────────────────
+  // Breadcrumb labels reflect the active calendar scope.
   const renderBreadcrumbs = () => {
     const weekLabel = formatWeekLabel(selWeek, locale);
     const dayLabel = selDay.toLocaleDateString(locale, {
@@ -406,7 +406,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       .sort((a, b) => a.dateTimeScheduled!.localeCompare(b.dateTimeScheduled!));
   }, [tasks]);
 
-  // ── Shared task list ───────────────────────────────────────────────────────
+  // Shared task list markup is reused by smaller calendar scopes.
   const renderTasks = (items: Task[], showDate = false) => {
     if (items.length === 0) return <p className="cal-empty">No tasks.</p>;
     return (
@@ -516,7 +516,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     </div>
   );
 
-  // ── Year view ──────────────────────────────────────────────────────────────
+  // Year view groups each month into a compact task summary.
   if (view === 'year') {
     const rangeMonths = Array.from({ length: 4 }, (_, offset) => yearRange * 4 + offset);
 
@@ -618,7 +618,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     );
   }
 
-  // ── Month view ─────────────────────────────────────────────────────────────
+  // Month view lays out days in calendar grid order.
   if (view === 'month') {
     const grid = buildMonthGrid(calYear, selMonth);
 
@@ -722,7 +722,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     );
   }
 
-  // ── Week view ──────────────────────────────────────────────────────────────
+  // Week view shows each day from the selected week's Monday start.
   if (view === 'week') {
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(selWeek);
@@ -793,7 +793,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     );
   }
 
-  // ── Day view ───────────────────────────────────────────────────────────────
+  // Day view shows tasks scheduled for the selected date.
   const dayKey          = toKey(selDay);
   const dayTasks        = sorted(byDate.get(dayKey) ?? []);
   const overdueDayTasks  = dayTasks.filter(t => isTaskOverdue(t));

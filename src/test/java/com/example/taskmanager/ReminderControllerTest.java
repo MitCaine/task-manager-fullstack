@@ -29,9 +29,7 @@ class ReminderControllerTest {
     @MockBean
     private TaskRepository taskRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Reminder makeReminder(Long id, Long taskID, LocalDateTime dueDate) {
         Reminder r = new Reminder();
@@ -42,9 +40,7 @@ class ReminderControllerTest {
         return r;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{taskId}/reminders
-    // -------------------------------------------------------------------------
 
     @Test
     void getReminders_taskExists_returnsList() throws Exception {
@@ -77,9 +73,7 @@ class ReminderControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks/{taskId}/reminders
-    // -------------------------------------------------------------------------
 
     @Test
     void createReminder_valid_returns201WithLocation() throws Exception {
@@ -136,9 +130,7 @@ class ReminderControllerTest {
         verify(reminderRepository, never()).save(any());
     }
 
-    // -------------------------------------------------------------------------
     // PATCH /reminders/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void patchReminder_found_updatesDueDate() throws Exception {
@@ -175,9 +167,7 @@ class ReminderControllerTest {
         verify(reminderRepository, never()).save(any());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /reminders/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteReminder_found_returns204() throws Exception {

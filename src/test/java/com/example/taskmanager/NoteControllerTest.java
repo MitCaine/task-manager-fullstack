@@ -29,9 +29,7 @@ class NoteControllerTest {
     @MockBean
     private TaskRepository taskRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Note makeNote(Long id, String title, String context, Long taskID) {
         Note n = new Note();
@@ -43,9 +41,7 @@ class NoteControllerTest {
         return n;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{taskId}/notes
-    // -------------------------------------------------------------------------
 
     @Test
     void getNotes_taskExists_returnsList() throws Exception {
@@ -78,9 +74,7 @@ class NoteControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks/{taskId}/notes
-    // -------------------------------------------------------------------------
 
     @Test
     void createNote_valid_returns201WithLocation() throws Exception {
@@ -141,9 +135,7 @@ class NoteControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /notes/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteNote_found_returns204() throws Exception {

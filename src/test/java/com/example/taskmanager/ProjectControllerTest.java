@@ -24,9 +24,7 @@ class ProjectControllerTest {
     @MockBean
     private ProjectRepository projectRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Project makeProject(Long id, String title) {
         Project p = new Project();
@@ -36,9 +34,7 @@ class ProjectControllerTest {
         return p;
     }
 
-    // -------------------------------------------------------------------------
     // GET /projects
-    // -------------------------------------------------------------------------
 
     @Test
     void getProjects_returnsList() throws Exception {
@@ -61,9 +57,7 @@ class ProjectControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
-    // -------------------------------------------------------------------------
     // GET /projects/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void getProject_found_returns200() throws Exception {
@@ -83,9 +77,7 @@ class ProjectControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /projects
-    // -------------------------------------------------------------------------
 
     @Test
     void createProject_valid_returns201WithLocation() throws Exception {
@@ -135,9 +127,7 @@ class ProjectControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    // -------------------------------------------------------------------------
     // PUT /projects/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void updateProject_found_returns200() throws Exception {
@@ -163,9 +153,7 @@ class ProjectControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /projects/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteProject_found_returns204() throws Exception {

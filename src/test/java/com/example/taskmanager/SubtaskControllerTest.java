@@ -31,9 +31,7 @@ class SubtaskControllerTest {
     @MockBean
     private TaskRepository taskRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Subtask makeSubtask(Long id, String title, Long parentTaskID) {
         Subtask s = new Subtask();
@@ -44,9 +42,7 @@ class SubtaskControllerTest {
         return s;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{taskId}/subtasks
-    // -------------------------------------------------------------------------
 
     @Test
     void getSubtasks_taskExists_returnsList() throws Exception {
@@ -69,9 +65,7 @@ class SubtaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks/{taskId}/subtasks
-    // -------------------------------------------------------------------------
 
     @Test
     void createSubtask_valid_returns201WithLocation() throws Exception {
@@ -126,9 +120,7 @@ class SubtaskControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    // -------------------------------------------------------------------------
     // PATCH /subtasks/{id}/status
-    // -------------------------------------------------------------------------
 
     @Test
     void patchSubtaskStatus_found_updatesStatus() throws Exception {
@@ -155,9 +147,7 @@ class SubtaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // PUT /subtasks/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void updateSubtask_found_returnsUpdatedSubtask() throws Exception {
@@ -191,9 +181,7 @@ class SubtaskControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /subtasks/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteSubtask_found_returns204() throws Exception {

@@ -6,7 +6,7 @@
 
 USE taskmanagementdb;
 
--- Turn off safe-update mode for the session so ALTERs aren't blocked
+-- Schema maintenance statements in this script may update rows before ALTERs.
 SET SQL_SAFE_UPDATES = 0;
 
 DROP PROCEDURE IF EXISTS apply_improvements;
@@ -16,7 +16,7 @@ DELIMITER $$
 CREATE PROCEDURE apply_improvements()
 BEGIN
 
-  -- ── 1. Widen User.email from VARCHAR(45) → VARCHAR(255) ──────────────────
+  -- 1. User.email needs enough room for standards-compliant addresses.
   --    RFC 5321 allows email addresses up to 254 characters.
   IF (SELECT CHARACTER_MAXIMUM_LENGTH
         FROM information_schema.COLUMNS
@@ -32,7 +32,7 @@ BEGIN
   END IF;
 
 
-  -- ── 2. Widen Attachment.fileSize from INT → BIGINT ───────────────────────
+  -- 2. Attachment.fileSize is stored as BIGINT for files larger than INT range.
   --    INT max is ~2 GB; modern files (videos, archives) exceed this.
   IF (SELECT DATA_TYPE
         FROM information_schema.COLUMNS
@@ -48,7 +48,7 @@ BEGIN
   END IF;
 
 
-  -- ── 3. Default Task.priority to MEDIUM ───────────────────────────────────
+  -- 3. Task.priority defaults to MEDIUM when callers omit it.
   IF (SELECT COLUMN_DEFAULT
         FROM information_schema.COLUMNS
        WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -63,14 +63,14 @@ BEGIN
   END IF;
 
 
-  -- ── 4. Make Account.status NOT NULL with DEFAULT active ──────────────────
+  -- 4. Account.status must always have an active/inactive value.
   IF (SELECT IS_NULLABLE
         FROM information_schema.COLUMNS
        WHERE TABLE_SCHEMA = 'taskmanagementdb'
          AND TABLE_NAME   = 'Account'
          AND COLUMN_NAME  = 'status') = 'YES' THEN
 
-    -- Backfill any existing NULLs before adding NOT NULL constraint
+    -- Existing NULL rows need a valid value before the NOT NULL constraint.
     UPDATE `Account` SET `status` = 'active' WHERE `status` IS NULL;
 
     ALTER TABLE `Account`
@@ -81,7 +81,7 @@ BEGIN
   END IF;
 
 
-  -- ── 5. Rename "Device Table" → "Device" (table name contains a space) ────
+  -- 5. Device uses a query-friendly table name without spaces.
   IF EXISTS (
     SELECT 1 FROM information_schema.TABLES
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -94,7 +94,7 @@ BEGIN
   END IF;
 
 
-  -- ── 6. Index: Reminder.dueDate ────────────────────────────────────────────
+  -- 6. Reminder.dueDate supports due-reminder lookup.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -109,7 +109,7 @@ BEGIN
   END IF;
 
 
-  -- ── 7. Index: Note(taskID, timestamp) ────────────────────────────────────
+  -- 7. Note(taskID, timestamp) supports chronological notes per task.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -124,7 +124,7 @@ BEGIN
   END IF;
 
 
-  -- ── 8. Index: Task.priority ───────────────────────────────────────────────
+  -- 8. Task.priority supports priority filtering.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -139,7 +139,7 @@ BEGIN
   END IF;
 
 
-  -- ── 9. Index: TaskInstance.completionDateTime ─────────────────────────────
+  -- 9. TaskInstance.completionDateTime supports completion history queries.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -154,7 +154,7 @@ BEGIN
   END IF;
 
 
-  -- ── 10. Index: Subtask(parentTaskID, statusID) ────────────────────────────
+  -- 10. Subtask(parentTaskID, statusID) supports task detail and completion queries.
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.STATISTICS
      WHERE TABLE_SCHEMA = 'taskmanagementdb'
@@ -172,6 +172,6 @@ END$$
 
 DELIMITER ;
 
--- Run the procedure and then clean up
+-- Apply the idempotent maintenance procedure, then remove it from the schema.
 CALL apply_improvements();
 DROP PROCEDURE IF EXISTS apply_improvements;

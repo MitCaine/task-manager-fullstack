@@ -26,9 +26,7 @@ class AttachmentControllerTest {
     @MockBean
     private TaskRepository taskRepository;
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+    // Test fixture builder.
 
     private Attachment makeAttachment(Long id, String url, Long taskID) {
         Attachment a = new Attachment();
@@ -40,9 +38,7 @@ class AttachmentControllerTest {
         return a;
     }
 
-    // -------------------------------------------------------------------------
     // GET /tasks/{taskId}/attachments
-    // -------------------------------------------------------------------------
 
     @Test
     void getAttachments_taskExists_returnsList() throws Exception {
@@ -75,9 +71,7 @@ class AttachmentControllerTest {
                 .andExpect(status().isNotFound());
     }
 
-    // -------------------------------------------------------------------------
     // POST /tasks/{taskId}/attachments
-    // -------------------------------------------------------------------------
 
     @Test
     void createAttachment_valid_returns201WithLocation() throws Exception {
@@ -147,9 +141,7 @@ class AttachmentControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    // -------------------------------------------------------------------------
     // DELETE /attachments/{id}
-    // -------------------------------------------------------------------------
 
     @Test
     void deleteAttachment_found_returns204() throws Exception {
