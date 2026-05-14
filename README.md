@@ -16,7 +16,7 @@ Backend:
 Frontend:
 - React 18
 - TypeScript
-- Create React App / react-scripts
+- react-scripts
 - React Testing Library
 
 ## Project Structure
@@ -26,7 +26,7 @@ Frontend:
 ├── src/main/java/com/example/taskmanager/   # Spring Boot API, entities, repositories
 ├── src/main/resources/                      # Backend configuration
 ├── src/test/java/com/example/taskmanager/   # Backend tests
-├── SQL Files/                               # Database schema and SQL support files
+├── SQL Files/                               # MySQL schema
 ├── taskmanager-frontend/                    # React + TypeScript frontend
 └── pom.xml                                  # Maven backend project
 ```
@@ -66,15 +66,11 @@ The schema is not managed automatically by Hibernate:
 spring.jpa.hibernate.ddl-auto=none
 ```
 
-Apply the database schema from `SQL Files/` before running the backend against MySQL.
+Apply `SQL Files/databasemodel.sql` before running the backend against MySQL.
 
 ## Backend
 
-Run tests:
-
-```bash
-mvn test
-```
+Backend tests run in GitHub Actions on push and pull request.
 
 Run the API:
 
@@ -113,11 +109,7 @@ Build the frontend:
 npm run build
 ```
 
-Run frontend tests:
-
-```bash
-npm test
-```
+Frontend tests run in GitHub Actions on push and pull request.
 
 ## Main API Areas
 
@@ -148,15 +140,9 @@ The backend validates key inputs such as:
 
 Invalid requests return structured validation errors or a bad request response.
 
-## Testing Status
+## Testing
 
-Current verified commands:
-
-```bash
-mvn test
-cd taskmanager-frontend
-npm run build
-```
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs backend and frontend tests on push and pull request.
 
 Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, and attachments. Frontend tests cover task UI behavior, date/time utilities, API calls, recurring-copy handling, and duplicate title numbering.
 
@@ -165,4 +151,4 @@ Backend tests cover the controller and repository behavior for tasks, tags, remi
 - The frontend source is centered around `taskmanager-frontend/src/App.tsx` with the calendar in `taskmanager-frontend/src/components/Calendar.tsx`.
 - Shared frontend API helpers are in `taskmanager-frontend/src/api/tasks.ts`.
 - Shared frontend types are in `taskmanager-frontend/src/types/task.ts`.
-- Database schema files are kept in `SQL Files/`.
+- The MySQL schema is kept in `SQL Files/databasemodel.sql`.

@@ -22,7 +22,7 @@ DROP TABLE IF EXISTS `User` ;
 CREATE TABLE IF NOT EXISTS `User` (
   `userID` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(45) NOT NULL,
-  `email` VARCHAR(45) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`userID`),
   UNIQUE INDEX `username_UNIQUE` (`username` ASC),
   UNIQUE INDEX `email_UNIQUE` (`email` ASC))
@@ -37,7 +37,7 @@ DROP TABLE IF EXISTS `Account` ;
 CREATE TABLE IF NOT EXISTS `Account` (
   `accountID` INT NOT NULL AUTO_INCREMENT,
   `creationDate` DATETIME NOT NULL,
-  `status` VARCHAR(20) NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active',
   `userID` INT NOT NULL,
   PRIMARY KEY (`accountID`),
   INDEX `userID_idx` (`userID` ASC),
@@ -263,11 +263,11 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `Device Table`
+-- Table `Device`
 -- -----------------------------------------------------
-DROP TABLE IF EXISTS `Device Table` ;
+DROP TABLE IF EXISTS `Device` ;
 
-CREATE TABLE IF NOT EXISTS `Device Table` (
+CREATE TABLE IF NOT EXISTS `Device` (
   `deviceID` INT NOT NULL AUTO_INCREMENT,
   `deviceType` VARCHAR(45) NOT NULL,
   `operatingSystem` VARCHAR(45) NOT NULL,
@@ -353,7 +353,7 @@ CREATE TABLE IF NOT EXISTS `Attachment` (
   `attachmentID` INT NOT NULL AUTO_INCREMENT,
   `fileORLink` VARCHAR(255) NOT NULL,
   `metadata` TEXT NULL,
-  `fileSize` INT NOT NULL,
+  `fileSize` BIGINT NOT NULL,
   `taskID` INT NULL,
   PRIMARY KEY (`attachmentID`),
   INDEX `FK_Attachment_taskID_idx` (`taskID` ASC),
@@ -493,6 +493,21 @@ CREATE TABLE IF NOT EXISTS `Notification` (
     ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
+
+CREATE INDEX `idx_Reminder_dueDate`
+  ON `Reminder` (`dueDate` ASC);
+
+CREATE INDEX `idx_Note_taskID_timestamp`
+  ON `Note` (`taskID` ASC, `timestamp` ASC);
+
+CREATE INDEX `idx_Task_priority`
+  ON `Task` (`priority` ASC);
+
+CREATE INDEX `idx_TaskInstance_completionDateTime`
+  ON `TaskInstance` (`completionDateTime` ASC);
+
+CREATE INDEX `idx_Subtask_parentTaskID_statusID`
+  ON `Subtask` (`parentTaskID` ASC, `statusID` ASC);
 
 
 SET SQL_MODE=@OLD_SQL_MODE;
