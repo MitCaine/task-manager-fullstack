@@ -6,17 +6,25 @@ const NOTES_URL     = '/notes';
 const REMINDERS_URL = '/reminders';
 const PROJECTS_URL  = '/projects';
 const TAGS_URL      = '/tags';
+const API_BASE_URL  = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/$/, '');
 
 // Shared fetch wrappers raise HTTP status codes as errors.
 
+function apiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE_URL}${path}`;
+}
+
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+  const requestUrl = apiUrl(url);
+  const res = await fetch(requestUrl, options);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
   return res.json() as Promise<T>;
 }
 
 async function apiDelete(url: string): Promise<void> {
-  const res = await fetch(url, { method: 'DELETE' });
+  const requestUrl = apiUrl(url);
+  const res = await fetch(requestUrl, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
 }
 

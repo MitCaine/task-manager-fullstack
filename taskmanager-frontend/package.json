@@ -2,10 +2,13 @@
   "name": "taskmanager-frontend-ts",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test"
+    "test": "react-scripts test",
+    "ios:sync": "npm run build && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "overrides": {
     "nth-check": "^2.1.1",
@@ -20,20 +23,23 @@
     }
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "13.4.0",
+    "@testing-library/user-event": "13.5.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-scripts": "5.0.1",
-    "@testing-library/react": "13.4.0",
-    "@testing-library/jest-dom": "6.6.3",
-    "@testing-library/user-event": "13.5.0",
-    "@testing-library/dom": "10.4.0"
+    "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "typescript": "4.9.5",
+    "@capacitor/cli": "^8.3.4",
+    "@types/jest": "29.5.14",
+    "@types/node": "18.19.127",
     "@types/react": "18.3.7",
     "@types/react-dom": "18.3.0",
-    "@types/jest": "29.5.14",
-    "@types/node": "18.19.127"
+    "typescript": "4.9.5"
   },
   "proxy": "http://localhost:8080",
   "browserslist": {

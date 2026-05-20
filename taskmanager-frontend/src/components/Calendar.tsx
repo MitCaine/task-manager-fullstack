@@ -110,6 +110,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
   const locale   = isEuropeanDate ? 'en-GB' : 'en-US';
   const todayKey = toKey(new Date());
+  const completedToggleLabel = hideCompleted ? 'Show done' : 'Hide done';
 
   useEffect(() => {
     const closePickers = (event: MouseEvent) => {
@@ -145,6 +146,8 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     new Date(dt).toLocaleTimeString(locale, {
       hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
     });
+  const fmtTimeRange = (start: string, end?: string | null) =>
+    end ? `${fmtTime(start)} - ${fmtTime(end)}` : fmtTime(start);
 
   const sorted = (ts: Task[]) =>
     [...ts].sort((a, b) => {
@@ -161,6 +164,8 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     setView('day');
   };
 
+  const goToday = () => goDay(new Date());
+
   const goYearView = () => {
     setYearRange(Math.floor(selMonth / 4));
     setView('year');
@@ -169,10 +174,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   // Breadcrumb labels reflect the active calendar scope.
   const renderBreadcrumbs = () => {
     const weekLabel = formatWeekLabel(selWeek, locale);
-    const dayLabel = selDay.toLocaleDateString(locale, {
-      weekday: 'short', month: 'short', day: 'numeric',
-    });
-
     if (view === 'year') {
       const yearOptions = Array.from({ length: 201 }, (_, i) => calYear - 100 + i)
         .filter(year => year >= 1 && year <= 9999);
@@ -297,7 +298,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
         setView('month');
       };
 
-      const monthPicker = view === 'month' ? (
+      const monthPicker = view === 'month' || view === 'day' ? (
         <div className="cal-breadcrumb__picker" ref={monthPickerRef}>
           <button
             type="button"
@@ -339,7 +340,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           <span className="cal-breadcrumb__sep">›</span>
           {monthPicker}
           <span className="cal-breadcrumb__sep">›</span>
-          {view === 'week' ? (
+          {view === 'week' || view === 'day' ? (
             <div className="cal-breadcrumb__picker" ref={weekPickerRef}>
               <button
                 type="button"
@@ -377,12 +378,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               {weekLabel}
             </button>
           )}
-          {view === 'day' && (
-            <>
-              <span className="cal-breadcrumb__sep">›</span>
-              <span className="cal-breadcrumb__current">{dayLabel}</span>
-            </>
-          )}
         </nav>
       );
     }
@@ -414,7 +409,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
         {items.map(t => {
           const overdue    = isTaskOverdue(t);
           const completed  = t.statusID === 2;
-          const timeLabel = t.dateTimeScheduled ? fmtTime(t.dateTimeScheduled) : '—';
+          const timeLabel = t.dateTimeScheduled ? fmtTimeRange(t.dateTimeScheduled, t.endDateTimeScheduled) : '—';
           const dateLabel = t.dateTimeScheduled ? fmtShortDate(t.dateTimeScheduled) : null;
           return (
             <li
@@ -493,7 +488,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               >
                 <span className="cal-agenda__when">
                   <span>{fmtShortDate(task.dateTimeScheduled!)}</span>
-                  <span>{fmtTime(task.dateTimeScheduled!)}</span>
+                  <span>{fmtTimeRange(task.dateTimeScheduled!, task.endDateTimeScheduled)}</span>
                 </span>
                 <span className="cal-agenda__body">
                   <span className="cal-agenda__title">{task.title}</span>
@@ -525,8 +520,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
         <div className="cal-nav">
           {renderBreadcrumbs()}
           <div className="cal-nav__ctrl">
-            <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
-              {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
+            <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
+              Today
+            </button>
+            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
+              {completedToggleLabel}
             </button>
           </div>
         </div>
@@ -635,8 +633,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
         <div className="cal-nav">
           {renderBreadcrumbs()}
           <div className="cal-nav__ctrl">
-            <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
-              {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
+            <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
+              Today
+            </button>
+            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
+              {completedToggleLabel}
             </button>
           </div>
         </div>
@@ -739,8 +740,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
         <div className="cal-nav">
           {renderBreadcrumbs()}
           <div className="cal-nav__ctrl">
-            <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
-              {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
+            <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
+              Today
+            </button>
+            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
+              {completedToggleLabel}
             </button>
           </div>
         </div>
@@ -795,6 +799,9 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
   // Day view shows tasks scheduled for the selected date.
   const dayKey          = toKey(selDay);
+  const dayLabel        = selDay.toLocaleDateString(locale, {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
   const dayTasks        = sorted(byDate.get(dayKey) ?? []);
   const overdueDayTasks  = dayTasks.filter(t => isTaskOverdue(t));
   const upcomingDayTasks = dayTasks.filter(t => !isTaskOverdue(t));
@@ -809,16 +816,17 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   };
 
   return (
-    <div className="cal-card">
-      <div className="cal-nav">
+    <div className="cal-card cal-card--day">
+      <div className="cal-nav cal-nav--day">
         {renderBreadcrumbs()}
         <div className="cal-nav__ctrl">
-          <button className="btn btn--ghost btn--sm" onClick={onToggleHideCompleted}>
-            {hideCompleted ? '👁 Show completed' : '🙈 Hide completed'}
-          </button>
           <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(-1)}>‹</button>
+          <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
+            Today
+          </button>
           <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(+1)}>›</button>
         </div>
+        <div className="cal-day-current">{dayLabel}</div>
       </div>
 
       {overdueDayTasks.length > 0 && (

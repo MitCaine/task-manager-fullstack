@@ -25,6 +25,9 @@ public class Task {
     @Column(name = "dateTimeScheduled")
     private LocalDateTime dateTimeScheduled;
 
+    @Column(name = "endDateTimeScheduled")
+    private LocalDateTime endDateTimeScheduled;
+
     @Column(name = "userID")
     private Long userID;
 
@@ -76,6 +79,14 @@ public class Task {
 
     public void setDateTimeScheduled(LocalDateTime dateTimeScheduled) {
         this.dateTimeScheduled = dateTimeScheduled;
+    }
+
+    public LocalDateTime getEndDateTimeScheduled() {
+        return endDateTimeScheduled;
+    }
+
+    public void setEndDateTimeScheduled(LocalDateTime endDateTimeScheduled) {
+        this.endDateTimeScheduled = endDateTimeScheduled;
     }
 
     public Long getUserID() {

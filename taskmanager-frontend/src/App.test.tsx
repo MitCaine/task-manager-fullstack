@@ -1,9 +1,9 @@
-import { render, screen, waitFor, act, within } from '@testing-library/react';
+import { render, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import {
-  getTasks, createTask, deleteTask, patchTaskStatus,
-  getProjects, getTags, getRecurrence, setRepeat,
+  getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
+  getProjects, getTags, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
 } from './api/tasks';
 import type { Task } from './types/task';
 
@@ -11,13 +11,17 @@ jest.mock('./api/tasks');
 jest.mock('./components/Calendar', () => () => null);
 
 const mockGetTasks       = getTasks       as jest.MockedFunction<typeof getTasks>;
+const mockGetTask        = getTask        as jest.MockedFunction<typeof getTask>;
 const mockCreateTask     = createTask     as jest.MockedFunction<typeof createTask>;
+const mockUpdateTask     = updateTask     as jest.MockedFunction<typeof updateTask>;
 const mockDeleteTask     = deleteTask     as jest.MockedFunction<typeof deleteTask>;
 const mockPatchStatus    = patchTaskStatus as jest.MockedFunction<typeof patchTaskStatus>;
 const mockGetProjects    = getProjects    as jest.MockedFunction<typeof getProjects>;
 const mockGetTags        = getTags        as jest.MockedFunction<typeof getTags>;
 const mockGetRecurrence  = getRecurrence  as jest.MockedFunction<typeof getRecurrence>;
 const mockSetRepeat      = setRepeat      as jest.MockedFunction<typeof setRepeat>;
+const mockAddTagToTask   = addTagToTask   as jest.MockedFunction<typeof addTagToTask>;
+const mockRemoveTagFromTask = removeTagFromTask as jest.MockedFunction<typeof removeTagFromTask>;
 
 const sampleTask: Task = {
   taskID: 1,
@@ -35,11 +39,15 @@ const scheduledTask: Task = {
 
 beforeEach(() => {
   mockGetTasks.mockResolvedValue([]);
+  mockGetTask.mockImplementation(async id => ({ ...sampleTask, taskID: id }));
   mockCreateTask.mockResolvedValue(sampleTask);
+  mockUpdateTask.mockImplementation(async (id, task) => ({ ...task, taskID: id } as Task));
   mockDeleteTask.mockResolvedValue(undefined);
   mockPatchStatus.mockResolvedValue(sampleTask);
   mockGetProjects.mockResolvedValue([]);
   mockGetTags.mockResolvedValue([]);
+  mockAddTagToTask.mockResolvedValue(undefined);
+  mockRemoveTagFromTask.mockResolvedValue(undefined);
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
@@ -65,11 +73,33 @@ function openSettings() {
   userEvent.click(screen.getByRole('button', { name: /settings/i }));
 }
 
+async function openTaskActions(item?: HTMLElement) {
+  const scope = item ? within(item) : screen;
+  const actionButton = item
+    ? scope.getByRole('button', { name: /task actions/i })
+    : screen.getAllByRole('button', { name: /task actions/i })[0];
+  fireEvent.click(actionButton);
+  return scope.findByRole('menuitem', { name: /copy/i });
+}
+
+function getCreateDateInput(): HTMLInputElement {
+  const input = document.querySelector('.app__add input[type="date"]');
+  if (!(input instanceof HTMLInputElement)) throw new Error('Create date input not found');
+  return input;
+}
+
+async function openCreateDateInput() {
+  await act(async () => {
+    fireEvent.click(getCreateDateInput());
+  });
+  await waitFor(() => expect(getCreateDateInput()).toHaveAttribute('data-open', 'true'));
+}
+
 // Rendering behavior.
 
-test('renders the "Task Manager" heading', async () => {
+test('does not render the old Task Manager heading', async () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: /task manager/i })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /task manager/i })).not.toBeInTheDocument();
 });
 
 test('shows 0 tasks in footer when no tasks are loaded', async () => {
@@ -146,8 +176,9 @@ test('clicking delete button then confirming removes the task', async () => {
   await screen.findByText('Buy milk');
 
   // Step 1: click the ✕ icon to show confirmation
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
 
   // Step 2: wait for confirmation to appear, then click Delete
@@ -166,8 +197,9 @@ test('clicking delete then Cancel leaves the task in place', async () => {
 
   await screen.findByText('Buy milk');
 
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
   const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
   userEvent.click(cancelBtn);
@@ -176,33 +208,486 @@ test('clicking delete then Cancel leaves the task in place', async () => {
   expect(mockDeleteTask).not.toHaveBeenCalled();
 });
 
-test('toggling 24-hour format hides the AM/PM selector', async () => {
+test('toggling 24-hour format hides the AM/PM selector while editing time', async () => {
   render(<App />);
-  // Show the time row so the AM/PM select appears
+  // Start time is summarized by default; open the editor from the summary.
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  // In default 12h mode the AM/PM options should be visible
-  expect(await screen.findByRole('option', { name: 'AM' })).toBeInTheDocument();
+  // In default 12h mode the AM/PM segment should be available.
+  expect(await screen.findByRole('button', { name: /^(AM|PM)$/ })).toBeInTheDocument();
 
   // Switch to 24-hour in settings
   await act(async () => { openSettings(); });
   await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
 
-  // AM/PM select should be gone in 24h mode
+  // AM/PM segment should be gone in 24h mode
   await waitFor(() => {
-    expect(screen.queryByRole('option', { name: 'AM' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(AM|PM)$/ })).not.toBeInTheDocument();
   });
 });
 
-test('12-hour mode shows AM and PM options in the time selector', async () => {
+test('12-hour mode shows AM and PM options while editing time', async () => {
   render(<App />);
-  // Default is 12-hour; show the time row
+  // Default is 12-hour; the compact summary opens the time editor.
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(await screen.findByRole('option', { name: 'AM' })).toBeInTheDocument();
-  expect(screen.getByRole('option', { name: 'PM' })).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(await screen.findByRole('button', { name: /^(AM|PM)$/ }));
+  });
+  expect(screen.getAllByRole('button', { name: 'AM' }).length).toBeGreaterThanOrEqual(1);
+  expect(screen.getAllByRole('button', { name: 'PM' }).length).toBeGreaterThanOrEqual(1);
+});
+
+test('start time editor opens in one tap when priority menu is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+  expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+  });
+
+  expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+});
+
+test('end time editor opens in one tap when start time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+});
+
+test('start time editor opens in one tap when end time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ End time/i));
+  });
+  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+  });
+
+  expect(screen.queryByText(/^End:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+});
+
+test('tapping the active start time summary toggles the editor closed', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^start:/i }));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+});
+
+test('priority opens in one tap when start time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/remove priority/i)).toBeInTheDocument();
+});
+
+test('project opens in one tap when start time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^project$/i }));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/\+ new project/i)).toBeInTheDocument();
+});
+
+test('tags opens in one tap when start time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/\+ new tag/i)).toBeInTheDocument();
+});
+
+test('priority opens in one tap when end time editor is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ End time/i));
+  });
+  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+
+  expect(screen.queryByText(/^End:$/)).not.toBeInTheDocument();
+  expect(screen.getByText(/remove priority/i)).toBeInTheDocument();
+});
+
+test('priority closes when clicking the create title input', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+  expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByPlaceholderText(/task title/i));
+  });
+
+  expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
+});
+
+test('project opens in one tap when priority is open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+  expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^project$/i }));
+  });
+
+  expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/\+ new project/i)).toBeInTheDocument();
+});
+
+test('start time editor closes when clicking the create title input', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByPlaceholderText(/task title/i));
+  });
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+});
+
+test('date closes when clicking the create title input', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+
+  await act(async () => {
+    userEvent.click(screen.getByPlaceholderText(/task title/i));
+  });
+
+  expect(getCreateDateInput()).not.toHaveAttribute('data-open');
+});
+
+test('date opens from priority in one tap', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+  expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
+
+  await openCreateDateInput();
+
+  expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
+  expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
+});
+
+test('start time editor opens from date in one tap', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+  });
+
+  expect(getCreateDateInput()).not.toHaveAttribute('data-open');
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+});
+
+test('end time editor opens from date in one tap', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+  });
+
+  expect(getCreateDateInput()).not.toHaveAttribute('data-open');
+  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+});
+
+test('date opens from start time editor in one tap', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+
+  await openCreateDateInput();
+
+  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
+});
+
+test('priority opens from date in one tap', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+
+  expect(getCreateDateInput()).not.toHaveAttribute('data-open');
+  expect(screen.getByText(/remove priority/i)).toBeInTheDocument();
+});
+
+test('closing start hour dropdown keeps the start editor open', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+
+  const hourButton = screen.getAllByRole('button', { name: /^\d{2}$/ })[0];
+  await act(async () => {
+    userEvent.click(hourButton);
+  });
+  await act(async () => {
+    userEvent.click(hourButton);
+  });
+
+  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+});
+
+test('date input remains usable after create control switching', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  await openCreateDateInput();
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+  });
+
+  expect(getCreateDateInput().value).toBe('2026-06-20');
+  expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
+});
+
+test('create date selection updates the preview immediately', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+  });
+
+  expect(getCreateDateInput().value).toBe('2026-06-20');
+  expect(within(screen.getByLabelText(/task preview/i)).getByText('06/20/2026')).toBeInTheDocument();
+});
+
+test('selected create date is used when creating the task', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  await openCreateDateInput();
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+  });
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Dated task');
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+
+  await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
+  expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+    title: 'Dated task',
+    dateTimeScheduled: '2026-06-20T00:00:00',
+  }));
+});
+
+test('create task with start and end sends endDateTimeScheduled with priority project and tags', async () => {
+  mockGetProjects.mockResolvedValue([{ projectID: 7, title: 'Home' }]);
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 44, title: 'Full task' });
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const createScope = within(createCard);
+
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^priority$/i }));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByText(/^High$/i));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByLabelText(/home/i));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByLabelText(/errand/i));
+  });
+  userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Full task');
+  userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+
+  await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
+  expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+    title: 'Full task',
+    dateTimeScheduled: expect.stringMatching(/^2026-06-20T\d{2}:\d{2}:00$/),
+    endDateTimeScheduled: expect.stringMatching(/^2026-06-20T\d{2}:\d{2}:00$/),
+    priority: 'HIGH',
+    projectID: 7,
+  }));
+  await waitFor(() => expect(mockAddTagToTask).toHaveBeenCalledWith(44, 8));
+});
+
+test('editing a task with end time preserves endDateTimeScheduled and metadata', async () => {
+  const taskWithEnd: Task = {
+    ...sampleTask,
+    taskID: 50,
+    title: 'Timed task',
+    dateTimeScheduled: '2026-06-20T09:15:00',
+    endDateTimeScheduled: '2026-06-20T10:45:00',
+    priority: 'HIGH',
+    projectID: 7,
+    tags: [{ tagID: 8, title: 'Errand', color: '#22c55e' }],
+  };
+  mockGetTasks.mockResolvedValue([taskWithEnd]);
+  mockGetTask.mockResolvedValue(taskWithEnd);
+  mockGetProjects.mockResolvedValue([{ projectID: 7, title: 'Home' }]);
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  render(<App />);
+  await screen.findByText('Timed task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+  expect(await screen.findByRole('button', { name: /^end:/i })).toHaveTextContent(/10:45 AM/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(50, expect.objectContaining({
+    dateTimeScheduled: '2026-06-20T09:15:00',
+    endDateTimeScheduled: '2026-06-20T10:45:00',
+    priority: 'HIGH',
+    projectID: 7,
+  })));
+  expect(mockAddTagToTask).not.toHaveBeenCalled();
+  expect(mockRemoveTagFromTask).not.toHaveBeenCalled();
+});
+
+test('editing a task and clearing end time sends null endDateTimeScheduled', async () => {
+  const taskWithEnd: Task = {
+    ...sampleTask,
+    taskID: 51,
+    title: 'Clear end',
+    dateTimeScheduled: '2026-06-20T09:15:00',
+    endDateTimeScheduled: '2026-06-20T10:45:00',
+  };
+  mockGetTasks.mockResolvedValue([taskWithEnd]);
+  mockGetTask.mockResolvedValue(taskWithEnd);
+  render(<App />);
+  await screen.findByText('Clear end');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+  await act(async () => {
+    userEvent.click(await screen.findByRole('button', { name: /clear end time/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(51, expect.objectContaining({
+    endDateTimeScheduled: null,
+  })));
+});
+
+test('existing task without end time still opens edit without an end summary', async () => {
+  mockGetTasks.mockResolvedValue([scheduledTask]);
+  mockGetTask.mockResolvedValue(scheduledTask);
+  render(<App />);
+  await screen.findByText('Dentist appointment');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Edit card not found');
+  expect(within(editCard).queryByRole('button', { name: /^end:/i })).not.toBeInTheDocument();
+  expect(within(editCard).getByRole('button', { name: /\+ end time/i })).toBeInTheDocument();
 });
 
 // Edge-case behavior.
@@ -245,7 +730,8 @@ test('createTask rejection shows error banner, list unchanged', async () => {
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalled());
-  expect(screen.queryByText('Failing task')).not.toBeInTheDocument();
+  expect(await screen.findByText(/failed to create task/i)).toBeInTheDocument();
+  expect(within(screen.getByRole('list', { name: /task list/i })).queryByText('Failing task')).not.toBeInTheDocument();
   expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
@@ -256,8 +742,9 @@ test('deleteTask rejection shows error banner — task remains in list', async (
 
   await screen.findByText('Buy milk');
 
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /delete task/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
   const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
   await act(async () => { userEvent.click(confirmBtn); });
@@ -301,48 +788,74 @@ test('closing the stats modal removes it from the DOM', async () => {
   });
 });
 
-// View tab behavior.
+// Task move behavior.
 
-test('"Board" tab button is rendered in the view tabs', async () => {
+test('Board tab is not rendered in the view tabs', async () => {
   render(<App />);
-  expect(screen.getByRole('button', { name: /^board$/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^board$/i })).not.toBeInTheDocument();
 });
 
-test('clicking the Board tab shows the kanban column headers', async () => {
-  mockGetTasks.mockResolvedValue([sampleTask]);
-  render(<App />);
-  await screen.findByText('Buy milk');
-
-  await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^board$/i }));
-  });
-
-  expect(screen.getByText('To Do')).toBeInTheDocument();
-  expect(screen.getByText('In Progress')).toBeInTheDocument();
-  // "Done" may appear in both kanban header and filter buttons
-  expect(screen.getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
-});
-
-test('task without statusID appears in the To Do column of the kanban board', async () => {
+test('opening the task move menu shows alternate statuses', async () => {
   mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
   render(<App />);
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^board$/i }));
+    fireEvent.contextMenu(screen.getByText('Buy milk'));
   });
 
-  // Task title should appear inside the board
-  expect(screen.getAllByText('Buy milk').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getByText('Move task')).toBeInTheDocument();
+  expect(screen.getByText('In Progress')).toBeInTheDocument();
+  expect(screen.getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
+  expect(screen.queryByRole('button', { name: /^active$/i })).not.toBeInTheDocument();
+});
+
+test('task move menu updates status', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  mockPatchStatus.mockResolvedValue({ ...sampleTask, statusID: 3 });
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    fireEvent.contextMenu(screen.getByText('Buy milk'));
+  });
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /in progress/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 3);
+  });
 });
 
 // Task duplication behavior.
 
-test('duplicate button is rendered for each task', async () => {
+test('task action menu shows edit, copy, and delete actions', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
   await screen.findByText('Buy milk');
-  expect(screen.getByRole('button', { name: /duplicate task/i })).toBeInTheDocument();
+
+  await openTaskActions();
+
+  expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
+  expect(screen.getByRole('menuitem', { name: /copy/i })).toBeInTheDocument();
+  expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
+});
+
+test('clicking edit opens an inline task edit card', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
 });
 
 test('clicking duplicate calls createTask with " (copy)" appended to the title', async () => {
@@ -352,8 +865,9 @@ test('clicking duplicate calls createTask with " (copy)" appended to the title',
   render(<App />);
   await screen.findByText('Buy milk');
 
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /duplicate task/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -374,8 +888,9 @@ test('clicking duplicate increments copy suffix when duplicating a copy', async 
   const copiedItem = screen.getByText('Buy milk (copy)').closest('li');
   expect(copiedItem).not.toBeNull();
 
+  await openTaskActions(copiedItem as HTMLElement);
   await act(async () => {
-    userEvent.click(within(copiedItem as HTMLElement).getByRole('button', { name: /duplicate task/i }));
+    userEvent.click(within(copiedItem as HTMLElement).getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -393,8 +908,9 @@ test('clicking duplicate reuses the lowest missing copy suffix', async () => {
   render(<App />);
   await screen.findByText('Buy milk (copy 2)');
 
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getAllByRole('button', { name: /duplicate task/i })[0]);
+    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -421,14 +937,47 @@ test('clicking duplicate carries over the recurrence rule', async () => {
   render(<App />);
   await screen.findByText('Buy milk');
 
+  await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /duplicate task/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
     expect(mockGetRecurrence).toHaveBeenCalledWith(1);
     expect(mockSetRepeat).toHaveBeenCalledWith(99, 'monthly');
   });
+});
+
+test('completing a recurring task with end time creates the next occurrence with matching duration', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    recurrenceRuleID: 10,
+    dateTimeScheduled: '2026-06-15T14:30:00',
+    endDateTimeScheduled: '2026-06-15T15:30:00',
+  };
+  mockGetTasks.mockResolvedValue([recurringTask]);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-06-15T14:30:00',
+    endDateTime: '2036-06-15T14:30:00',
+  });
+  mockCreateTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: null });
+  mockGetTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: 12 });
+
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  const statusCheckbox = screen.getByTitle(/mark as done/i);
+  await act(async () => {
+    userEvent.click(statusCheckbox);
+  });
+
+  await waitFor(() => expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+    dateTimeScheduled: '2026-06-22T14:30:00',
+    endDateTimeScheduled: '2026-06-22T15:30:00',
+  })));
 });
 
 // Bulk action behavior.
@@ -528,10 +1077,10 @@ test('"Delete" in bulk bar calls deleteTask for each selected task', async () =>
   });
 });
 
-// Search focus behavior.
+// Search field.
 
-test('search input placeholder mentions the "/" shortcut', async () => {
+test('search input has a concise placeholder', async () => {
   render(<App />);
-  const searchInput = screen.getByPlaceholderText(/press \/ to focus/i);
+  const searchInput = screen.getByPlaceholderText(/search tasks/i);
   expect(searchInput).toBeInTheDocument();
 });

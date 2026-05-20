@@ -60,6 +60,7 @@ public class TaskController {
                     task.setTitle(updatedTask.getTitle());
                     task.setDescription(updatedTask.getDescription());
                     task.setDateTimeScheduled(updatedTask.getDateTimeScheduled());
+                    task.setEndDateTimeScheduled(updatedTask.getEndDateTimeScheduled());
                     task.setUserID(updatedTask.getUserID());
                     task.setStatusID(updatedTask.getStatusID());
                     task.setPriority(updatedTask.getPriority());

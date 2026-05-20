@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -222,6 +223,27 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.dateTimeScheduled").exists());
     }
 
+    @Test
+    void createTask_withEndDateTime_persistsEndDateTime() throws Exception {
+        Task saved = makeTask(1L, "Scheduled", null, LocalDateTime.of(2026, 6, 15, 14, 30));
+        saved.setEndDateTimeScheduled(LocalDateTime.of(2026, 6, 15, 15, 30));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task arg = invocation.getArgument(0);
+            assertEquals(LocalDateTime.of(2026, 6, 15, 15, 30), arg.getEndDateTimeScheduled());
+            return saved;
+        });
+
+        String body = """
+                {"title":"Scheduled","dateTimeScheduled":"2026-06-15T14:30:00","endDateTimeScheduled":"2026-06-15T15:30:00"}
+                """;
+
+        mockMvc.perform(post("/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.endDateTimeScheduled").value("2026-06-15T15:30:00"));
+    }
+
     // PUT /tasks/{id}
 
     @Test
@@ -240,6 +262,29 @@ class TaskControllerTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("New title"));
+    }
+
+    @Test
+    void updateTask_found_updatesEndDateTime() throws Exception {
+        Task existing = makeTask(1L, "Old title", 1L, LocalDateTime.of(2026, 6, 15, 14, 30));
+        Task updated = makeTask(1L, "New title", 1L, LocalDateTime.of(2026, 6, 15, 14, 30));
+        updated.setEndDateTimeScheduled(LocalDateTime.of(2026, 6, 15, 16, 0));
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task arg = invocation.getArgument(0);
+            assertEquals(LocalDateTime.of(2026, 6, 15, 16, 0), arg.getEndDateTimeScheduled());
+            return updated;
+        });
+
+        String body = """
+                {"title":"New title","description":"","userID":1,"dateTimeScheduled":"2026-06-15T14:30:00","endDateTimeScheduled":"2026-06-15T16:00:00"}
+                """;
+
+        mockMvc.perform(put("/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endDateTimeScheduled").value("2026-06-15T16:00:00"));
     }
 
     @Test

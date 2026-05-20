@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import type { RefObject } from 'react';
+import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { Attachment, Note, Project, RecurrenceRule, Reminder, Subtask, Tag, Task } from './types/task';
 import {
@@ -20,6 +20,28 @@ type Ampm = 'AM' | 'PM';
 type Theme = 'system' | 'light' | 'dark';
 type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
+type MobilePage = 'add' | 'tasks' | 'calendar';
+type ViewTab = 'all' | 'today' | 'week' | 'month';
+type CreateOpenControl =
+  | null
+  | 'priority'
+  | 'project'
+  | 'tags'
+  | 'date'
+  | 'start'
+  | 'end'
+  | 'start-hour'
+  | 'start-minute'
+  | 'start-ampm'
+  | 'end-hour'
+  | 'end-minute'
+  | 'end-ampm';
+
+function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
+  if (control === 'start') return current === 'start' || current === 'start-hour' || current === 'start-minute' || current === 'start-ampm';
+  if (control === 'end') return current === 'end' || current === 'end-hour' || current === 'end-minute' || current === 'end-ampm';
+  return current === control;
+}
 
 const TAG_COLORS = [
   '#6366f1', // indigo
@@ -32,12 +54,27 @@ const TAG_COLORS = [
   '#3b82f6', // blue
 ];
 
-const TAG_MAX_LENGTH = 25;
-const PROJECT_MAX_LENGTH = 25;
+const TAG_MAX_LENGTH = 18;
+const PROJECT_MAX_LENGTH = 24;
+const VISIBLE_TASK_TAGS = 2;
 
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 const PRIORITY_COLOR: Record<string, string> = { LOW: '#4ade80', MEDIUM: '#fbbf24', HIGH: '#f87171' };
+const MOBILE_PAGES: MobilePage[] = ['add', 'tasks', 'calendar'];
+const TASK_STATUS_OPTIONS = [
+  { label: 'Active', statusID: null as number | null },
+  { label: 'In Progress', statusID: 3 as number | null },
+  { label: 'Done', statusID: 2 as number | null },
+];
+
+function normalizeTaskStatus(statusID: number | null | undefined): number | null {
+  return statusID === 1 ? null : statusID ?? null;
+}
+
+function compactText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
 
 function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, onClose: () => void) {
   useEffect(() => {
@@ -59,6 +96,413 @@ function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
     minute: String(now.getMinutes()).padStart(2, '0'),
     ampm: h >= 12 ? 'PM' : 'AM',
   };
+}
+
+type CloseFloatingControls = (options?: { timeEditors?: boolean; createControls?: boolean }) => void;
+
+type TimeSelectProps = {
+  id: string;
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+  openId: string | null;
+  setOpenId: (id: string | null) => void;
+  sharedOpenId?: string | null;
+  setSharedOpenId?: Dispatch<SetStateAction<CreateOpenControl>>;
+  fallbackOpenId?: string;
+};
+
+// Custom time dropdown keeps the selected option visible when opened.
+function TimeSelect({
+  id,
+  value,
+  options,
+  onChange,
+  openId,
+  setOpenId,
+  sharedOpenId,
+  setSharedOpenId,
+  fallbackOpenId,
+}: TimeSelectProps): JSX.Element {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const controlled = Boolean(setSharedOpenId);
+  const open = controlled ? sharedOpenId === id : openId === id;
+
+  const closeSelect = () => {
+    setOpenId(null);
+    setSharedOpenId?.((fallbackOpenId ?? null) as CreateOpenControl);
+  };
+
+  const handleOpen = () => {
+    setOpenId(open ? null : id);
+    setSharedOpenId?.((open ? (fallbackOpenId ?? null) : id) as CreateOpenControl);
+  };
+
+  useEffect(() => {
+    if (!open || controlled) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        dropRef.current && !dropRef.current.contains(e.target as Node)
+      ) closeSelect();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, controlled, closeSelect]);
+
+  useEffect(() => {
+    if (!open || !dropRef.current) return;
+    const selected = dropRef.current.querySelector('.time-select__item--on');
+    if (selected instanceof HTMLElement && typeof selected.scrollIntoView === 'function') {
+      selected.scrollIntoView({ block: 'center' });
+    }
+  }, [open]);
+
+  return (
+    <div className="time-select">
+      <button type="button" className="select time-select__btn" ref={btnRef} onClick={handleOpen} data-create-menu-trigger>
+        {value}
+      </button>
+      {open && (
+        <div className="time-select__dropdown" ref={dropRef} data-create-menu-boundary>
+          {options.map(opt => (
+            <button
+              key={opt}
+              type="button"
+              className={`time-select__item${opt === value ? ' time-select__item--on' : ''}`}
+              onClick={() => { onChange(opt); closeSelect(); }}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type DateTimeRowProps = {
+  editorScope: string;
+  openTimeEditorScope: string | null;
+  setOpenTimeEditorScope: Dispatch<SetStateAction<string | null>>;
+  closeFloatingControls: CloseFloatingControls;
+  is24Hour: boolean;
+  hourOptions: string[];
+  openControl?: string | null;
+  setOpenControl?: Dispatch<SetStateAction<CreateOpenControl>>;
+  controlIds?: {
+    date: string;
+    start: string;
+    end: string;
+    startHour: string;
+    startMinute: string;
+    startAmpm: string;
+    endHour: string;
+    endMinute: string;
+    endAmpm: string;
+  };
+  dateVal: string;
+  hourVal: string;
+  minuteVal: string;
+  ampmVal: Ampm;
+  onDate: (v: string) => void;
+  onHour: (v: string) => void;
+  onMinute: (v: string) => void;
+  onAmpm: (v: Ampm) => void;
+  showTime?: boolean;
+  onToggleTime?: () => void;
+  onRemoveStart?: () => void;
+  showEndTime?: boolean;
+  onToggleEndTime?: () => void;
+  endHourVal?: string;
+  endMinuteVal?: string;
+  endAmpmVal?: Ampm;
+  onEndHour?: (v: string) => void;
+  onEndMinute?: (v: string) => void;
+  onEndAmpm?: (v: Ampm) => void;
+};
+
+// Shared date and optional start/end time controls.
+function DateTimeRow({
+  editorScope,
+  openTimeEditorScope,
+  setOpenTimeEditorScope,
+  closeFloatingControls,
+  is24Hour,
+  hourOptions,
+  openControl,
+  setOpenControl,
+  controlIds,
+  dateVal, hourVal, minuteVal, ampmVal,
+  onDate, onHour, onMinute, onAmpm,
+  showTime, onToggleTime, onRemoveStart,
+  showEndTime, onToggleEndTime,
+  endHourVal, endMinuteVal, endAmpmVal,
+  onEndHour, onEndMinute, onEndAmpm,
+}: DateTimeRowProps): JSX.Element {
+  const [openTimeSelect, setOpenTimeSelect] = useState<string | null>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const dateControl = controlIds?.date ?? `${editorScope}:date`;
+  const startControl = controlIds?.start ?? `${editorScope}:start`;
+  const endControl = controlIds?.end ?? `${editorScope}:end`;
+  const startHourControl = controlIds?.startHour ?? 'start-hour';
+  const startMinuteControl = controlIds?.startMinute ?? 'start-minute';
+  const startAmpmControl = controlIds?.startAmpm ?? 'start-ampm';
+  const endHourControl = controlIds?.endHour ?? 'end-hour';
+  const endMinuteControl = controlIds?.endMinute ?? 'end-minute';
+  const endAmpmControl = controlIds?.endAmpm ?? 'end-ampm';
+  const ownedControls = [
+    dateControl,
+    startControl,
+    endControl,
+    startHourControl,
+    startMinuteControl,
+    startAmpmControl,
+    endHourControl,
+    endMinuteControl,
+    endAmpmControl,
+  ];
+  const controlledCreateRow = Boolean(controlIds && setOpenControl);
+  const activeEditor: 'start' | 'end' | null =
+    controlledCreateRow
+      ? (openControl === startControl || openControl === startHourControl || openControl === startMinuteControl || openControl === startAmpmControl ? 'start' :
+        openControl === endControl || openControl === endHourControl || openControl === endMinuteControl || openControl === endAmpmControl ? 'end' :
+        null)
+      : (openTimeEditorScope === `${editorScope}:start` ? 'start' :
+        openTimeEditorScope === `${editorScope}:end` ? 'end' :
+        null);
+
+  const timeSummary = (h: string, m: string, a?: Ampm) =>
+    is24Hour ? `${h}:${m}` : `${h}:${m} ${a ?? 'AM'}`;
+
+  const setScopedTimeSelect = (next: string | null) => {
+    setOpenTimeSelect(next);
+  };
+
+  const openDateControl = () => {
+    closeFloatingControls({ createControls: false });
+    setOpenTimeEditorScope(current => current?.startsWith(`${editorScope}:`) ? null : current);
+    setOpenControl?.(dateControl as CreateOpenControl);
+  };
+
+  const handleDateChange = (nextDate: string) => {
+    onDate(nextDate);
+    if (controlledCreateRow) setOpenControl?.(dateControl as CreateOpenControl);
+  };
+
+  const closeTimeEditor = () => {
+    setOpenTimeSelect(null);
+    setOpenTimeEditorScope(current => current?.startsWith(`${editorScope}:`) ? null : current);
+    setOpenControl?.(current => current && ownedControls.includes(current) ? null : current);
+  };
+
+  const openStartEditor = () => {
+    if (controlledCreateRow && isCreateControlGroupActive(openControl as CreateOpenControl, startControl as Exclude<CreateOpenControl, null>)) {
+      closeTimeEditor();
+      return;
+    }
+    if (!controlledCreateRow && activeEditor === 'start') {
+      closeTimeEditor();
+      return;
+    }
+    closeFloatingControls({ timeEditors: false, createControls: false });
+    setOpenControl?.(startControl as CreateOpenControl);
+    setOpenTimeEditorScope(`${editorScope}:start`);
+    if (showTime === false) onToggleTime?.();
+    setOpenTimeSelect(null);
+  };
+
+  const openEndEditor = () => {
+    if (controlledCreateRow && isCreateControlGroupActive(openControl as CreateOpenControl, endControl as Exclude<CreateOpenControl, null>)) {
+      closeTimeEditor();
+      return;
+    }
+    if (!controlledCreateRow && activeEditor === 'end') {
+      closeTimeEditor();
+      return;
+    }
+    closeFloatingControls({ timeEditors: false, createControls: false });
+    setOpenControl?.(endControl as CreateOpenControl);
+    setOpenTimeEditorScope(`${editorScope}:end`);
+    if (!showEndTime) onToggleEndTime?.();
+    setOpenTimeSelect(null);
+  };
+
+  useEffect(() => {
+    if (!activeEditor || controlledCreateRow) return;
+    const scopedOpen = !openControl || ownedControls.includes(openControl);
+    if (!openTimeEditorScope?.startsWith(`${editorScope}:`) || !scopedOpen) closeTimeEditor();
+  }, [activeEditor, openControl, openTimeEditorScope, editorScope, controlledCreateRow]);
+
+  useEffect(() => {
+    if (!activeEditor || controlledCreateRow) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('.time-select__dropdown')) return;
+      if (!rowRef.current?.contains(target)) closeTimeEditor();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeTimeEditor();
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [activeEditor, controlledCreateRow]);
+
+  return (
+    <div className="datetime-row" ref={rowRef}>
+      <div className="datetime-row__top">
+        <input
+          className={`input datetime-row__date${openControl === dateControl ? ' datetime-row__date--active' : ''}`}
+          type="date"
+          value={dateVal}
+          aria-label={`Task date ${dateVal}`}
+          onClick={openDateControl}
+          data-create-menu-trigger
+          data-open={openControl === dateControl ? 'true' : undefined}
+          onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
+          onChange={e => handleDateChange(e.target.value)}
+        />
+      </div>
+      <div className="datetime-row__summary-row">
+        {showTime === false ? (
+          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={openStartEditor} data-create-menu-trigger>
+            + Start time
+          </button>
+        ) : (
+          <div className="datetime-row__summary-wrap">
+            <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'start' ? ' datetime-row__time-summary--active' : ''}`} onClick={openStartEditor} data-create-menu-trigger>
+              Start: {timeSummary(hourVal, minuteVal, ampmVal)}
+            </button>
+            {onRemoveStart && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm datetime-row__clear"
+                onClick={() => { onRemoveStart(); if (activeEditor === 'start') closeTimeEditor(); }}
+                aria-label="Clear start time"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+        {showEndTime && onEndHour && onEndMinute && onEndAmpm ? (
+          <div className="datetime-row__summary-wrap">
+            <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'end' ? ' datetime-row__time-summary--active' : ''}`} onClick={openEndEditor} data-create-menu-trigger>
+              End: {timeSummary(endHourVal ?? '12', endMinuteVal ?? '00', endAmpmVal)}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm datetime-row__clear"
+              onClick={() => { onToggleEndTime?.(); if (activeEditor === 'end') closeTimeEditor(); }}
+              aria-label="Clear end time"
+            >
+              ✕
+            </button>
+          </div>
+        ) : onToggleEndTime ? (
+          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={openEndEditor} data-create-menu-trigger>
+            + End time
+          </button>
+        ) : null}
+      </div>
+      {activeEditor && (
+        <div className="datetime-row__editor" data-create-menu-boundary>
+          {activeEditor === 'start' ? (
+            <div className="datetime-row__time datetime-row__time--end">
+              <span className="datetime-row__end-label datetime-row__end-label--fixed">Start:</span>
+              <TimeSelect
+                id={startHourControl}
+                value={hourVal}
+                options={hourOptions}
+                onChange={onHour}
+                openId={openTimeSelect}
+                setOpenId={setScopedTimeSelect}
+                sharedOpenId={openControl}
+                setSharedOpenId={setOpenControl}
+                fallbackOpenId={startControl}
+              />
+              <span className="time-sep">:</span>
+              <TimeSelect
+                id={startMinuteControl}
+                value={minuteVal}
+                options={MINUTE_OPTIONS}
+                onChange={onMinute}
+                openId={openTimeSelect}
+                setOpenId={setScopedTimeSelect}
+                sharedOpenId={openControl}
+                setSharedOpenId={setOpenControl}
+                fallbackOpenId={startControl}
+              />
+              {!is24Hour && (
+                <TimeSelect
+                  id={startAmpmControl}
+                  value={ampmVal}
+                  options={['AM', 'PM']}
+                  onChange={v => onAmpm(v as Ampm)}
+                  openId={openTimeSelect}
+                  setOpenId={setScopedTimeSelect}
+                  sharedOpenId={openControl}
+                  setSharedOpenId={setOpenControl}
+                  fallbackOpenId={startControl}
+                />
+              )}
+              <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
+                Done
+              </button>
+            </div>
+          ) : showEndTime && onEndHour && onEndMinute && onEndAmpm ? (
+            <div className="datetime-row__time datetime-row__time--end">
+              <span className="datetime-row__end-label datetime-row__end-label--fixed">End:</span>
+              <TimeSelect
+                id={endHourControl}
+                value={endHourVal ?? '12'}
+                options={hourOptions}
+                onChange={onEndHour}
+                openId={openTimeSelect}
+                setOpenId={setScopedTimeSelect}
+                sharedOpenId={openControl}
+                setSharedOpenId={setOpenControl}
+                fallbackOpenId={endControl}
+              />
+              <span className="time-sep">:</span>
+              <TimeSelect
+                id={endMinuteControl}
+                value={endMinuteVal ?? '00'}
+                options={MINUTE_OPTIONS}
+                onChange={onEndMinute}
+                openId={openTimeSelect}
+                setOpenId={setScopedTimeSelect}
+                sharedOpenId={openControl}
+                setSharedOpenId={setOpenControl}
+                fallbackOpenId={endControl}
+              />
+              {!is24Hour && (
+                <TimeSelect
+                  id={endAmpmControl}
+                  value={endAmpmVal ?? 'AM'}
+                  options={['AM', 'PM']}
+                  onChange={v => onEndAmpm(v as Ampm)}
+                  openId={openTimeSelect}
+                  setOpenId={setScopedTimeSelect}
+                  sharedOpenId={openControl}
+                  setSharedOpenId={setOpenControl}
+                  fallbackOpenId={endControl}
+                />
+              )}
+              <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
+                Done
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function App(): JSX.Element {
@@ -91,12 +535,10 @@ function App(): JSX.Element {
   const [is24Hour, setIs24Hour] = useState(false);
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showTagDropdown, setShowTagDropdown] = useState(false);
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const [showInlineTag, setShowInlineTag] = useState(false);
   const [newTaskTagIDs, setNewTaskTagIDs] = useState<number[]>([]);
-  const [viewTab, setViewTab] = useState<'all' | 'today' | 'week' | 'month' | 'board'>('all');
+  const [viewTab, setViewTab] = useState<ViewTab>('all');
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem('theme') as Theme) ?? 'system'
   );
@@ -156,17 +598,24 @@ function App(): JSX.Element {
   // Bulk selection state for list actions.
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<number>>(new Set());
+  const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
+  const [openActionTaskId, setOpenActionTaskId] = useState<number | null>(null);
 
   // Stats modal visibility.
   const [showStats, setShowStats] = useState(false);
+  const [openTimeEditorScope, setOpenTimeEditorScope] = useState<string | null>(null);
+  const [openCreateControl, setOpenCreateControl] = useState<CreateOpenControl>(null);
 
   // Reminder toasts are queued independently from persisted reminders.
   type Toast = { id: number; reminderID: number; taskID: number; taskTitle: string; message: string };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 
-  // Current drag source for the board view.
-  const [dragTaskId, setDragTaskId] = useState<number | null>(null);
+  const [mobilePage, setMobilePage] = useState<MobilePage>('tasks');
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+  const taskLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taskLongPressTriggered = useRef(false);
 
   // Link attachments are loaded lazily per task.
   const [attachments, setAttachments] = useState<Record<number, Attachment[]>>({});
@@ -187,6 +636,7 @@ function App(): JSX.Element {
 
   // Tag lists, filters, and inline color editing state.
   const [tags, setTags] = useState<Tag[]>([]);
+  const [expandedTagTaskIds, setExpandedTagTaskIds] = useState<Set<number>>(new Set());
   const [filterTagID, setFilterTagID] = useState<number | ''>('');
   const [newTagTitle, setNewTagTitle] = useState('');
   const [newTagColor, setNewTagColor] = useState('#6366f1');
@@ -199,6 +649,7 @@ function App(): JSX.Element {
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const priorityDropdownRef = useRef<HTMLDivElement>(null);
+  const createControlsRef = useRef<HTMLDivElement>(null);
   const inlineTagInputRef = useRef<HTMLInputElement>(null);
   const inlineProjectInputRef = useRef<HTMLInputElement>(null);
   const editPriorityDropdownRef = useRef<HTMLDivElement>(null);
@@ -225,13 +676,46 @@ function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    const isTextInputFocused = () => {
+      const active = document.activeElement;
+      if (!active) return false;
+      return active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement;
+    };
+
+    const setStableViewportHeight = (force = false) => {
+      if (!force && isTextInputFocused()) return;
+      document.documentElement.style.setProperty('--app-viewport-height', `${window.innerHeight}px`);
+    };
+
+    const handleResize = () => setStableViewportHeight(false);
+    const handleOrientationChange = () => {
+      window.setTimeout(() => setStableViewportHeight(true), 250);
+    };
+
+    setStableViewportHeight(true);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.visualViewport?.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const tag = (e.target as HTMLElement).tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
       if (e.key === 'Escape') {
+        closeFloatingControls();
         if (selectedTaskId !== null) { closePanel(); return; }
+        if (statusMoveTask !== null) { setStatusMoveTask(null); return; }
         if (search !== '') { setSearch(''); return; }
         if (bulkMode) { setBulkMode(false); setBulkSelectedIds(new Set()); return; }
         if (showStats) { setShowStats(false); return; }
@@ -248,14 +732,35 @@ function App(): JSX.Element {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedTaskId, search, bulkMode, showStats]); // closePanel is intentionally excluded — it's recreated every render
+  }, [selectedTaskId, statusMoveTask, search, bulkMode, showStats]); // closePanel is intentionally excluded — it's recreated every render
 
-  useOutsideClick(tagDropdownRef,          showTagDropdown,          () => setShowTagDropdown(false));
-  useOutsideClick(projectDropdownRef,      showProjectDropdown,      () => setShowProjectDropdown(false));
-  useOutsideClick(priorityDropdownRef,     showPriorityDropdown,     () => setShowPriorityDropdown(false));
   useOutsideClick(editPriorityDropdownRef, showEditPriorityDropdown, () => setShowEditPriorityDropdown(false));
   useOutsideClick(editProjectDropdownRef,  showEditProjectDropdown,  () => setShowEditProjectDropdown(false));
   useOutsideClick(editTagDropdownRef,      showEditTagDropdown,      () => setShowEditTagDropdown(false));
+  useOutsideClick(settingsRef,             showSettings,             () => setShowSettings(false));
+
+  useEffect(() => {
+    if (!openCreateControl) return;
+    const handler = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-create-menu-trigger]')) return;
+      if (target.closest('[data-create-menu-boundary]')) return;
+      setOpenCreateControl(null);
+      setOpenTimeEditorScope(null);
+    };
+    document.addEventListener('pointerdown', handler, true);
+    return () => document.removeEventListener('pointerdown', handler, true);
+  }, [openCreateControl]);
+
+  useEffect(() => {
+    if (openActionTaskId === null) return;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.item__actions')) setOpenActionTaskId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openActionTaskId]);
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
@@ -391,12 +896,51 @@ function App(): JSX.Element {
 
   // Date and time formatting helpers used by the form controls.
   const fmtDate = (dt: string | null | undefined) => formatDate(dt, locale, is24Hour) || 'No due date';
+  const fmtTaskDateRange = (start: string | null | undefined, end: string | null | undefined) => {
+    if (!start) return 'No due date';
+    if (!end) return fmtDate(start);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return fmtDate(start);
+    const startLabel = formatDate(start, locale, is24Hour);
+    const sameDay = startDate.toDateString() === endDate.toDateString();
+    const endLabel = sameDay
+      ? endDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })
+      : formatDate(end, locale, is24Hour);
+    return `${startLabel} - ${endLabel}`;
+  };
 
   const formatDateTime = (dt: string) =>
     new Date(dt).toLocaleString(locale, {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
     });
+
+  const draftDateTimeScheduled = date
+    ? (showAddTime ? buildDateTimeString(date, hour, minute, ampm, is24Hour) : `${date}T00:00:00`)
+    : null;
+  const draftEndDateTimeScheduled = date && showAddEndTime
+    ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
+    : null;
+  const draftProject = newProjectID !== '' ? projects.find(p => p.projectID === newProjectID) : null;
+  const draftTags = tags.filter(tag => newTaskTagIDs.includes(tag.tagID));
+
+  const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean } = {}) => {
+    setShowEditPriorityDropdown(false);
+    setShowEditProjectDropdown(false);
+    setShowEditTagDropdown(false);
+    setOpenActionTaskId(null);
+    setShowSettings(false);
+    setShowStats(false);
+    setStatusMoveTask(null);
+    if (options.timeEditors !== false) setOpenTimeEditorScope(null);
+    if (options.createControls !== false) setOpenCreateControl(null);
+  };
+
+  const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags') => {
+    closeFloatingControls({ createControls: false });
+    setOpenCreateControl(current => isCreateControlGroupActive(current, control) ? null : control);
+  };
 
   // Task create, update, completion, and focus handlers.
   const toggleAddEndTime = () => {
@@ -425,8 +969,11 @@ function App(): JSX.Element {
           ? buildDateTimeString(date, hour, minute, ampm, is24Hour)
           : `${date}T00:00:00`)
       : null;
+    const endDateTimeScheduled = date && showAddEndTime
+      ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
+      : null;
     try {
-      const saved = await createTask({ title: input.trim(), description: description.trim(), dateTimeScheduled, priority: newPriority || null, projectID: newProjectID !== '' ? newProjectID : null });
+      const saved = await createTask({ title: input.trim(), description: description.trim(), dateTimeScheduled, endDateTimeScheduled, priority: newPriority || null, projectID: newProjectID !== '' ? newProjectID : null });
       setTasks(prev => [...prev, saved]);
       if (newTaskTagIDs.length > 0) {
         await Promise.all(newTaskTagIDs.map(tagId => addTagToTask(saved.taskID, tagId)));
@@ -463,8 +1010,16 @@ function App(): JSX.Element {
         const now = new Date();
         while (next < now) advance();
         const nextDt = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+        const nextEndDateTimeScheduled = (() => {
+          if (!task.endDateTimeScheduled || !task.dateTimeScheduled) return null;
+          const durationMs = new Date(task.endDateTimeScheduled).getTime() - new Date(task.dateTimeScheduled).getTime();
+          if (!Number.isFinite(durationMs)) return null;
+          const nextEnd = new Date(next.getTime() + durationMs);
+          return new Date(nextEnd.getTime() - nextEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+        })();
         const nextTask = await createTask({
           title: task.title, description: task.description ?? '',
+          endDateTimeScheduled: nextEndDateTimeScheduled,
           dateTimeScheduled: nextDt, userID: task.userID, statusID: null,
           priority: task.priority ?? null, projectID: task.projectID ?? null,
         });
@@ -504,6 +1059,60 @@ function App(): JSX.Element {
     }
   };
 
+  const moveTaskToStatus = async (task: Task, statusID: number | null) => {
+    setStatusMoveTask(null);
+    if (statusID === 2 && task.recurrenceRuleID) {
+      await toggleComplete(task);
+      return;
+    }
+    try {
+      const saved = await patchTaskStatus(task.taskID, statusID);
+      setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
+    } catch {
+      setError('Failed to move task.');
+    }
+  };
+
+  const beginTaskLongPress = (task: Task) => {
+    if (bulkMode) return;
+    if (taskLongPressTimer.current) clearTimeout(taskLongPressTimer.current);
+    taskLongPressTriggered.current = false;
+    taskLongPressTimer.current = setTimeout(() => {
+      taskLongPressTriggered.current = true;
+      closeFloatingControls();
+      setStatusMoveTask(task);
+    }, 450);
+  };
+
+  const cancelTaskLongPress = () => {
+    if (taskLongPressTimer.current) clearTimeout(taskLongPressTimer.current);
+    taskLongPressTimer.current = null;
+  };
+
+  const handleTaskCardClick = (task: Task) => {
+    if (taskLongPressTriggered.current) {
+      taskLongPressTriggered.current = false;
+      return;
+    }
+    bulkMode ? toggleBulkSelect(task.taskID) : openPanel(task);
+  };
+
+  const handleEditTaskAction = (task: Task) => {
+    setOpenActionTaskId(null);
+    setSelectedTaskId(null);
+    startEdit(task);
+  };
+
+  const handleDuplicateTaskAction = (task: Task) => {
+    setOpenActionTaskId(null);
+    duplicateTask(task);
+  };
+
+  const handleDeleteTaskAction = (taskId: number) => {
+    setOpenActionTaskId(null);
+    setConfirmDeleteId(taskId);
+  };
+
   const startEdit = async (task: Task) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setEditingId(task.taskID);
@@ -529,6 +1138,16 @@ function App(): JSX.Element {
     } else {
       setEditShowTime(false);
       setEditDate(''); setEditHour('12'); setEditMinute('00'); setEditAmpm('AM');
+    }
+    if (task.endDateTimeScheduled) {
+      const endParts = extractDateParts(task.endDateTimeScheduled, is24Hour);
+      setEditShowEndTime(true);
+      setEditEndHour(endParts.hour);
+      setEditEndMinute(endParts.minute);
+      setEditEndAmpm(endParts.ampm);
+    } else {
+      setEditShowEndTime(false);
+      setEditEndHour('12'); setEditEndMinute('00'); setEditEndAmpm('AM');
     }
     // Reload the task so the panel starts with the backend's tag ordering.
     try {
@@ -639,11 +1258,15 @@ function App(): JSX.Element {
           ? buildDateTimeString(editDate, editHour, editMinute, editAmpm, is24Hour)
           : `${editDate}T00:00:00`)
       : null;
+    const endDateTimeScheduled = editDate && editShowEndTime
+      ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
+      : null;
     try {
       const saved = await updateTask(task.taskID, {
         title: editTitle.trim() || task.title,
         description: editDescription.trim(),
         dateTimeScheduled,
+        endDateTimeScheduled,
         userID: task.userID,
         statusID: task.statusID,
         priority: editPriority || null,
@@ -736,6 +1359,7 @@ function App(): JSX.Element {
   };
 
   const openTaskFromCalendar = async (taskId: number) => {
+    setMobilePage('tasks');
     focusTaskById(taskId);
     if (selectedTaskId === taskId) return;
     const task = tasks.find(t => t.taskID === taskId);
@@ -1017,6 +1641,7 @@ function App(): JSX.Element {
         title: nextCopyTitle(task.title),
         description: task.description ?? '',
         dateTimeScheduled: task.dateTimeScheduled ?? null,
+        endDateTimeScheduled: task.endDateTimeScheduled ?? null,
         userID: task.userID,
         statusID: null,
         priority: task.priority ?? null,
@@ -1089,24 +1714,6 @@ function App(): JSX.Element {
     dismissToast(toast.id);
   };
 
-  // Board drop handler writes the task's target status.
-  const handleKanbanDrop = async (statusID: number | null) => {
-    if (dragTaskId === null) return;
-    const task = tasks.find(t => t.taskID === dragTaskId);
-    setDragTaskId(null);
-    // Recurring tasks need completion logic so the next occurrence is created.
-    if (statusID === 2 && task?.recurrenceRuleID) {
-      await toggleComplete(task);
-      return;
-    }
-    try {
-      const saved = await patchTaskStatus(dragTaskId, statusID);
-      setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
-    } catch {
-      setError('Failed to move task.');
-    }
-  };
-
   // Link attachment loading and mutation handlers.
   const loadAttachments = async (taskId: number) => {
     try {
@@ -1137,143 +1744,68 @@ function App(): JSX.Element {
     }
   };
 
-  // Custom time dropdown keeps the selected option visible when opened.
-  const TimeSelect = ({ value, options, onChange }: {
-    value: string; options: string[]; onChange: (v: string) => void;
-  }) => {
-    const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
-    const btnRef = useRef<HTMLButtonElement>(null);
-    const dropRef = useRef<HTMLDivElement>(null);
+  const toggleTaskTags = (taskId: number) => {
+    setExpandedTagTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
 
-    const handleOpen = () => {
-      if (btnRef.current) {
-        const r = btnRef.current.getBoundingClientRect();
-        setPos({ top: r.bottom + 4, left: r.left, width: r.width });
-      }
-      setOpen(p => !p);
-    };
+  const renderTaskTags = (task: Task, extraClass = '') => {
+    const taskTags = task.tags ?? [];
+    if (taskTags.length === 0) return null;
 
-    useEffect(() => {
-      if (!open) return;
-      const handler = (e: MouseEvent) => {
-        if (
-          btnRef.current && !btnRef.current.contains(e.target as Node) &&
-          dropRef.current && !dropRef.current.contains(e.target as Node)
-        ) setOpen(false);
-      };
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
-
-    useEffect(() => {
-      if (!open || !dropRef.current) return;
-      const selected = dropRef.current.querySelector('.time-select__item--on');
-      selected?.scrollIntoView({ block: 'center' });
-    }, [open]);
+    const expanded = expandedTagTaskIds.has(task.taskID);
+    const visibleTags = expanded ? taskTags : taskTags.slice(0, VISIBLE_TASK_TAGS);
+    const hiddenCount = taskTags.length - visibleTags.length;
 
     return (
-      <div className="time-select">
-        <button type="button" className="select time-select__btn" ref={btnRef} onClick={handleOpen}>
-          {value}
-        </button>
-        {open && (
-          <div className="time-select__dropdown" ref={dropRef} style={{ top: pos.top, left: pos.left, width: pos.width }}>
-            {options.map(opt => (
-              <button
-                key={opt}
-                type="button"
-                className={`time-select__item${opt === value ? ' time-select__item--on' : ''}`}
-                onClick={() => { onChange(opt); setOpen(false); }}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
+      <div className={`item__chips${extraClass ? ` ${extraClass}` : ''}`}>
+        {visibleTags.map(tag => (
+          <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+            {tag.title}
+          </span>
+        ))}
+        {taskTags.length > VISIBLE_TASK_TAGS && (
+          <button
+            type="button"
+            className="item__tag-more"
+            onClick={e => { e.stopPropagation(); toggleTaskTags(task.taskID); }}
+            aria-expanded={expanded}
+          >
+            {expanded ? 'Show less ▲' : `+${hiddenCount} ▼`}
+          </button>
         )}
       </div>
     );
   };
 
-  // Shared date and optional start/end time controls.
-  const DateTimeRow = ({
-    dateVal, hourVal, minuteVal, ampmVal,
-    onDate, onHour, onMinute, onAmpm,
-    showTime, onToggleTime, onRemoveStart,
-    showEndTime, onToggleEndTime,
-    endHourVal, endMinuteVal, endAmpmVal,
-    onEndHour, onEndMinute, onEndAmpm,
-  }: {
-    dateVal: string; hourVal: string; minuteVal: string; ampmVal: Ampm;
-    onDate: (v: string) => void; onHour: (v: string) => void;
-    onMinute: (v: string) => void; onAmpm: (v: Ampm) => void;
-    showTime?: boolean; onToggleTime?: () => void; onRemoveStart?: () => void;
-    showEndTime?: boolean; onToggleEndTime?: () => void;
-    endHourVal?: string; endMinuteVal?: string; endAmpmVal?: Ampm;
-    onEndHour?: (v: string) => void; onEndMinute?: (v: string) => void; onEndAmpm?: (v: Ampm) => void;
-  }) => (
-    <div className="datetime-row">
-      <div className="datetime-row__top">
-        <input className="input datetime-row__date" type="date" value={dateVal} onChange={e => onDate(e.target.value)} />
-        {onToggleTime && (!showTime && !showEndTime ? (
-          <>
-            <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={onToggleTime}>
-              + Start time
-            </button>
-            {onToggleEndTime && (
-              <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={onToggleEndTime}>
-                + End time
-              </button>
-            )}
-          </>
-        ) : !showTime && showEndTime ? (
-          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={onToggleTime}>
-            + Start time
-          </button>
-        ) : showTime && !showEndTime && onToggleEndTime ? (
-          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={onToggleEndTime}>
-            + End time
-          </button>
-        ) : null)}
-      </div>
-      {showTime !== false && (
-        <div className="datetime-row__time datetime-row__time--end">
-          <span className="datetime-row__end-label datetime-row__end-label--fixed">Start:</span>
-          <TimeSelect value={hourVal} options={hourOptions} onChange={onHour} />
-          <span className="time-sep">:</span>
-          <TimeSelect value={minuteVal} options={MINUTE_OPTIONS} onChange={onMinute} />
-          {!is24Hour && (
-            <select className="select" value={ampmVal} onChange={e => onAmpm(e.target.value as Ampm)}>
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
-          )}
-          {onRemoveStart && (
-            <button type="button" className="btn btn--ghost btn--sm datetime-row__end-toggle" onClick={onRemoveStart}>
-              ✕
-            </button>
-          )}
-        </div>
-      )}
-      {showEndTime && onEndHour && onEndMinute && onEndAmpm && (
-        <div className="datetime-row__time datetime-row__time--end">
-          <span className="datetime-row__end-label datetime-row__end-label--fixed">End:</span>
-          <TimeSelect value={endHourVal ?? '12'} options={hourOptions} onChange={onEndHour} />
-          <span className="time-sep">:</span>
-          <TimeSelect value={endMinuteVal ?? '00'} options={MINUTE_OPTIONS} onChange={onEndMinute} />
-          {!is24Hour && (
-            <select className="select" value={endAmpmVal} onChange={e => onEndAmpm(e.target.value as Ampm)}>
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
-          )}
-          <button type="button" className="btn btn--ghost btn--sm datetime-row__end-toggle" onClick={onToggleEndTime}>
-            ✕
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const goMobilePage = (page: MobilePage) => setMobilePage(page);
+
+  const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    swipeStartX.current = touch.clientX;
+    swipeStartY.current = touch.clientY;
+  };
+
+  const handleSwipeEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (swipeStartX.current === null || swipeStartY.current === null) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartX.current;
+    const deltaY = touch.clientY - swipeStartY.current;
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+
+    if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+
+    setMobilePage(current => {
+      const currentIndex = MOBILE_PAGES.indexOf(current);
+      const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+      return MOBILE_PAGES[Math.max(0, Math.min(MOBILE_PAGES.length - 1, nextIndex))];
+    });
+  };
 
   // Keep auto-save refs fresh for the debounced callback.
   saveEditRef.current = saveEdit;
@@ -1300,6 +1832,7 @@ function App(): JSX.Element {
     filterStatus !== 'all' ||
     filterProjectID !== '' ||
     filterTagID !== '';
+  const hasModifiedListControls = hasActiveListFilters || sortBy !== 'dueAsc';
 
   const emptyState = (() => {
     if (search.trim() !== '') {
@@ -1391,72 +1924,19 @@ function App(): JSX.Element {
         </div>
       )}
 
-      <div className="app__planner">
+      <div className="mobile-page-nav" aria-label="Primary views">
+        <button type="button" className={`mobile-page-nav__btn${mobilePage === 'add' ? ' mobile-page-nav__btn--active' : ''}`} onClick={() => goMobilePage('add')}>Add</button>
+        <button type="button" className={`mobile-page-nav__btn${mobilePage === 'tasks' ? ' mobile-page-nav__btn--active' : ''}`} onClick={() => goMobilePage('tasks')}>Tasks</button>
+        <button type="button" className={`mobile-page-nav__btn${mobilePage === 'calendar' ? ' mobile-page-nav__btn--active' : ''}`} onClick={() => goMobilePage('calendar')}>Calendar</button>
+      </div>
+
+      <div
+        className={`mobile-pager mobile-pager--${mobilePage}`}
+        onTouchStart={handleSwipeStart}
+        onTouchEnd={handleSwipeEnd}
+      >
+      <section className="mobile-page mobile-page--add" data-active={mobilePage === 'add'}>
       <div className="card app__add">
-
-        <div className="spread">
-          {editingWorkspaceName ? (
-            <input
-              ref={workspaceInputRef}
-              className="app__title-input"
-              value={workspaceName}
-              autoFocus
-              onChange={e => setWorkspaceName(e.target.value)}
-              onBlur={() => {
-                const trimmed = workspaceName.trim() || 'Task Manager';
-                setWorkspaceName(trimmed);
-                localStorage.setItem('workspaceName', trimmed);
-                setEditingWorkspaceName(false);
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') { workspaceInputRef.current?.blur(); }
-                if (e.key === 'Escape') {
-                  setWorkspaceName(localStorage.getItem('workspaceName') ?? 'Task Manager');
-                  setEditingWorkspaceName(false);
-                }
-              }}
-            />
-          ) : (
-            <h1 className="app__title" onClick={() => setEditingWorkspaceName(true)} title="Click to rename">
-              {workspaceName}
-            </h1>
-          )}
-          <div className="header-actions">
-            <button className="btn btn--ghost btn--sm" onClick={() => setShowStats(true)}>
-              ▤ Stats
-            </button>
-            <button className="btn btn--ghost btn--sm" onClick={() => setShowSettings(p => !p)}>
-              ⚙ Settings
-            </button>
-          </div>
-        </div>
-        <p className="app__subtitle">
-          {new Date().toLocaleDateString(isEuropeanDate ? 'en-GB' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          {' '}
-          <span className="task-count">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
-          {overdueCount > 0 && (
-            <> <span className="task-count task-count--overdue">{overdueCount} overdue</span></>
-          )}
-        </p>
-
-        {showSettings && (
-          <div className="settings-panel">
-            <button className="btn btn--ghost btn--sm" onClick={() => setIs24Hour(p => !p)}>
-              {is24Hour ? '12-hour' : '24-hour'}
-            </button>
-            <button className="btn btn--ghost btn--sm" onClick={() => setIsEuropeanDate(p => !p)}>
-              {isEuropeanDate ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
-            </button>
-            <div className="settings-theme">
-              <span className="settings-label">Theme</span>
-              <select className="select select--sm" value={theme} onChange={e => setTheme(e.target.value as Theme)}>
-                {(['system', 'light', 'dark'] as Theme[]).map(t => (
-                  <option key={t} value={t}>{themeLabel[t]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
 
         {error && (
           <div className="error-banner">
@@ -1465,7 +1945,7 @@ function App(): JSX.Element {
           </div>
         )}
 
-        <div className="controls">
+        <div className="controls" ref={createControlsRef}>
           <input
             ref={titleInputRef}
             className={`input${titleError ? ' input--error' : ''}`}
@@ -1473,7 +1953,7 @@ function App(): JSX.Element {
             value={input}
             onChange={e => { setInput(e.target.value); if (titleError) setTitleError(false); }}
             onKeyDown={e => e.key === 'Enter' && addTask()}
-            placeholder="Task title… (press N to focus)"
+            placeholder="Task title"
           />
           {titleError && <p className="input-error-msg">Title is required.</p>}
           {!titleError && input.trim() !== '' && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) && (
@@ -1491,6 +1971,25 @@ function App(): JSX.Element {
             <span className="char-count">{description.length}/1000</span>
           </div>
           <DateTimeRow
+            editorScope="add-task"
+            openTimeEditorScope={openTimeEditorScope}
+            setOpenTimeEditorScope={setOpenTimeEditorScope}
+            closeFloatingControls={closeFloatingControls}
+            is24Hour={is24Hour}
+            hourOptions={hourOptions}
+            openControl={openCreateControl}
+            setOpenControl={setOpenCreateControl}
+            controlIds={{
+              date: 'date',
+              start: 'start',
+              end: 'end',
+              startHour: 'start-hour',
+              startMinute: 'start-minute',
+              startAmpm: 'start-ampm',
+              endHour: 'end-hour',
+              endMinute: 'end-minute',
+              endAmpm: 'end-ampm',
+            }}
             dateVal={date} hourVal={hour} minuteVal={minute} ampmVal={ampm}
             onDate={setDate} onHour={setHour} onMinute={setMinute} onAmpm={setAmpm}
             showTime={showAddTime} onToggleTime={() => setShowAddTime(p => !p)} onRemoveStart={() => setShowAddTime(false)}
@@ -1498,22 +1997,26 @@ function App(): JSX.Element {
             endHourVal={endHour} endMinuteVal={endMinute} endAmpmVal={endAmpm}
             onEndHour={setEndHour} onEndMinute={setEndMinute} onEndAmpm={setEndAmpm}
           />
+          <div className="add-actions-row">
           <div className="form-row">
             <div className="tag-select" ref={priorityDropdownRef}>
               <button
                 type="button"
                 className={`select tag-select__btn${newPriority !== '' ? ' tag-select__btn--active' : ''}`}
-                onClick={() => setShowPriorityDropdown(p => !p)}
+                data-create-menu-trigger
+                onClick={() => {
+                  toggleCreateDropdown('priority');
+                }}
               >
                 {newPriority === ''
-                  ? 'Add priority'
+                  ? 'Priority'
                   : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[newPriority] }} />{newPriority[0] + newPriority.slice(1).toLowerCase()}</>}
               </button>
-              {showPriorityDropdown && (
-                <div className="tag-select__dropdown">
+              {openCreateControl === 'priority' && (
+                <div className="tag-select__dropdown" data-create-menu-boundary>
                   <label
-                    className={`tag-select__item${newPriority === '' ? ' tag-select__item--on' : ''}`}
-                    onClick={() => { setNewPriority(''); setShowPriorityDropdown(false); }}
+                    className={`tag-select__item tag-select__item--remove${newPriority === '' ? ' tag-select__item--on' : ''}`}
+                    onClick={() => { setNewPriority(''); setOpenCreateControl(null); }}
                   >
                     Remove priority
                   </label>
@@ -1521,7 +2024,7 @@ function App(): JSX.Element {
                     <label
                       key={p}
                       className={`tag-select__item${newPriority === p ? ' tag-select__item--on' : ''}`}
-                      onClick={() => { setNewPriority(p); setShowPriorityDropdown(false); }}
+                      onClick={() => { setNewPriority(p); setOpenCreateControl(null); }}
                     >
                       <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
                       {p[0] + p.slice(1).toLowerCase()}
@@ -1534,17 +2037,22 @@ function App(): JSX.Element {
               <button
                 type="button"
                 className={`select tag-select__btn${newProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                onClick={() => setShowProjectDropdown(p => !p)}
+                data-create-menu-trigger
+                onClick={() => {
+                  toggleCreateDropdown('project');
+                }}
               >
-                {newProjectID === '' ? 'Add project' : 'Edit project'}
+                {newProjectID === ''
+                  ? 'Project'
+                  : compactText(projects.find(p => p.projectID === newProjectID)?.title ?? 'Project', 10)}
               </button>
-              {showProjectDropdown && (
-                <div className="tag-select__dropdown">
+              {openCreateControl === 'project' && (
+                <div className="tag-select__dropdown" data-create-menu-boundary>
                   <button
                     type="button"
                     className="tag-select__new-btn tag-select__new-btn--top"
                     onClick={() => {
-                      setShowProjectDropdown(false);
+                      setOpenCreateControl(null);
                       if (showInlineProject) { inlineProjectInputRef.current?.focus(); }
                       else { setShowInlineProject(true); }
                     }}
@@ -1580,19 +2088,22 @@ function App(): JSX.Element {
               <button
                 type="button"
                 className={`select tag-select__btn${newTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                onClick={() => setShowTagDropdown(p => !p)}
+                data-create-menu-trigger
+                onClick={() => {
+                  toggleCreateDropdown('tags');
+                }}
               >
                 {newTaskTagIDs.length === 0
-                  ? 'Add tags'
-                  : `${newTaskTagIDs.length} tag${newTaskTagIDs.length === 1 ? '' : 's'}`}
+                  ? 'Tags'
+                  : `${newTaskTagIDs.length} Tag${newTaskTagIDs.length === 1 ? '' : 's'}`}
               </button>
-              {showTagDropdown && (
-                <div className="tag-select__dropdown">
+              {openCreateControl === 'tags' && (
+                <div className="tag-select__dropdown" data-create-menu-boundary>
                   <button
                     type="button"
                     className="tag-select__new-btn tag-select__new-btn--top"
                     onClick={() => {
-                      setShowTagDropdown(false);
+                      setOpenCreateControl(null);
                       if (showInlineTag) { inlineTagInputRef.current?.focus(); }
                       else { setShowInlineTag(true); }
                     }}
@@ -1641,6 +2152,8 @@ function App(): JSX.Element {
                 </div>
               )}
             </div>
+          </div>
+          <button className="btn add-task-submit" onClick={addTask}>Add Task</button>
           </div>
           {newProjectID !== '' && (() => {
             const proj = projects.find(p => p.projectID === newProjectID);
@@ -1722,32 +2235,100 @@ function App(): JSX.Element {
               </div>
             </div>
           )}
-          <button className="btn" onClick={addTask}>Add Task</button>
+          <div className="add-assist">
+            <div className="add-preview" aria-label="Task preview">
+              <div className="add-preview__top">
+                <span className={`add-preview__title${input.trim() ? '' : ' add-preview__title--empty'}`}>
+                  {input.trim() || 'Task title preview'}
+                </span>
+                <span className="item__meta item__meta--inline">{fmtTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled)}</span>
+              </div>
+              {description.trim() && <p className="add-preview__desc">{description.trim()}</p>}
+              {(newPriority || draftProject || draftTags.length > 0) && (
+                <div className="add-preview__chips">
+                  {draftProject && <span className="item__badge item__project-chip">{draftProject.title}</span>}
+                  {newPriority && (
+                    <span className={`item__badge item__badge--priority item__badge--priority-${newPriority.toLowerCase()}`}>
+                      {newPriority[0] + newPriority.slice(1).toLowerCase()}
+                    </span>
+                  )}
+                  {draftTags.slice(0, 3).map(tag => (
+                    <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+                      <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                      {tag.title}
+                    </span>
+                  ))}
+                  {draftTags.length > 3 && <span className="item__tag-more">+{draftTags.length - 3}</span>}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
       </div>
 
-      <Calendar
-        tasks={calTasks}
-        projects={projects}
-        is24Hour={is24Hour}
-        isEuropeanDate={isEuropeanDate}
-        onEditTask={openTaskFromCalendar}
-        hideCompleted={calHideCompleted}
-        onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
-      />
-      </div>
+      </section>
 
-      <div className={`card app__list${selectedTaskId !== null && viewTab !== 'board' ? ' app__list--narrow' : ''}${viewTab === 'board' ? ' app__list--board' : ''}`}>
+      <section className="mobile-page mobile-page--tasks" data-active={mobilePage === 'tasks'}>
+      <div className={`card app__list${selectedTaskId !== null ? ' app__list--narrow' : ''}`}>
+
+        <div ref={settingsRef}>
+        <div className="task-card-toolbar">
+          <span className="task-card-toolbar__date">
+            {new Date().toLocaleDateString(isEuropeanDate ? 'en-GB' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </span>
+          <div className="header-actions">
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                const next = !showStats;
+                closeFloatingControls();
+                setShowStats(next);
+              }}
+            >
+              ▤ Stats
+            </button>
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                const next = !showSettings;
+                closeFloatingControls();
+                setShowSettings(next);
+              }}
+            >
+              ⚙ Settings
+            </button>
+          </div>
+        </div>
+
+        {showSettings && (
+          <div className="settings-panel task-card-settings">
+            <button className="btn btn--ghost btn--sm" onClick={() => setIs24Hour(p => !p)}>
+              {is24Hour ? '12-hour' : '24-hour'}
+            </button>
+            <button className="btn btn--ghost btn--sm" onClick={() => setIsEuropeanDate(p => !p)}>
+              {isEuropeanDate ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
+            </button>
+            <div className="settings-theme">
+              <span className="settings-label">Theme</span>
+              <select className="select select--sm" value={theme} onChange={e => setTheme(e.target.value as Theme)}>
+                {(['system', 'light', 'dark'] as Theme[]).map(t => (
+                  <option key={t} value={t}>{themeLabel[t]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        </div>
 
         <div className="view-tabs">
-          {(['all', 'today', 'week', 'month', 'board'] as const).map(tab => (
+          {(['all', 'today', 'week', 'month'] as const).map(tab => (
             <button
               key={tab}
               className={`view-tab${viewTab === tab ? ' view-tab--active' : ''}`}
               onClick={() => setViewTab(tab)}
             >
-              {tab === 'all' ? 'All' : tab === 'today' ? 'Today' : tab === 'week' ? 'This Week' : tab === 'month' ? 'This Month' : 'Board'}
+              {tab === 'all' ? 'All' : tab === 'today' ? 'Today' : tab === 'week' ? 'This Week' : 'This Month'}
             </button>
           ))}
         </div>
@@ -1810,14 +2391,13 @@ function App(): JSX.Element {
                 ))}
               </select>
             </label>
-            {(sortBy !== 'dueAsc' || filterStatus !== 'all' || filterProjectID !== '' || filterTagID !== '' || search !== '') && (
-              <button
-                className="btn btn--ghost btn--sm btn--reset-filters"
-                onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
-              >
-                ✕ Reset filters
-              </button>
-            )}
+            <button
+              className="btn btn--ghost btn--sm btn--reset-filters"
+              onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+              disabled={!hasModifiedListControls}
+            >
+              Reset Filters
+            </button>
           </div>
         </div>
 
@@ -1827,10 +2407,10 @@ function App(): JSX.Element {
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search tasks… (press / to focus)"
+          placeholder="Search tasks"
         />
 
-        <div className="spread mtop small">
+        <div className="spread mtop small task-overview">
           <div className="task-count-row">
             <span className="task-count">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
             {overdueCount > 0 && (
@@ -1838,16 +2418,12 @@ function App(): JSX.Element {
             )}
             {completedCount > 0 && <span className="footer-done">{completedCount} done</span>}
           </div>
-          <div className="task-count-row">
-            {viewTab !== 'board' && (
-              <button
-                className={`btn btn--ghost btn--sm${bulkMode ? ' btn--active' : ''}`}
-                onClick={() => { setBulkMode(p => !p); setBulkSelectedIds(new Set()); }}
-              >
-                {bulkMode ? 'Cancel' : 'Select'}
-              </button>
-            )}
-          </div>
+          <button
+            className={`btn btn--ghost btn--sm${bulkMode ? ' btn--active' : ''}`}
+            onClick={() => { setBulkMode(p => !p); setBulkSelectedIds(new Set()); }}
+          >
+            {bulkMode ? 'Cancel' : 'Select'}
+          </button>
         </div>
 
         {bulkMode && bulkSelectedIds.size > 0 && (
@@ -1858,70 +2434,13 @@ function App(): JSX.Element {
           </div>
         )}
 
-        {viewTab === 'board' && !loading && (
-          <div className="kanban">
-            {([
-              { label: 'To Do',       statusIDs: [null, 1] as (number | null)[], dropStatus: null as number | null },
-              { label: 'In Progress', statusIDs: [3]       as (number | null)[], dropStatus: 3 as number | null   },
-              { label: 'Done',        statusIDs: [2]       as (number | null)[], dropStatus: 2 as number | null   },
-            ]).map(col => {
-              const colTasks = displayedTasks.filter(t => col.statusIDs.includes(t.statusID ?? null));
-              return (
-                <div
-                  key={col.label}
-                  className="kanban__col"
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={() => handleKanbanDrop(col.dropStatus)}
-                >
-                  <div className="kanban__col-header">
-                    <span className="kanban__col-title">{col.label}</span>
-                    <span className="kanban__col-count">{colTasks.length}</span>
-                  </div>
-                  {colTasks.map(task => (
-                    <div
-                      key={task.taskID}
-                      className={`kanban__card${dragTaskId === task.taskID ? ' kanban__card--dragging' : ''}${isTaskOverdue(task) ? ' kanban__card--overdue' : ''}`}
-                      draggable
-                      onDragStart={() => setDragTaskId(task.taskID)}
-                      onDragEnd={() => setDragTaskId(null)}
-                      onClick={() => openPanel(task)}
-                    >
-                      <div className="kanban__card-top">
-                        {task.priority && (
-                          <span className="priority-dot" style={{ background: PRIORITY_COLOR[task.priority] }} />
-                        )}
-                        <span className="kanban__card-title">{task.title}</span>
-                      </div>
-                      {task.dateTimeScheduled && (
-                        <span className="kanban__card-date">{fmtDate(task.dateTimeScheduled)}</span>
-                      )}
-                      {(task.tags && task.tags.length > 0) && (
-                        <div className="item__chips kanban__card-chips">
-                          {(task.tags ?? []).map(tag => (
-                            <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
-                              {tag.title}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {colTasks.length === 0 && (
-                    <div className="kanban__empty">Drop tasks here</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {loading ? (
           <div className="loading">
             <span className="loading__spinner" />
             Loading tasks…
           </div>
-        ) : viewTab !== 'board' && (
-          <ul className="list">
+        ) : (
+          <ul className="list" aria-label="Task list">
             {tabTasks.length === 0 && (
               <li className="empty">
                 <span className="empty__title">{emptyState.title}</span>
@@ -1947,6 +2466,8 @@ function App(): JSX.Element {
               return tabTasks.map((task, idx) => {
               const overdue   = isTaskOverdue(task);
               const completed = task.statusID === 2;
+              const statusID = normalizeTaskStatus(task.statusID);
+              const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
               const isSelected = selectedTaskId === task.taskID;
               const taskSubtasks = subtasks[task.taskID] ?? [];
               const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
@@ -1970,7 +2491,18 @@ function App(): JSX.Element {
                   ].filter(Boolean).join(' ')}
                 >
                   <>
-                    <div className="item__main" onClick={() => bulkMode ? toggleBulkSelect(task.taskID) : openPanel(task)} style={{ cursor: 'pointer' }}>
+                    <div
+                      className="item__main"
+                      onClick={() => handleTaskCardClick(task)}
+                      onTouchStart={() => beginTaskLongPress(task)}
+                      onTouchMove={cancelTaskLongPress}
+                      onTouchEnd={cancelTaskLongPress}
+                      onMouseDown={() => beginTaskLongPress(task)}
+                      onMouseLeave={cancelTaskLongPress}
+                      onMouseUp={cancelTaskLongPress}
+                      onContextMenu={e => { e.preventDefault(); if (!bulkMode) setStatusMoveTask(task); }}
+                      style={{ cursor: 'pointer' }}
+                    >
                         {bulkMode && (
                           <input
                             type="checkbox"
@@ -1994,15 +2526,31 @@ function App(): JSX.Element {
                           <div className="item__title-row">
                             <div className="item__title-line">
                               <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
-                              {task.projectID && (() => {
-                                const proj = projects.find(p => p.projectID === Number(task.projectID));
-                                return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
-                              })()}
+                              <button
+                                type="button"
+                                className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
+                                aria-label={`Change status from ${statusLabel}`}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  if (!bulkMode) {
+                                    closeFloatingControls();
+                                    setStatusMoveTask(task);
+                                  }
+                                }}
+                                onMouseDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
+                              >
+                                {statusLabel}
+                              </button>
+                              {overdue && <span className="item__badge">Overdue</span>}
                             </div>
-                            <span className="item__meta item__meta--inline">{fmtDate(task.dateTimeScheduled)}</span>
-                            {(task.priority || overdue || completed || taskSubtasks.length > 0) && (
+                            <span className="item__meta item__meta--inline">{fmtTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled)}</span>
+                            {(task.priority || task.projectID || completed || taskSubtasks.length > 0) && (
                               <div className="item__badges">
-                                {overdue && <span className="item__badge">Overdue</span>}
+                                {task.projectID && (() => {
+                                  const proj = projects.find(p => p.projectID === Number(task.projectID));
+                                  return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
+                                })()}
                                 {task.priority && (
                                   <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
                                     {task.priority[0] + task.priority.slice(1).toLowerCase()}
@@ -2020,34 +2568,73 @@ function App(): JSX.Element {
                           {task.description && (
                             <p className="item__desc">{task.description}</p>
                           )}
-                          {(task.tags && task.tags.length > 0) && (
-                            <div className="item__chips">
-                              {(task.tags ?? []).map(tag => (
-                                <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
-                                  {tag.title}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          {renderTaskTags(task)}
                         </div>
                         <div className="item__actions" onClick={e => e.stopPropagation()}>
                           <button
-                            className="btn btn--ghost btn--icon"
-                            aria-label="Duplicate task"
-                            title="Duplicate"
-                            onClick={() => duplicateTask(task)}
+                            className={`btn btn--ghost btn--icon item__action-toggle${openActionTaskId === task.taskID ? ' item__action-toggle--open' : ''}`}
+                            aria-label="Task actions"
+                            aria-expanded={openActionTaskId === task.taskID}
+                            onClick={() => {
+                              const next = openActionTaskId === task.taskID ? null : task.taskID;
+                              closeFloatingControls();
+                              setOpenActionTaskId(next);
+                            }}
                           >
-                            ⎘
+                            ⋯
                           </button>
-                          <button
-                            className="btn btn--danger btn--icon"
-                            aria-label="Delete task"
-                            onClick={() => setConfirmDeleteId(task.taskID)}
-                          >
-                            ✕
-                          </button>
+                          {openActionTaskId === task.taskID && (
+                            <div className="item__action-menu" role="menu">
+                              <button type="button" role="menuitem" onClick={() => handleEditTaskAction(task)}>Edit</button>
+                              <button type="button" role="menuitem" onClick={() => handleDuplicateTaskAction(task)}>Copy</button>
+                              <button type="button" role="menuitem" className="item__action-menu-danger" onClick={() => handleDeleteTaskAction(task.taskID)}>Delete</button>
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {editingId === task.taskID && selectedTaskId !== task.taskID && (
+                        <div className="item__edit-card" onClick={e => e.stopPropagation()}>
+                          <input
+                            className="input"
+                            value={editTitle}
+                            onChange={e => setEditTitle(e.target.value)}
+                            placeholder="Task title"
+                          />
+                          <div className="desc-wrap">
+                            <textarea
+                              className="input controls__description"
+                              value={editDescription}
+                              onChange={e => setEditDescription(e.target.value)}
+                              placeholder="Description"
+                              maxLength={1000}
+                              rows={2}
+                            />
+                            <span className="char-count">{editDescription.length}/1000</span>
+                          </div>
+                          <DateTimeRow
+                            editorScope={`inline-edit-${task.taskID}`}
+                            openTimeEditorScope={openTimeEditorScope}
+                            setOpenTimeEditorScope={setOpenTimeEditorScope}
+                            closeFloatingControls={closeFloatingControls}
+                            is24Hour={is24Hour}
+                            hourOptions={hourOptions}
+                            dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
+                            onDate={setEditDate} onHour={setEditHour} onMinute={setEditMinute} onAmpm={setEditAmpm}
+                            showTime={editShowTime}
+                            onToggleTime={() => setEditShowTime(p => !p)}
+                            onRemoveStart={() => setEditShowTime(false)}
+                            showEndTime={editShowEndTime}
+                            onToggleEndTime={toggleEditEndTime}
+                            endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
+                            onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
+                          />
+                          <div className="item__edit-actions">
+                            <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
+                            <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
 
                       {confirmDeleteId === task.taskID && (
                         <div className="confirm-delete">
@@ -2066,6 +2653,51 @@ function App(): JSX.Element {
         )}
 
         </div>
+      </section>
+
+      <section className="mobile-page mobile-page--calendar" data-active={mobilePage === 'calendar'}>
+      <Calendar
+        tasks={calTasks}
+        projects={projects}
+        is24Hour={is24Hour}
+        isEuropeanDate={isEuropeanDate}
+        onEditTask={openTaskFromCalendar}
+        hideCompleted={calHideCompleted}
+        onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
+      />
+      </section>
+      </div>
+
+      {statusMoveTask && (() => {
+        const currentTask = tasks.find(t => t.taskID === statusMoveTask.taskID) ?? statusMoveTask;
+        const currentStatusID = normalizeTaskStatus(currentTask.statusID);
+        const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
+        return (
+          <div className="status-move" role="dialog" aria-modal="true" aria-label="Move task" onClick={() => setStatusMoveTask(null)}>
+            <div className="status-move__panel" onClick={e => e.stopPropagation()}>
+              <div className="status-move__header">
+                <div className="status-move__title-wrap">
+                  <span className="status-move__eyebrow">Move task</span>
+                  <span className="status-move__title">{currentTask.title}</span>
+                </div>
+                <button className="btn btn--ghost btn--icon" aria-label="Close move task" onClick={() => setStatusMoveTask(null)}>✕</button>
+              </div>
+              <div className="status-move__actions">
+                {moveOptions.map(option => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    className="btn status-move__btn"
+                    onClick={() => moveTaskToStatus(currentTask, option.statusID)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedTaskId !== null && (() => {
         const panelTask = tasks.find(t => t.taskID === selectedTaskId);
@@ -2114,6 +2746,12 @@ function App(): JSX.Element {
               </div>
 
               <DateTimeRow
+                editorScope={`detail-edit-${selectedTaskId}`}
+                openTimeEditorScope={openTimeEditorScope}
+                setOpenTimeEditorScope={setOpenTimeEditorScope}
+                closeFloatingControls={closeFloatingControls}
+                is24Hour={is24Hour}
+                hourOptions={hourOptions}
                 dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
                 onDate={v => { setEditDate(v); scheduleAutoSave(0); }}
                 onHour={v => { setEditHour(v); scheduleAutoSave(0); }}
@@ -2139,7 +2777,11 @@ function App(): JSX.Element {
                   <button
                     type="button"
                     className={`select tag-select__btn${editPriority !== '' ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => setShowEditPriorityDropdown(p => !p)}
+                    onClick={() => {
+                      const next = !showEditPriorityDropdown;
+                      closeFloatingControls();
+                      setShowEditPriorityDropdown(next);
+                    }}
                   >
                     {editPriority === ''
                       ? 'Add priority'
@@ -2162,7 +2804,11 @@ function App(): JSX.Element {
                   <button
                     type="button"
                     className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => setShowEditProjectDropdown(p => !p)}
+                    onClick={() => {
+                      const next = !showEditProjectDropdown;
+                      closeFloatingControls();
+                      setShowEditProjectDropdown(next);
+                    }}
                   >
                     {editProjectID === '' ? 'Add project' : 'Edit project'}
                   </button>
@@ -2192,7 +2838,11 @@ function App(): JSX.Element {
                   <button
                     type="button"
                     className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => setShowEditTagDropdown(p => !p)}
+                    onClick={() => {
+                      const next = !showEditTagDropdown;
+                      closeFloatingControls();
+                      setShowEditTagDropdown(next);
+                    }}
                   >
                     {editTaskTagIDs.length === 0 ? 'Add tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
                   </button>
@@ -2390,6 +3040,12 @@ function App(): JSX.Element {
                 <>
                   <div className="sec-panel__add sec-panel__add--col">
                     <DateTimeRow
+                      editorScope={`reminder-${selectedTaskId}`}
+                      openTimeEditorScope={openTimeEditorScope}
+                      setOpenTimeEditorScope={setOpenTimeEditorScope}
+                      closeFloatingControls={closeFloatingControls}
+                      is24Hour={is24Hour}
+                      hourOptions={hourOptions}
                       dateVal={newReminderDate} hourVal={newReminderHour} minuteVal={newReminderMinute} ampmVal={newReminderAmpm}
                       onDate={setNewReminderDate} onHour={setNewReminderHour} onMinute={setNewReminderMinute} onAmpm={setNewReminderAmpm}
                     />

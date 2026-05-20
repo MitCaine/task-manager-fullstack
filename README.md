@@ -18,6 +18,7 @@ Frontend:
 - TypeScript
 - react-scripts
 - React Testing Library
+- Capacitor iOS
 
 ## Project Structure
 
@@ -25,9 +26,11 @@ Frontend:
 .
 ├── src/main/java/com/example/taskmanager/   # Spring Boot API, entities, repositories
 ├── src/main/resources/                      # Backend configuration
+├── src/main/resources/schema-updates/       # Manual MySQL schema update scripts
 ├── src/test/java/com/example/taskmanager/   # Backend tests
 ├── SQL Files/                               # MySQL schema
 ├── taskmanager-frontend/                    # React + TypeScript frontend
+├── taskmanager-frontend/ios/App             # Capacitor iOS project
 └── pom.xml                                  # Maven backend project
 ```
 
@@ -44,6 +47,8 @@ Frontend:
 - Bulk task selection and actions
 - Light, dark, and system theme support
 - 12-hour / 24-hour time and US / European date format toggles
+- Optional persisted task end time, displayed as a start/end range
+- Capacitor iOS build for iPhone testing
 
 ## Prerequisites
 
@@ -51,6 +56,7 @@ Frontend:
 - Maven 3.9+
 - Node.js and npm
 - MySQL running locally
+- Xcode for iOS simulator or iPhone builds
 
 The backend is configured for:
 
@@ -58,6 +64,7 @@ The backend is configured for:
 spring.datasource.url=jdbc:mysql://localhost:3306/TaskManagementDB
 spring.datasource.username=taskuser
 spring.datasource.password=taskpass
+server.address=0.0.0.0
 ```
 
 The schema is not managed automatically by Hibernate:
@@ -67,6 +74,16 @@ spring.jpa.hibernate.ddl-auto=none
 ```
 
 Apply `SQL Files/databasemodel.sql` before running the backend against MySQL.
+
+If upgrading an existing database, also apply any scripts in
+`src/main/resources/schema-updates/`, including:
+
+```sql
+ALTER TABLE Task
+  ADD COLUMN endDateTimeScheduled DATETIME NULL;
+```
+
+Existing tasks remain valid because `endDateTimeScheduled` is nullable.
 
 ## Backend
 
@@ -110,6 +127,61 @@ npm run build
 ```
 
 Frontend tests run in GitHub Actions on push and pull request.
+
+## iOS App
+
+The React frontend is configured as a Capacitor iOS app. The native Xcode project
+lives under `taskmanager-frontend/ios/App`.
+
+Apple/iOS-specific updates in this build:
+
+- Capacitor iOS project added under `taskmanager-frontend/ios`.
+- `@capacitor/core`, `@capacitor/ios`, and `@capacitor/cli` added to the frontend.
+- `npm run ios:sync` builds React and syncs assets into the iOS project.
+- `npm run ios:open` opens the native project in Xcode.
+- Frontend API calls can use `REACT_APP_API_BASE_URL` for device testing.
+- Backend binds to `0.0.0.0` so an iPhone can reach the Mac over the LAN.
+- CORS allows `capacitor://localhost` and `ionic://localhost`.
+- The viewport uses `viewport-fit=cover` so CSS can respect iPhone safe areas.
+
+For device testing, set the API base URL to a backend address your iPhone can
+reach. For example, if the Spring Boot API is running on your Mac:
+
+```bash
+cd taskmanager-frontend
+cp .env.example .env.local
+# edit .env.local and replace YOUR_MAC_LAN_IP with your Mac's LAN IP
+npm run ios:sync
+npm run ios:open
+```
+
+In Xcode, select your iPhone 17 Pro Max as the run destination and press Run.
+For production use, point `REACT_APP_API_BASE_URL` at a deployed HTTPS backend.
+
+If the iOS app loads but cannot reach the API, verify that:
+
+- The backend is running with `mvn spring-boot:run`.
+- Your Mac and iPhone are on the same network.
+- `.env.local` uses the Mac LAN IP, not `localhost`.
+- `curl http://YOUR_MAC_LAN_IP:8080/tasks` works from another device on the LAN.
+
+Many Xcode WebKit, keyboard, haptic, and Auto Layout warnings printed by the
+iOS simulator are system noise. The important app signal is that the WebView
+loads and the API requests succeed.
+
+## Recent Bug Updates
+
+- Reworked the mobile task creation card for iPhone-sized screens without
+  changing the main visual style.
+- Fixed create-task menu switching so Priority, Project, Tags, Date, Start Time,
+  End Time, and time segment dropdowns use consistent one-tap open/close behavior.
+- Fixed outside-tap behavior so normal fields close open menus while active
+  menus, date controls, and time dropdowns remain usable.
+- Fixed create-task date selection so the visible date and preview update
+  immediately.
+- Fixed time dropdown anchoring and option alignment.
+- Added real `endDateTimeScheduled` persistence across create, edit, duplicate,
+  calendar display, task list display, and recurring task completion.
 
 ## Main API Areas
 

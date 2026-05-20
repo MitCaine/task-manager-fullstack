@@ -167,6 +167,21 @@
   flex-shrink: 0;
 }
 
+.cal-hide-completed {
+  white-space: nowrap;
+}
+
+.cal-day-current {
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.2;
+  padding: 0.04rem 0.3rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Breadcrumb ──────────────────────────────────────────── */
 .cal-breadcrumb {
   display: flex;
@@ -983,27 +998,154 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (pointer: coarse) {
   .cal-card {
-    padding: 1.25rem;
-  }
-
-  .cal-nav,
-  .cal-nav__ctrl {
-    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow-x: clip;
+    box-shadow: var(--shadow-card);
   }
 
   .cal-nav {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: nowrap;
   }
 
   .cal-nav__ctrl {
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.28rem;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .cal-nav:not(.cal-nav--day) .cal-nav__ctrl {
+    width: 100%;
+    justify-content: stretch;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface) 76%, transparent);
   }
 
   .cal-year-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
+    gap: 0.65rem;
+  }
+
+  .cal-breadcrumb {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  .cal-breadcrumb__item,
+  .cal-breadcrumb__current,
+  .cal-breadcrumb__choice,
+  .cal-breadcrumb__link {
+    min-width: 0;
+  }
+
+  .cal-breadcrumb__current,
+  .cal-breadcrumb__choice,
+  .cal-breadcrumb__link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cal-breadcrumb__picker {
+    overflow: visible;
+  }
+
+  .cal-breadcrumb__menu {
+    z-index: 300;
+  }
+
+  .cal-hide-completed,
+  .cal-today-btn {
+    min-height: 1.75rem;
+    padding: 0.28rem 0.48rem;
+    font-size: 0.74rem;
+    border-radius: 7px;
+  }
+
+  .cal-nav:not(.cal-nav--day) .cal-hide-completed,
+  .cal-nav:not(.cal-nav--day) .cal-today-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 1.9rem;
+    border-radius: 7px;
+    font-weight: 700;
+  }
+
+  .cal-nav:not(.cal-nav--day) .cal-today-btn {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  }
+
+  .cal-nav--day {
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-items: stretch;
+    column-gap: 0.34rem;
+    row-gap: 0.3rem;
+  }
+
+  .cal-nav--day .cal-breadcrumb {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 0.08rem 0.12rem;
+    width: 100%;
+  }
+
+  .cal-nav--day .cal-nav__ctrl {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    align-self: start;
+    padding-top: 0;
+  }
+
+  .cal-nav--day .btn--icon,
+  .cal-nav--day .cal-today-btn {
+    height: 2rem;
+    min-height: 2rem;
+  }
+
+  .cal-nav--day .cal-today-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0.55rem;
+  }
+
+  .cal-nav--day .cal-breadcrumb__current,
+  .cal-nav--day .cal-breadcrumb__choice,
+  .cal-nav--day .cal-breadcrumb__link {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .cal-day-current {
+    grid-column: 1 / -1;
+    min-width: 0;
+    color: var(--text);
+    font-size: 0.94rem;
+    font-weight: 800;
+    line-height: 1.2;
+    padding: 0.04rem 0.3rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .cal-item {
@@ -1025,7 +1167,7 @@
 
 @media (max-width: 420px) {
   .cal-card {
-    padding: 1rem;
+    padding: 1rem 1rem calc(1rem + var(--mobile-bottom-edge, 1rem));
   }
 
   .cal-year-grid {
