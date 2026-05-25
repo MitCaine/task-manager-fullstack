@@ -1,5 +1,36 @@
 type Ampm = 'AM' | 'PM';
 
+function parseLocalDateTime(dt: string): Date {
+  return new Date(dt);
+}
+
+function datePart(dt: string, locale: string): string {
+  const d = parseLocalDateTime(dt);
+  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export function formatTime(
+  dt: string,
+  is24Hour: boolean
+): string {
+  const d = parseLocalDateTime(dt);
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  if (is24Hour) return `${String(hours).padStart(2, '0')}:${minutes}`;
+
+  const displayHour = hours % 12 || 12;
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  return `${displayHour}:${minutes} ${suffix}`;
+}
+
+export function formatDateTime(
+  dt: string,
+  locale: string,
+  is24Hour: boolean
+): string {
+  return `${datePart(dt, locale)}, ${formatTime(dt, is24Hour)}`;
+}
+
 /**
  * Builds an ISO-8601 local datetime string (without timezone) from the
  * individual date/time fields used by the task form.
@@ -37,13 +68,10 @@ export function formatDate(
   is24Hour: boolean
 ): string {
   if (!dt) return '';
-  const d = new Date(dt);
-  const datePart = d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
-  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return datePart;
-  return d.toLocaleString(locale, {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
-  });
+  const d = parseLocalDateTime(dt);
+  const date = datePart(dt, locale);
+  if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return date;
+  return `${date}, ${formatTime(dt, is24Hour)}`;
 }
 
 /**

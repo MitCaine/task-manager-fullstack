@@ -1,4 +1,4 @@
-import { buildDateTimeString, formatDate, extractDateParts } from './dateTime';
+import { buildDateTimeString, formatDate, formatTime, extractDateParts } from './dateTime';
 
 // buildDateTimeString converts form fields into backend LocalDateTime strings.
 
@@ -111,6 +111,38 @@ describe('formatDate', () => {
     const result = formatDate('2026-04-08T09:00:00', 'en-US', false);
     expect(result.length).toBeGreaterThan(8); // more than just a date
     expect(result).toMatch(/9|09/); // hour visible
+  });
+
+  test('European date format keeps uppercase AM/PM in 12-hour mode', () => {
+    const result = formatDate('2026-06-15T21:00:00', 'en-GB', false);
+    expect(result).toContain('9:00 PM');
+    expect(result).not.toMatch(/\bpm\b/);
+  });
+
+  test('24-hour mode displays afternoon times with converted hour', () => {
+    expect(formatDate('2026-06-15T21:00:00', 'en-US', true)).toContain('21:00');
+  });
+});
+
+describe('formatTime', () => {
+  test('9 PM displays uppercase in 12-hour mode', () => {
+    expect(formatTime('2026-06-15T21:00:00', false)).toBe('9:00 PM');
+  });
+
+  test('9 PM displays as 21:00 in 24-hour mode', () => {
+    expect(formatTime('2026-06-15T21:00:00', true)).toBe('21:00');
+  });
+
+  test('12 PM displays as 12:00 in 24-hour mode', () => {
+    expect(formatTime('2026-06-15T12:00:00', true)).toBe('12:00');
+  });
+
+  test('12 AM displays as 00:00 in 24-hour mode', () => {
+    expect(formatTime('2026-06-15T00:00:00', true)).toBe('00:00');
+  });
+
+  test('1:05 AM displays as 01:05 in 24-hour mode', () => {
+    expect(formatTime('2026-06-15T01:05:00', true)).toBe('01:05');
   });
 });
 

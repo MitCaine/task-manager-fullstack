@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Task, Project } from '../types/task';
+import { formatTime } from '../utils/dateTime';
 import { isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
 
@@ -149,10 +150,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     return map;
   }, [tasks]);
 
-  const fmtTime = (dt: string) =>
-    new Date(dt).toLocaleTimeString(locale, {
-      hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
-    });
+  const fmtTime = (dt: string) => formatTime(dt, is24Hour);
   const fmtTimeRange = (start: string, end?: string | null) =>
     end ? `${fmtTime(start)} - ${fmtTime(end)}` : fmtTime(start);
 

@@ -12,7 +12,7 @@ import {
   getAttachments, createAttachment, deleteAttachment as deleteAttachmentAPI,
   getRecurrence, setRepeat,
 } from './api/tasks';
-import { buildDateTimeString, formatDate, extractDateParts } from './utils/dateTime';
+import { buildDateTimeString, formatDate, formatDateTime as formatDateTimeDisplay, formatTime, extractDateParts } from './utils/dateTime';
 import { isTaskOverdue } from './utils/taskUtils';
 import Calendar from './components/Calendar';
 
@@ -36,6 +36,22 @@ type CreateOpenControl =
   | 'end-hour'
   | 'end-minute'
   | 'end-ampm';
+
+function convertHourForTimeMode(hourValue: string, ampmValue: Ampm, to24Hour: boolean): { hour: string; ampm: Ampm } {
+  const parsed = parseInt(hourValue, 10);
+  const hour = Number.isNaN(parsed) ? 0 : parsed;
+  if (to24Hour) {
+    let hour24 = hour;
+    if (ampmValue === 'PM' && hour24 !== 12) hour24 += 12;
+    if (ampmValue === 'AM' && hour24 === 12) hour24 = 0;
+    return { hour: String(hour24).padStart(2, '0'), ampm: ampmValue };
+  }
+  const normalized = ((hour % 24) + 24) % 24;
+  return {
+    hour: String(normalized % 12 || 12).padStart(2, '0'),
+    ampm: normalized >= 12 ? 'PM' : 'AM',
+  };
+}
 
 function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
   if (control === 'start') return current === 'start' || current === 'start-hour' || current === 'start-minute' || current === 'start-ampm';
@@ -564,6 +580,9 @@ function App(): JSX.Element {
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsRestoreFocusRef = useRef<HTMLElement | null>(null);
+  const wasSettingsOpenRef = useRef(false);
   const [showInlineTag, setShowInlineTag] = useState(false);
   const [newTaskTagIDs, setNewTaskTagIDs] = useState<number[]>([]);
   const [viewTab, setViewTab] = useState<ViewTab>('all');
@@ -627,10 +646,17 @@ function App(): JSX.Element {
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<number>>(new Set());
   const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
+  const statusFirstActionRef = useRef<HTMLButtonElement>(null);
+  const statusRestoreFocusRef = useRef<HTMLElement | null>(null);
+  const wasStatusMoveOpenRef = useRef(false);
   const [openActionTaskId, setOpenActionTaskId] = useState<number | null>(null);
 
   // Stats modal visibility.
   const [showStats, setShowStats] = useState(false);
+  const statsTriggerRef = useRef<HTMLButtonElement>(null);
+  const statsCloseRef = useRef<HTMLButtonElement>(null);
+  const statsRestoreFocusRef = useRef<HTMLElement | null>(null);
+  const wasStatsOpenRef = useRef(false);
   const [openTimeEditorScope, setOpenTimeEditorScope] = useState<string | null>(null);
   const [openCreateControl, setOpenCreateControl] = useState<CreateOpenControl>(null);
 
@@ -644,11 +670,24 @@ function App(): JSX.Element {
   const swipeStartY = useRef<number | null>(null);
   const taskLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taskLongPressTriggered = useRef(false);
+  const previousIs24HourRef = useRef(is24Hour);
 
   // Link attachments are loaded lazily per task.
   const [attachments, setAttachments] = useState<Record<number, Attachment[]>>({});
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
   const [newAttachmentLabel, setNewAttachmentLabel] = useState('');
+
+  const rememberCurrentFocus = (targetRef: { current: HTMLElement | null }) => {
+    targetRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  };
+
+  const restoreFocusIfAppropriate = (targetRef: { current: HTMLElement | null }) => {
+    const target = targetRef.current;
+    targetRef.current = null;
+    const active = document.activeElement;
+    const shouldRestore = !active || active === document.body || (active instanceof HTMLElement && !active.isConnected);
+    if (shouldRestore && target?.isConnected) target.focus();
+  };
 
   // Repeat editor keeps the persisted value so autosave can detect changes.
   const [editRepeatFrequency, setEditRepeatFrequency] = useState<'daily' | 'weekly' | 'monthly' | ''>('');
@@ -741,12 +780,23 @@ function App(): JSX.Element {
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
       if (e.key === 'Escape') {
-        closeFloatingControls();
-        if (selectedTaskId !== null) { closePanel(); return; }
         if (statusMoveTask !== null) { setStatusMoveTask(null); return; }
+        if (showStats) { setShowStats(false); return; }
+        if (showSettings) { setShowSettings(false); return; }
+        if (selectedTaskId !== null) { closePanel(); return; }
+        if (
+          openCreateControl !== null ||
+          openTimeEditorScope !== null ||
+          openActionTaskId !== null ||
+          showEditPriorityDropdown ||
+          showEditProjectDropdown ||
+          showEditTagDropdown
+        ) {
+          closeFloatingControls();
+          return;
+        }
         if (search !== '') { setSearch(''); return; }
         if (bulkMode) { setBulkMode(false); setBulkSelectedIds(new Set()); return; }
-        if (showStats) { setShowStats(false); return; }
       }
       if (inInput) return;
       if ((e.key === 'n' || e.key === 'N') && !inInput) {
@@ -760,12 +810,50 @@ function App(): JSX.Element {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedTaskId, statusMoveTask, search, bulkMode, showStats]); // closePanel is intentionally excluded — it's recreated every render
+  }, [
+    selectedTaskId,
+    statusMoveTask,
+    search,
+    bulkMode,
+    showStats,
+    showSettings,
+    openCreateControl,
+    openTimeEditorScope,
+    openActionTaskId,
+    showEditPriorityDropdown,
+    showEditProjectDropdown,
+    showEditTagDropdown,
+  ]); // closePanel is intentionally excluded — it's recreated every render
 
   useOutsideClick(editPriorityDropdownRef, showEditPriorityDropdown, () => setShowEditPriorityDropdown(false));
   useOutsideClick(editProjectDropdownRef,  showEditProjectDropdown,  () => setShowEditProjectDropdown(false));
   useOutsideClick(editTagDropdownRef,      showEditTagDropdown,      () => setShowEditTagDropdown(false));
   useOutsideClick(settingsRef,             showSettings,             () => setShowSettings(false));
+
+  useEffect(() => {
+    if (showStats) {
+      statsCloseRef.current?.focus();
+    } else if (wasStatsOpenRef.current) {
+      restoreFocusIfAppropriate(statsRestoreFocusRef);
+    }
+    wasStatsOpenRef.current = showStats;
+  }, [showStats]);
+
+  useEffect(() => {
+    if (!showSettings && wasSettingsOpenRef.current) {
+      restoreFocusIfAppropriate(settingsRestoreFocusRef);
+    }
+    wasSettingsOpenRef.current = showSettings;
+  }, [showSettings]);
+
+  useEffect(() => {
+    if (statusMoveTask) {
+      statusFirstActionRef.current?.focus();
+    } else if (wasStatusMoveOpenRef.current) {
+      restoreFocusIfAppropriate(statusRestoreFocusRef);
+    }
+    wasStatusMoveOpenRef.current = statusMoveTask !== null;
+  }, [statusMoveTask]);
 
   useEffect(() => {
     if (!openCreateControl) return;
@@ -832,6 +920,51 @@ function App(): JSX.Element {
       : ['12', ...Array.from({ length: 11 }, (_, i) => String(i + 1).padStart(2, '0'))],
     [is24Hour]
   );
+
+  useEffect(() => {
+    if (previousIs24HourRef.current === is24Hour) return;
+    previousIs24HourRef.current = is24Hour;
+
+    if (showAddTime) {
+      const converted = convertHourForTimeMode(hour, ampm, is24Hour);
+      setHour(converted.hour);
+      setAmpm(converted.ampm);
+    }
+    if (showAddEndTime) {
+      const converted = convertHourForTimeMode(endHour, endAmpm, is24Hour);
+      setEndHour(converted.hour);
+      setEndAmpm(converted.ampm);
+    }
+    if (editShowTime) {
+      const converted = convertHourForTimeMode(editHour, editAmpm, is24Hour);
+      setEditHour(converted.hour);
+      setEditAmpm(converted.ampm);
+    }
+    if (editShowEndTime) {
+      const converted = convertHourForTimeMode(editEndHour, editEndAmpm, is24Hour);
+      setEditEndHour(converted.hour);
+      setEditEndAmpm(converted.ampm);
+    }
+    const convertedReminder = convertHourForTimeMode(newReminderHour, newReminderAmpm, is24Hour);
+    setNewReminderHour(convertedReminder.hour);
+    setNewReminderAmpm(convertedReminder.ampm);
+  }, [
+    is24Hour,
+    showAddTime,
+    hour,
+    ampm,
+    showAddEndTime,
+    endHour,
+    endAmpm,
+    editShowTime,
+    editHour,
+    editAmpm,
+    editShowEndTime,
+    editEndHour,
+    editEndAmpm,
+    newReminderHour,
+    newReminderAmpm,
+  ]);
 
   const locale = isEuropeanDate ? 'en-GB' : 'en-US';
 
@@ -933,16 +1066,12 @@ function App(): JSX.Element {
     const startLabel = formatDate(start, locale, is24Hour);
     const sameDay = startDate.toDateString() === endDate.toDateString();
     const endLabel = sameDay
-      ? endDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: !is24Hour })
+      ? formatTime(end, is24Hour)
       : formatDate(end, locale, is24Hour);
     return `${startLabel} - ${endLabel}`;
   };
 
-  const formatDateTime = (dt: string) =>
-    new Date(dt).toLocaleString(locale, {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: !is24Hour,
-    });
+  const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
 
   const draftDateTimeScheduled = date
     ? (showAddTime ? buildDateTimeString(date, hour, minute, ampm, is24Hour) : `${date}T00:00:00`)
@@ -963,6 +1092,26 @@ function App(): JSX.Element {
     setStatusMoveTask(null);
     if (options.timeEditors !== false) setOpenTimeEditorScope(null);
     if (options.createControls !== false) setOpenCreateControl(null);
+  };
+
+  const toggleStatsPanel = () => {
+    const next = !showStats;
+    if (next) rememberCurrentFocus(statsRestoreFocusRef);
+    closeFloatingControls();
+    setShowStats(next);
+  };
+
+  const toggleSettingsPanel = () => {
+    const next = !showSettings;
+    if (next) rememberCurrentFocus(settingsRestoreFocusRef);
+    closeFloatingControls();
+    setShowSettings(next);
+  };
+
+  const openStatusMoveDialog = (task: Task) => {
+    rememberCurrentFocus(statusRestoreFocusRef);
+    closeFloatingControls();
+    setStatusMoveTask(task);
   };
 
   const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags') => {
@@ -1107,8 +1256,7 @@ function App(): JSX.Element {
     taskLongPressTriggered.current = false;
     taskLongPressTimer.current = setTimeout(() => {
       taskLongPressTriggered.current = true;
-      closeFloatingControls();
-      setStatusMoveTask(task);
+      openStatusMoveDialog(task);
     }, 450);
   };
 
@@ -1932,10 +2080,10 @@ function App(): JSX.Element {
 
       {showStats && (
         <div className="modal-overlay" onClick={() => setShowStats(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="stats-title" onClick={e => e.stopPropagation()}>
             <div className="modal__header">
-              <h2 className="modal__title">Stats</h2>
-              <button className="btn btn--ghost btn--icon" onClick={() => setShowStats(false)} aria-label="Close stats">×</button>
+              <h2 className="modal__title" id="stats-title">Stats</h2>
+              <button ref={statsCloseRef} className="btn btn--ghost btn--icon" onClick={() => setShowStats(false)} aria-label="Close stats">×</button>
             </div>
             <div className="stats">
               <div className="stats__row">
@@ -2332,22 +2480,18 @@ function App(): JSX.Element {
           </span>
           <div className="header-actions">
             <button
+              ref={statsTriggerRef}
               className="btn btn--ghost btn--sm"
-              onClick={() => {
-                const next = !showStats;
-                closeFloatingControls();
-                setShowStats(next);
-              }}
+              onClick={toggleStatsPanel}
             >
               ▤ Stats
             </button>
             <button
+              ref={settingsTriggerRef}
               className="btn btn--ghost btn--sm"
-              onClick={() => {
-                const next = !showSettings;
-                closeFloatingControls();
-                setShowSettings(next);
-              }}
+              aria-expanded={showSettings}
+              aria-controls="task-card-settings-panel"
+              onClick={toggleSettingsPanel}
             >
               ⚙ Settings
             </button>
@@ -2355,7 +2499,7 @@ function App(): JSX.Element {
         </div>
 
         {showSettings && (
-          <div className="settings-panel task-card-settings">
+          <div id="task-card-settings-panel" className="settings-panel task-card-settings" role="region" aria-label="Settings">
             <button className="btn btn--ghost btn--sm" onClick={() => setIs24Hour(p => !p)}>
               {is24Hour ? '12-hour' : '24-hour'}
             </button>
@@ -2554,7 +2698,7 @@ function App(): JSX.Element {
                       onMouseDown={() => beginTaskLongPress(task)}
                       onMouseLeave={cancelTaskLongPress}
                       onMouseUp={cancelTaskLongPress}
-                      onContextMenu={e => { e.preventDefault(); if (!bulkMode) setStatusMoveTask(task); }}
+                      onContextMenu={e => { e.preventDefault(); if (!bulkMode) openStatusMoveDialog(task); }}
                       style={{ cursor: 'pointer' }}
                     >
                         {bulkMode && (
@@ -2589,8 +2733,7 @@ function App(): JSX.Element {
                                 onClick={e => {
                                   e.stopPropagation();
                                   if (!bulkMode) {
-                                    closeFloatingControls();
-                                    setStatusMoveTask(task);
+                                    openStatusMoveDialog(task);
                                   }
                                 }}
                                 onMouseDown={e => e.stopPropagation()}
@@ -2731,10 +2874,10 @@ function App(): JSX.Element {
         const currentStatusID = normalizeTaskStatus(currentTask.statusID);
         const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
         return (
-          <div className="status-move" role="dialog" aria-modal="true" aria-label="Move task" onClick={() => setStatusMoveTask(null)}>
-            <div className="status-move__panel" onClick={e => e.stopPropagation()}>
+          <div className="status-move" onClick={() => setStatusMoveTask(null)}>
+            <div className="status-move__panel" role="dialog" aria-modal="true" aria-labelledby="status-move-title" onClick={e => e.stopPropagation()}>
               <div className="status-move__header">
-                <div className="status-move__title-wrap">
+                <div className="status-move__title-wrap" id="status-move-title">
                   <span className="status-move__eyebrow">Move task</span>
                   <span className="status-move__title">{currentTask.title}</span>
                 </div>
@@ -2745,6 +2888,7 @@ function App(): JSX.Element {
                   <button
                     key={option.label}
                     type="button"
+                    ref={moveOptions[0] === option ? statusFirstActionRef : undefined}
                     className="btn status-move__btn"
                     onClick={() => moveTaskToStatus(currentTask, option.statusID)}
                   >

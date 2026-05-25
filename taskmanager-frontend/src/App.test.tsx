@@ -4,6 +4,7 @@ import App from './App';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
   getProjects, getTags, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
+  getSubtasks, getNotes, getReminders, getAttachments,
 } from './api/tasks';
 import type { Task } from './types/task';
 
@@ -27,6 +28,10 @@ const mockGetRecurrence  = getRecurrence  as jest.MockedFunction<typeof getRecur
 const mockSetRepeat      = setRepeat      as jest.MockedFunction<typeof setRepeat>;
 const mockAddTagToTask   = addTagToTask   as jest.MockedFunction<typeof addTagToTask>;
 const mockRemoveTagFromTask = removeTagFromTask as jest.MockedFunction<typeof removeTagFromTask>;
+const mockGetSubtasks    = getSubtasks    as jest.MockedFunction<typeof getSubtasks>;
+const mockGetNotes       = getNotes       as jest.MockedFunction<typeof getNotes>;
+const mockGetReminders   = getReminders   as jest.MockedFunction<typeof getReminders>;
+const mockGetAttachments = getAttachments as jest.MockedFunction<typeof getAttachments>;
 
 const sampleTask: Task = {
   taskID: 1,
@@ -51,6 +56,10 @@ beforeEach(() => {
   mockPatchStatus.mockResolvedValue(sampleTask);
   mockGetProjects.mockResolvedValue([]);
   mockGetTags.mockResolvedValue([]);
+  mockGetSubtasks.mockResolvedValue([]);
+  mockGetNotes.mockResolvedValue([]);
+  mockGetReminders.mockResolvedValue([]);
+  mockGetAttachments.mockResolvedValue([]);
   mockAddTagToTask.mockResolvedValue(undefined);
   mockRemoveTagFromTask.mockResolvedValue(undefined);
   mockGetRecurrence.mockResolvedValue({
@@ -145,6 +154,49 @@ test('shows formatted date for tasks with dateTimeScheduled', async () => {
   render(<App />);
   await screen.findByText('Dentist appointment');
   expect(screen.queryByText('No due date')).not.toBeInTheDocument();
+});
+
+test('12-hour task time uses uppercase PM in US and European date formats', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, dateTimeScheduled: '2026-06-15T21:00:00' }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  expect(screen.getByText(/9:00 PM/)).toBeInTheDocument();
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /dd\/mm\/yyyy/i })); });
+
+  expect(screen.getByText(/9:00 PM/)).toBeInTheDocument();
+  expect(screen.queryByText(/pm/)).not.toBeInTheDocument();
+});
+
+test('24-hour task time converts PM storage to 21:00 for display', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, dateTimeScheduled: '2026-06-15T21:00:00' }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+
+  expect(screen.getByText(/21:00/)).toBeInTheDocument();
+  expect(screen.queryByText(/9:00 PM/)).not.toBeInTheDocument();
+});
+
+test('end time ranges format correctly in 12-hour and 24-hour modes', async () => {
+  mockGetTasks.mockResolvedValue([{
+    ...sampleTask,
+    dateTimeScheduled: '2026-06-15T21:00:00',
+    endDateTimeScheduled: '2026-06-15T22:00:00',
+  }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  expect(screen.getByText(/9:00 PM - 10:00 PM/)).toBeInTheDocument();
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+
+  expect(screen.getByText(/21:00 - 22:00/)).toBeInTheDocument();
 });
 
 test('title input is empty on initial render', async () => {
@@ -908,6 +960,7 @@ test('clicking Stats button opens the stats modal', async () => {
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /stats/i }));
   });
+  expect(await screen.findByRole('dialog', { name: /stats/i })).toBeInTheDocument();
   const heading = await screen.findByRole('heading', { name: /stats/i });
   expect(heading).toBeInTheDocument();
   // Scope queries to the modal to avoid matching filter buttons with same text
@@ -919,15 +972,33 @@ test('clicking Stats button opens the stats modal', async () => {
 
 test('closing the stats modal removes it from the DOM', async () => {
   render(<App />);
+  const statsButton = screen.getByRole('button', { name: /stats/i });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /stats/i }));
+    userEvent.click(statsButton);
   });
   await screen.findByRole('heading', { name: /stats/i });
   const closeBtn = screen.getByRole('button', { name: /close stats/i });
+  expect(closeBtn).toHaveFocus();
   await act(async () => { userEvent.click(closeBtn); });
   await waitFor(() => {
     expect(screen.queryByRole('heading', { name: /stats/i })).not.toBeInTheDocument();
   });
+  expect(statsButton).toHaveFocus();
+});
+
+test('Settings trigger exposes popover state and controls', async () => {
+  render(<App />);
+  const settingsButton = screen.getByRole('button', { name: /settings/i });
+
+  expect(settingsButton).toHaveAttribute('aria-expanded', 'false');
+  expect(settingsButton).toHaveAttribute('aria-controls', 'task-card-settings-panel');
+
+  await act(async () => {
+    userEvent.click(settingsButton);
+  });
+
+  expect(settingsButton).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('region', { name: /settings/i })).toHaveAttribute('id', 'task-card-settings-panel');
 });
 
 // Task move behavior.
@@ -946,10 +1017,35 @@ test('opening the task move menu shows alternate statuses', async () => {
     fireEvent.contextMenu(screen.getByText('Buy milk'));
   });
 
+  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
   expect(screen.getByText('Move task')).toBeInTheDocument();
   expect(screen.getByText('In Progress')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /in progress/i })).toHaveFocus();
   expect(screen.getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
   expect(screen.queryByRole('button', { name: /^active$/i })).not.toBeInTheDocument();
+});
+
+test('Escape closes settings without closing the task detail panel', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  expect(await screen.findByRole('button', { name: /close task details/i })).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /settings/i }));
+  });
+  expect(screen.getByRole('region', { name: /settings/i })).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.keyboard('{Escape}');
+  });
+
+  expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /close task details/i })).toBeInTheDocument();
 });
 
 test('task move menu updates status', async () => {
