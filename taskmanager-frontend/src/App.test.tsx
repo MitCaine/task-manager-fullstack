@@ -106,6 +106,45 @@ function getCreateDateInput(): HTMLInputElement {
   return input;
 }
 
+async function chooseTimeSegment(editor: HTMLElement, segmentIndex: number, value: string) {
+  const segment = editor.querySelectorAll('.time-select')[segmentIndex];
+  if (!(segment instanceof HTMLElement)) throw new Error(`Time segment ${segmentIndex} not found`);
+  const trigger = segment.querySelector('.time-select__btn');
+  if (!(trigger instanceof HTMLButtonElement)) throw new Error(`Time segment ${segmentIndex} trigger not found`);
+  await act(async () => {
+    fireEvent.click(trigger);
+  });
+  const dropdown = segment.querySelector('.time-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error(`Time segment ${segmentIndex} dropdown not found`);
+  await act(async () => {
+    fireEvent.click(within(dropdown).getByRole('button', { name: value }));
+  });
+}
+
+async function setActiveEditorTime(container: HTMLElement, hourValue: string, minuteValue: string, ampmValue?: 'AM' | 'PM') {
+  const editor = container.querySelector('.datetime-row__editor');
+  if (!(editor instanceof HTMLElement)) throw new Error('Time editor not found');
+  await chooseTimeSegment(editor, 0, hourValue);
+  await chooseTimeSegment(editor, 1, minuteValue);
+  if (ampmValue) await chooseTimeSegment(editor, 2, ampmValue);
+}
+
+function getOpenTimeEditor(container: ParentNode = document): HTMLElement {
+  const editor = container.querySelector('.datetime-row__editor');
+  if (!(editor instanceof HTMLElement)) throw new Error('Time editor not found');
+  return editor;
+}
+
+function expectOpenTimeEditor(label: 'Start' | 'End', container: ParentNode = document) {
+  expect(within(getOpenTimeEditor(container)).getByText(`${label}:`)).toBeInTheDocument();
+}
+
+function expectNoOpenTimeEditor(label: 'Start' | 'End', container: ParentNode = document) {
+  const editor = container.querySelector('.datetime-row__editor');
+  if (!(editor instanceof HTMLElement)) return;
+  expect(within(editor).queryByText(`${label}:`)).not.toBeInTheDocument();
+}
+
 async function openCreateDateInput() {
   await act(async () => {
     fireEvent.click(getCreateDateInput());
@@ -145,6 +184,72 @@ test('shows task titles after loading', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
+});
+
+test('clicking task count badge shows all tasks and updates active styling', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
+    { ...sampleTask, taskID: 2, title: 'Done task', statusID: 2 },
+    { ...sampleTask, taskID: 3, title: 'Overdue task', statusID: null, dateTimeScheduled: '2026-01-01T09:00:00' },
+  ]);
+  render(<App />);
+  await screen.findByText('Active task');
+
+  const taskList = screen.getByRole('list', { name: /task list/i });
+  const allBadge = screen.getByRole('button', { name: /3 tasks/i });
+  const doneBadge = screen.getByRole('button', { name: /1 done/i });
+  expect(allBadge).toHaveClass('task-count--active');
+
+  await act(async () => {
+    userEvent.click(doneBadge);
+  });
+  expect(within(taskList).getByText('Done task')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
+  expect(doneBadge).toHaveClass('task-count--active');
+
+  await act(async () => {
+    userEvent.click(allBadge);
+  });
+  expect(within(taskList).getByText('Active task')).toBeInTheDocument();
+  expect(within(taskList).getByText('Done task')).toBeInTheDocument();
+  expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
+  expect(allBadge).toHaveClass('task-count--active');
+});
+
+test('clicking done count badge filters to completed tasks', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
+    { ...sampleTask, taskID: 2, title: 'Done task', statusID: 2 },
+  ]);
+  render(<App />);
+  await screen.findByText('Active task');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+  });
+
+  const taskList = screen.getByRole('list', { name: /task list/i });
+  expect(within(taskList).getByText('Done task')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1 done/i })).toHaveClass('task-count--active');
+});
+
+test('clicking overdue count badge filters to overdue tasks', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Active task', statusID: null, dateTimeScheduled: '2026-12-01T09:00:00' },
+    { ...sampleTask, taskID: 2, title: 'Overdue task', statusID: null, dateTimeScheduled: '2026-01-01T09:00:00' },
+  ]);
+  render(<App />);
+  await screen.findByText('Active task');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /1 overdue/i }));
+  });
+
+  const taskList = screen.getByRole('list', { name: /task list/i });
+  expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1 overdue/i })).toHaveClass('task-count--active');
 });
 
 test('shows "No due date" for tasks without dateTimeScheduled', async () => {
@@ -329,7 +434,7 @@ test('start time editor opens in one tap when priority menu is open', async () =
   });
 
   expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 });
 
 test('end time editor opens in one tap when start time editor is open', async () => {
@@ -338,14 +443,25 @@ test('end time editor opens in one tap when start time editor is open', async ()
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
+  const activeStartSummary = screen.getByRole('button', { name: /^start:/i });
+  const inactiveEndSummary = screen.getByRole('button', { name: /\+ end time/i });
+  expect(activeStartSummary).toHaveClass('datetime-row__time-summary--active');
+  expect(within(activeStartSummary).getByText(/^Start:$/)).toHaveClass('datetime-row__summary-label--active');
+  expect(inactiveEndSummary).not.toHaveClass('datetime-row__time-summary--active');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
-  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
+  expectOpenTimeEditor('End');
+  const inactiveStartSummary = screen.getByRole('button', { name: /^start:/i });
+  const activeEndSummary = screen.getByRole('button', { name: /^end:/i });
+  expect(inactiveStartSummary).not.toHaveClass('datetime-row__time-summary--active');
+  expect(within(inactiveStartSummary).getByText(/^Start:$/)).not.toHaveClass('datetime-row__summary-label--active');
+  expect(activeEndSummary).toHaveClass('datetime-row__time-summary--active');
+  expect(within(activeEndSummary).getByText(/^End:$/)).toHaveClass('datetime-row__summary-label--active');
 });
 
 test('start time editor opens in one tap when end time editor is open', async () => {
@@ -354,14 +470,14 @@ test('start time editor opens in one tap when end time editor is open', async ()
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ End time/i));
   });
-  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('End');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
   });
 
-  expect(screen.queryByText(/^End:$/)).not.toBeInTheDocument();
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectNoOpenTimeEditor('End');
+  expectOpenTimeEditor('Start');
 });
 
 test('tapping the active start time summary toggles the editor closed', async () => {
@@ -370,13 +486,13 @@ test('tapping the active start time summary toggles the editor closed', async ()
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^start:/i }));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
 });
 
 test('priority opens in one tap when start time editor is open', async () => {
@@ -385,13 +501,13 @@ test('priority opens in one tap when start time editor is open', async () => {
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
   expect(screen.getByText(/remove priority/i)).toBeInTheDocument();
 });
 
@@ -401,13 +517,13 @@ test('project opens in one tap when start time editor is open', async () => {
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^project$/i }));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
   expect(screen.getByText(/\+ new project/i)).toBeInTheDocument();
 });
 
@@ -417,13 +533,13 @@ test('tags opens in one tap when start time editor is open', async () => {
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
   expect(screen.getByText(/\+ new tag/i)).toBeInTheDocument();
 });
 
@@ -433,13 +549,13 @@ test('priority opens in one tap when end time editor is open', async () => {
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ End time/i));
   });
-  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('End');
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
-  expect(screen.queryByText(/^End:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('End');
   expect(screen.getByText(/remove priority/i)).toBeInTheDocument();
 });
 
@@ -491,13 +607,13 @@ test('start time editor closes when clicking the create title input', async () =
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await act(async () => {
     userEvent.click(screen.getByPlaceholderText(/task title/i));
   });
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
 });
 
 test('date closes when clicking the create title input', async () => {
@@ -536,7 +652,7 @@ test('start time editor opens from date in one tap', async () => {
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 });
 
 test('end time editor opens from date in one tap', async () => {
@@ -549,7 +665,7 @@ test('end time editor opens from date in one tap', async () => {
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
-  expect(screen.getByText(/^End:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('End');
 });
 
 test('date opens from start time editor in one tap', async () => {
@@ -558,11 +674,11 @@ test('date opens from start time editor in one tap', async () => {
   await act(async () => {
     userEvent.click(await screen.findByText(/\+ Start time/i));
   });
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 
   await openCreateDateInput();
 
-  expect(screen.queryByText(/^Start:$/)).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('Start');
   expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
 });
 
@@ -594,7 +710,7 @@ test('closing start hour dropdown keeps the start editor open', async () => {
     userEvent.click(hourButton);
   });
 
-  expect(screen.getByText(/^Start:$/)).toBeInTheDocument();
+  expectOpenTimeEditor('Start');
 });
 
 test('date input remains usable after create control switching', async () => {
@@ -640,6 +756,77 @@ test('selected create date is used when creating the task', async () => {
     title: 'Dated task',
     dateTimeScheduled: '2026-06-20T00:00:00',
   }));
+});
+
+test('create task defaults to no recurrence', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'One-time task');
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+
+  await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
+  expect(mockSetRepeat).not.toHaveBeenCalled();
+});
+
+test('create form keeps repeat before the action row controls', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const repeatButton = within(createCard).getByRole('button', { name: /repeat.*do not repeat/i });
+  const priorityButton = within(createCard).getByRole('button', { name: /^priority$/i });
+  const addButton = within(createCard).getByRole('button', { name: /^add task$/i });
+
+  expect(within(repeatButton).getByText('Do not repeat')).toBeInTheDocument();
+  expect(repeatButton.compareDocumentPosition(priorityButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(priorityButton.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test('create task can select daily recurrence and saves it', async () => {
+  mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task' });
+  mockSetRepeat.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task', recurrenceRuleID: 11 });
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Daily task');
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /^daily$/i }));
+  });
+  expect(within(screen.getByLabelText(/task preview/i)).getByText('Daily')).toBeInTheDocument();
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(45, 'daily'));
+});
+
+test('create task can select weekly and monthly recurrence', async () => {
+  mockCreateTask.mockResolvedValueOnce({ ...sampleTask, taskID: 46, title: 'Weekly task' });
+  mockCreateTask.mockResolvedValueOnce({ ...sampleTask, taskID: 47, title: 'Monthly task' });
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Weekly task');
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /^weekly$/i }));
+  });
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, 'weekly'));
+
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /^monthly$/i }));
+  });
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(47, 'monthly'));
 });
 
 test('swipe starting on the page area changes mobile view', async () => {
@@ -804,6 +991,111 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
   await waitFor(() => expect(mockAddTagToTask).toHaveBeenCalledWith(44, 8));
 });
 
+test('create task blocks end time before start time', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const createScope = within(createCard);
+
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid range');
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+  });
+  await setActiveEditorTime(createCard, '09', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await setActiveEditorTime(createCard, '08', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+
+  expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+  });
+  expect(mockCreateTask).not.toHaveBeenCalled();
+});
+
+test('create task blocks end time equal to start time and clears when valid', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const createScope = within(createCard);
+
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Equal range');
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+  });
+  await setActiveEditorTime(createCard, '09', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await setActiveEditorTime(createCard, '09', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+  expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+  });
+  expect(mockCreateTask).not.toHaveBeenCalled();
+
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /end:\s*09:00 PM/i }));
+  });
+  await setActiveEditorTime(createCard, '10', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+  await waitFor(() => expect(createScope.queryByText('End time must be after start time.')).not.toBeInTheDocument());
+});
+
+test('create warning appears when start time changes after end time exists', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const createScope = within(createCard);
+
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+  });
+  await setActiveEditorTime(createCard, '09', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await setActiveEditorTime(createCard, '10', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+  expect(createScope.queryByText('End time must be after start time.')).not.toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /start:\s*09:00 PM/i }));
+  });
+  await setActiveEditorTime(createCard, '11', '00', 'PM');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+
+  expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
+});
+
 test('task tag chips keep user tag colors as accents instead of foreground text color', async () => {
   mockGetTasks.mockResolvedValue([{
     ...sampleTask,
@@ -947,12 +1239,12 @@ test('inline edit uses compact start and end time summaries', async () => {
     userEvent.click(endSummary);
   });
   expect(endSummary).toHaveClass('datetime-row__time-summary--active');
-  expect(editScope.getByText('End:')).toBeInTheDocument();
+  expectOpenTimeEditor('End', editCard);
 
   await act(async () => {
     userEvent.click(endSummary);
   });
-  expect(editScope.queryByText('End:')).not.toBeInTheDocument();
+  expectNoOpenTimeEditor('End', editCard);
   expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
 });
 
@@ -1035,6 +1327,222 @@ test('inline edit end time can be changed and saved', async () => {
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(54, expect.objectContaining({
     endDateTimeScheduled: '2026-06-20T23:40:00',
   })));
+});
+
+test('inline edit hydrates existing recurrence', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    taskID: 60,
+    title: 'Recurring edit task',
+    recurrenceRuleID: 10,
+  };
+  mockGetTasks.mockResolvedValue([recurringTask]);
+  mockGetTask.mockResolvedValue(recurringTask);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-01-01T00:00:00',
+    endDateTime: '2036-01-01T00:00:00',
+  });
+  render(<App />);
+  await screen.findByText('Recurring edit task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  await waitFor(() => expect(within(editCard).getByRole('button', { name: /repeat.*weekly/i })).toBeInTheDocument());
+});
+
+test('inline edit can change recurrence', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    taskID: 61,
+    title: 'Change recurrence task',
+    recurrenceRuleID: 10,
+  };
+  mockGetTasks.mockResolvedValue([recurringTask]);
+  mockGetTask.mockResolvedValue(recurringTask);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-01-01T00:00:00',
+    endDateTime: '2036-01-01T00:00:00',
+  });
+  render(<App />);
+  await screen.findByText('Change recurrence task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*weekly/i })).toBeInTheDocument());
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /repeat.*weekly/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('menuitem', { name: /^monthly$/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(61, 'monthly'));
+});
+
+test('inline edit can remove recurrence', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    taskID: 62,
+    title: 'Remove recurrence task',
+    recurrenceRuleID: 10,
+  };
+  mockGetTasks.mockResolvedValue([recurringTask]);
+  mockGetTask.mockResolvedValue(recurringTask);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'daily',
+    timesOfRecurrence: 0,
+    startDateTime: '2026-01-01T00:00:00',
+    endDateTime: '2036-01-01T00:00:00',
+  });
+  render(<App />);
+  await screen.findByText('Remove recurrence task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*daily/i })).toBeInTheDocument());
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /repeat.*daily/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('menuitem', { name: /do not repeat/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(62, null));
+});
+
+test('edit task blocks end time before start time', async () => {
+  const timedTask: Task = {
+    ...sampleTask,
+    taskID: 58,
+    title: 'Invalid edit range',
+    dateTimeScheduled: '2026-06-20T21:40:00',
+    endDateTimeScheduled: '2026-06-20T22:40:00',
+  };
+  mockGetTasks.mockResolvedValue([timedTask]);
+  mockGetTask.mockResolvedValue(timedTask);
+  render(<App />);
+  await screen.findByText('Invalid edit range');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+  });
+  await setActiveEditorTime(editCard, '08', '00', 'PM');
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /done/i }));
+  });
+
+  expect(editScope.getByText('End time must be after start time.')).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+  expect(mockUpdateTask).not.toHaveBeenCalled();
+});
+
+test('edit warning clears when end time is removed', async () => {
+  const timedTask: Task = {
+    ...sampleTask,
+    taskID: 59,
+    title: 'Remove invalid end',
+    dateTimeScheduled: '2026-06-20T21:40:00',
+    endDateTimeScheduled: '2026-06-20T22:40:00',
+  };
+  mockGetTasks.mockResolvedValue([timedTask]);
+  mockGetTask.mockResolvedValue(timedTask);
+  render(<App />);
+  await screen.findByText('Remove invalid end');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+  });
+  await setActiveEditorTime(editCard, '08', '00', 'PM');
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /done/i }));
+  });
+  expect(editScope.getByText('End time must be after start time.')).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /clear end time/i }));
+  });
+  expect(editScope.queryByText('End time must be after start time.')).not.toBeInTheDocument();
+});
+
+test('24-hour create validation still blocks end time before start time', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  const createScope = within(createCard);
+
+  await act(async () => {
+    fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
+    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid 24 hour range');
+  });
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+  });
+  await setActiveEditorTime(createCard, '21', '00');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await setActiveEditorTime(createCard, '20', '00');
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+  });
+
+  expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+  });
+  expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
 test('creating a new project from inline edit applies it on save', async () => {
@@ -1489,6 +1997,7 @@ test('completing a recurring task with end time creates the next occurrence with
     dateTimeScheduled: '2026-06-22T14:30:00',
     endDateTimeScheduled: '2026-06-22T15:30:00',
   })));
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'weekly');
 });
 
 // Bulk action behavior.

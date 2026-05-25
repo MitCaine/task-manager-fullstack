@@ -23,9 +23,17 @@ type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'mediu
 type MobilePage = 'add' | 'tasks' | 'calendar';
 type ViewTab = 'all' | 'today' | 'week' | 'month';
 type CreateOpenControl = string | null;
+type RepeatFrequency = '' | 'daily' | 'weekly' | 'monthly';
 
 function tagAccentStyle(color?: string | null): CSSProperties {
   return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
+}
+
+const TASK_TIME_RANGE_ERROR = 'End time must be after start time.';
+
+function validateTaskTimeRange(start: string | null, end: string | null): string | null {
+  if (!start || !end) return null;
+  return new Date(end).getTime() > new Date(start).getTime() ? null : TASK_TIME_RANGE_ERROR;
 }
 
 function convertHourForTimeMode(hourValue: string, ampmValue: Ampm, to24Hour: boolean): { hour: string; ampm: Ampm } {
@@ -98,6 +106,12 @@ const TASK_STATUS_OPTIONS = [
   { label: 'In Progress', statusID: 3 as number | null },
   { label: 'Done', statusID: 2 as number | null },
 ];
+const REPEAT_OPTIONS: Array<{ value: RepeatFrequency; label: string }> = [
+  { value: '', label: 'Do not repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 function normalizeTaskStatus(statusID: number | null | undefined): number | null {
   return statusID === 1 ? null : statusID ?? null;
@@ -109,6 +123,10 @@ function compactText(value: string, maxLength: number): string {
 
 function shouldIgnoreSwipeStart(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest(SWIPE_IGNORE_SELECTOR));
+}
+
+function formatRepeatFrequency(value: RepeatFrequency): string {
+  return REPEAT_OPTIONS.find(option => option.value === value)?.label ?? 'Do not repeat';
 }
 
 function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, onClose: () => void) {
@@ -414,7 +432,8 @@ function DateTimeRow({
         ) : (
           <div className="datetime-row__summary-wrap">
             <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'start' ? ' datetime-row__time-summary--active' : ''}`} onClick={openStartEditor} data-create-menu-trigger>
-              Start: {timeSummary(hourVal, minuteVal, ampmVal)}
+              <span className={`datetime-row__summary-label${activeEditor === 'start' ? ' datetime-row__summary-label--active' : ''}`}>Start:</span>
+              {timeSummary(hourVal, minuteVal, ampmVal)}
             </button>
             {onRemoveStart && (
               <button
@@ -431,7 +450,8 @@ function DateTimeRow({
         {showEndTime && onEndHour && onEndMinute && onEndAmpm ? (
           <div className="datetime-row__summary-wrap">
             <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'end' ? ' datetime-row__time-summary--active' : ''}`} onClick={openEndEditor} data-create-menu-trigger>
-              End: {timeSummary(endHourVal ?? '12', endMinuteVal ?? '00', endAmpmVal)}
+              <span className={`datetime-row__summary-label${activeEditor === 'end' ? ' datetime-row__summary-label--active' : ''}`}>End:</span>
+              {timeSummary(endHourVal ?? '12', endMinuteVal ?? '00', endAmpmVal)}
             </button>
             <button
               type="button"
@@ -543,6 +563,68 @@ function DateTimeRow({
   );
 }
 
+type RecurrenceControlProps = {
+  value: RepeatFrequency;
+  onChange: (value: RepeatFrequency) => void;
+  openControl: string | null;
+  onToggle: () => void;
+  onClose: () => void;
+  controlId: string;
+  menuScope: 'create' | 'inline-edit';
+};
+
+function RecurrenceControl({
+  value,
+  onChange,
+  openControl,
+  onToggle,
+  onClose,
+  controlId,
+  menuScope,
+}: RecurrenceControlProps): JSX.Element {
+  const open = openControl === controlId;
+  const triggerAttrs = menuScope === 'create'
+    ? { 'data-create-menu-trigger': true }
+    : { 'data-inline-edit-menu-trigger': true };
+  const boundaryAttrs = menuScope === 'create'
+    ? { 'data-create-menu-boundary': true }
+    : { 'data-inline-edit-menu-boundary': true };
+
+  return (
+    <div className="tag-select recurrence-select">
+      <button
+        type="button"
+        className={`select tag-select__btn recurrence-select__btn${value ? ' tag-select__btn--active' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={onToggle}
+        {...triggerAttrs}
+      >
+        <span className="recurrence-select__label">Repeat</span>
+        <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{formatRepeatFrequency(value)}</span>
+      </button>
+      {open && (
+        <div className="tag-select__dropdown recurrence-select__dropdown" role="menu" {...boundaryAttrs}>
+          {REPEAT_OPTIONS.map(option => (
+            <button
+              key={option.value || 'none'}
+              type="button"
+              role="menuitem"
+              className={`tag-select__item${value === option.value ? ' tag-select__item--on' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                onClose();
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App(): JSX.Element {
   // Tasks loaded from the API and top-level request state.
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -568,6 +650,7 @@ function App(): JSX.Element {
   const [endMinute, setEndMinute] = useState('00');
   const [endAmpm, setEndAmpm] = useState<Ampm>('AM');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
+  const [newRepeatFrequency, setNewRepeatFrequency] = useState<RepeatFrequency>('');
 
   // UI preferences and transient dropdown state.
   const [is24Hour, setIs24Hour] = useState(false);
@@ -685,7 +768,7 @@ function App(): JSX.Element {
   };
 
   // Repeat editor keeps the persisted value so autosave can detect changes.
-  const [editRepeatFrequency, setEditRepeatFrequency] = useState<'daily' | 'weekly' | 'monthly' | ''>('');
+  const [editRepeatFrequency, setEditRepeatFrequency] = useState<RepeatFrequency>('');
   const [originalRepeatFrequency, setOriginalRepeatFrequency] = useState<string>('');
 
   // Project lists and selectors shared by create and edit flows.
@@ -1093,6 +1176,16 @@ function App(): JSX.Element {
     : null;
   const draftProject = newProjectID !== '' ? projects.find(p => p.projectID === newProjectID) : null;
   const draftTags = tags.filter(tag => newTaskTagIDs.includes(tag.tagID));
+  const currentCreateTimeRangeError = validateTaskTimeRange(draftDateTimeScheduled, draftEndDateTimeScheduled);
+  const draftEditDateTimeScheduled = editDate
+    ? (editShowTime
+        ? buildDateTimeString(editDate, editHour, editMinute, editAmpm, is24Hour)
+        : `${editDate}T00:00:00`)
+    : null;
+  const draftEditEndDateTimeScheduled = editDate && editShowEndTime
+    ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
+    : null;
+  const currentEditTimeRangeError = validateTaskTimeRange(draftEditDateTimeScheduled, draftEditEndDateTimeScheduled);
 
   const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean } = {}) => {
     setShowEditPriorityDropdown(false);
@@ -1127,12 +1220,12 @@ function App(): JSX.Element {
     setStatusMoveTask(task);
   };
 
-  const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags') => {
+  const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
     closeFloatingControls({ createControls: false });
     setOpenCreateControl(current => isCreateControlGroupActive(current, control) ? null : control);
   };
 
-  const toggleInlineEditDropdown = (control: 'project' | 'tags') => {
+  const toggleInlineEditDropdown = (control: 'project' | 'tags' | 'repeat') => {
     closeFloatingControls({ timeEditors: false });
     setOpenTimeEditorScope(null);
     setInlineEditOpenControl(current => current === control ? null : control);
@@ -1168,17 +1261,27 @@ function App(): JSX.Element {
     const endDateTimeScheduled = date && showAddEndTime
       ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
       : null;
+    const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
+    if (rangeError) {
+      return;
+    }
     try {
       const saved = await createTask({ title: input.trim(), description: description.trim(), dateTimeScheduled, endDateTimeScheduled, priority: newPriority || null, projectID: newProjectID !== '' ? newProjectID : null });
-      setTasks(prev => [...prev, saved]);
+      let taskForState = saved;
+      if (newRepeatFrequency) {
+        const repeated = await setRepeat(saved.taskID, newRepeatFrequency);
+        taskForState = { ...saved, recurrenceRuleID: repeated.recurrenceRuleID ?? null };
+      }
       if (newTaskTagIDs.length > 0) {
         await Promise.all(newTaskTagIDs.map(tagId => addTagToTask(saved.taskID, tagId)));
         const tagObjects = tags.filter(t => newTaskTagIDs.includes(t.tagID));
-        setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...t, tags: tagObjects } : t));
+        taskForState = { ...taskForState, tags: tagObjects };
       }
+      setTasks(prev => [...prev, taskForState]);
       setInput('');
       setDescription('');
       setNewPriority('');
+      setNewRepeatFrequency('');
       setNewProjectID('');
       setNewTaskTagIDs([]);
       setShowAddTime(false);
@@ -1359,7 +1462,7 @@ function App(): JSX.Element {
     } else {
       getRecurrence(task.taskID)
         .then(rule => {
-          const freq = rule.frequency as 'daily' | 'weekly' | 'monthly';
+          const freq = rule.frequency as RepeatFrequency;
           setEditRepeatFrequency(freq); setOriginalRepeatFrequency(freq);
         })
         .catch(() => { setEditRepeatFrequency(''); setOriginalRepeatFrequency(''); });
@@ -1457,6 +1560,10 @@ function App(): JSX.Element {
     const endDateTimeScheduled = editDate && editShowEndTime
       ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
       : null;
+    const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
+    if (rangeError) {
+      return;
+    }
     try {
       const saved = await updateTask(task.taskID, {
         title: editTitle.trim() || task.title,
@@ -2208,6 +2315,16 @@ function App(): JSX.Element {
             endHourVal={endHour} endMinuteVal={endMinute} endAmpmVal={endAmpm}
             onEndHour={setEndHour} onEndMinute={setEndMinute} onEndAmpm={setEndAmpm}
           />
+          <RecurrenceControl
+            value={newRepeatFrequency}
+            onChange={setNewRepeatFrequency}
+            openControl={openCreateControl}
+            onToggle={() => toggleCreateDropdown('repeat')}
+            onClose={() => setOpenCreateControl(null)}
+            controlId="repeat"
+            menuScope="create"
+          />
+          {currentCreateTimeRangeError && <p className="input-error-msg">{currentCreateTimeRangeError}</p>}
           <div className="add-actions-row">
           <div className="form-row">
             <div className="tag-select" ref={priorityDropdownRef}>
@@ -2465,9 +2582,10 @@ function App(): JSX.Element {
                 <span className="item__meta item__meta--inline">{fmtTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled)}</span>
               </div>
               {description.trim() && <p className="add-preview__desc">{description.trim()}</p>}
-              {(newPriority || draftProject || draftTags.length > 0) && (
+              {(newPriority || draftProject || draftTags.length > 0 || newRepeatFrequency) && (
                 <div className="add-preview__chips">
                   {draftProject && <span className="item__badge item__project-chip">{draftProject.title}</span>}
+                  {newRepeatFrequency && <span className="item__badge item__badge--repeat">{formatRepeatFrequency(newRepeatFrequency)}</span>}
                   {newPriority && (
                     <span className={`item__badge item__badge--priority item__badge--priority-${newPriority.toLowerCase()}`}>
                       {newPriority[0] + newPriority.slice(1).toLowerCase()}
@@ -2630,11 +2748,34 @@ function App(): JSX.Element {
 
         <div className="spread mtop small task-overview">
           <div className="task-count-row">
-            <span className="task-count">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
+            <button
+              type="button"
+              className={`task-count task-count--button${filterStatus === 'all' ? ' task-count--active' : ''}`}
+              onClick={() => setFilterStatus('all')}
+              aria-pressed={filterStatus === 'all'}
+            >
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+            </button>
             {overdueCount > 0 && (
-              <span className="task-count task-count--overdue">{overdueCount} overdue</span>
+              <button
+                type="button"
+                className={`task-count task-count--button task-count--overdue${filterStatus === 'overdue' ? ' task-count--active' : ''}`}
+                onClick={() => setFilterStatus('overdue')}
+                aria-pressed={filterStatus === 'overdue'}
+              >
+                {overdueCount} overdue
+              </button>
             )}
-            {completedCount > 0 && <span className="footer-done">{completedCount} done</span>}
+            {completedCount > 0 && (
+              <button
+                type="button"
+                className={`footer-done task-count--button${filterStatus === 'completed' ? ' task-count--active' : ''}`}
+                onClick={() => setFilterStatus('completed')}
+                aria-pressed={filterStatus === 'completed'}
+              >
+                {completedCount} done
+              </button>
+            )}
           </div>
           <button
             className={`btn btn--ghost btn--sm${bulkMode ? ' btn--active' : ''}`}
@@ -2864,6 +3005,16 @@ function App(): JSX.Element {
                             endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
                             onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
                           />
+                          <RecurrenceControl
+                            value={editRepeatFrequency}
+                            onChange={setEditRepeatFrequency}
+                            openControl={inlineEditOpenControl}
+                            onToggle={() => toggleInlineEditDropdown('repeat')}
+                            onClose={() => setInlineEditOpenControl(null)}
+                            controlId="repeat"
+                            menuScope="inline-edit"
+                          />
+                          {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
                           <div className="form-row item__edit-meta-row">
                             <div className="tag-select" ref={editProjectDropdownRef}>
                               <button
@@ -3173,6 +3324,7 @@ function App(): JSX.Element {
                 onEndMinute={v => { setEditEndMinute(v); scheduleAutoSave(0); }}
                 onEndAmpm={v => { setEditEndAmpm(v); scheduleAutoSave(0); }}
               />
+              {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
               <div className="time-shift-row">
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => shiftTime('hour')}>+1 hr</button>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => shiftTime('day')}>+1 day</button>
@@ -3336,7 +3488,7 @@ function App(): JSX.Element {
                 <select
                   className="select select--sm"
                   value={editRepeatFrequency}
-                  onChange={e => { setEditRepeatFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | ''); scheduleAutoSave(0); }}
+                  onChange={e => { setEditRepeatFrequency(e.target.value as RepeatFrequency); scheduleAutoSave(0); }}
                 >
                   <option value="">None</option>
                   <option value="daily">Daily</option>

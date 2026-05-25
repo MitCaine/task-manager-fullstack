@@ -46,6 +46,7 @@ public class TaskController {
     @PostMapping
     public ResponseEntity<Task> createTask(@Valid @RequestBody Task newTask) {
         newTask.setTaskID(null);
+        validateTimeRange(newTask);
 
         Task saved = taskRepository.save(newTask);
         return ResponseEntity
@@ -55,6 +56,7 @@ public class TaskController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @Valid @RequestBody Task updatedTask) {
+        validateTimeRange(updatedTask);
         return taskRepository.findById(id)
                 .map(task -> {
                     task.setTitle(updatedTask.getTitle());
@@ -69,6 +71,14 @@ public class TaskController {
                     return ResponseEntity.ok(saved);
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private void validateTimeRange(Task task) {
+        LocalDateTime start = task.getDateTimeScheduled();
+        LocalDateTime end = task.getEndDateTimeScheduled();
+        if (start != null && end != null && !end.isAfter(start)) {
+            throw new ResponseStatusException(BAD_REQUEST, "End time must be after start time.");
+        }
     }
 
     private record StatusUpdateRequest(Long statusID) {}

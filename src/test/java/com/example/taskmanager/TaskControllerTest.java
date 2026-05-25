@@ -244,6 +244,34 @@ class TaskControllerTest {
                 .andExpect(jsonPath("$.endDateTimeScheduled").value("2026-06-15T15:30:00"));
     }
 
+    @Test
+    void createTask_endBeforeStart_returns400() throws Exception {
+        String body = """
+                {"title":"Invalid","dateTimeScheduled":"2026-06-15T21:00:00","endDateTimeScheduled":"2026-06-15T20:00:00"}
+                """;
+
+        mockMvc.perform(post("/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("End time must be after start time."));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void createTask_endEqualStart_returns400() throws Exception {
+        String body = """
+                {"title":"Invalid","dateTimeScheduled":"2026-06-15T21:00:00","endDateTimeScheduled":"2026-06-15T21:00:00"}
+                """;
+
+        mockMvc.perform(post("/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("End time must be after start time."));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
     // PUT /tasks/{id}
 
     @Test
@@ -285,6 +313,45 @@ class TaskControllerTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.endDateTimeScheduled").value("2026-06-15T16:00:00"));
+    }
+
+    @Test
+    void updateTask_endBeforeStart_returns400() throws Exception {
+        String body = """
+                {"title":"New title","description":"","dateTimeScheduled":"2026-06-15T21:00:00","endDateTimeScheduled":"2026-06-15T20:00:00"}
+                """;
+
+        mockMvc.perform(put("/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("End time must be after start time."));
+        verify(taskRepository, never()).findById(1L);
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void updateTask_acceptsNullEndDateTime() throws Exception {
+        Task existing = makeTask(1L, "Old title", 1L, LocalDateTime.of(2026, 6, 15, 14, 30));
+        existing.setEndDateTimeScheduled(LocalDateTime.of(2026, 6, 15, 15, 30));
+        Task updated = makeTask(1L, "New title", 1L, LocalDateTime.of(2026, 6, 15, 14, 30));
+        updated.setEndDateTimeScheduled(null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task arg = invocation.getArgument(0);
+            assertEquals(null, arg.getEndDateTimeScheduled());
+            return updated;
+        });
+
+        String body = """
+                {"title":"New title","description":"","dateTimeScheduled":"2026-06-15T14:30:00","endDateTimeScheduled":null}
+                """;
+
+        mockMvc.perform(put("/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endDateTimeScheduled").doesNotExist());
     }
 
     @Test
