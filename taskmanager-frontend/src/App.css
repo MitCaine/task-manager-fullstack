@@ -1641,6 +1641,8 @@ input[type="datetime-local"] {
 
 .tag-dot--clickable {
   cursor: pointer;
+  border: none;
+  padding: 0;
   transition: transform 0.1s, opacity 0.1s;
 }
 
@@ -1773,12 +1775,18 @@ input[type="datetime-local"] {
   align-items: center;
   justify-content: flex-start;
   gap: 0.35rem;
+  width: 100%;
   padding: 0.35rem 0.5rem;
+  border: none;
   border-radius: 6px;
+  background: none;
   font-size: 0.85rem;
+  font-family: inherit;
   color: var(--text-muted);
   transition: background 0.1s;
   overflow: visible;
+  cursor: pointer;
+  text-align: left;
 }
 
 .tag-select__item:hover {
@@ -3449,6 +3457,7 @@ input[type="datetime-local"] {
   .item__action-menu button {
     flex: 1 1 0;
     min-width: 0;
+    min-height: 2.5rem;
     padding: 0.45rem 0.35rem;
     text-align: center;
     font-size: 0.76rem;
@@ -3528,6 +3537,39 @@ input[type="datetime-local"] {
 
   .list-controls__group {
     width: 100%;
+  }
+
+  .time-select__item {
+    min-height: 2.5rem;
+  }
+
+  .datetime-row__clear,
+  .datetime-row__done,
+  .datetime-row__end-toggle,
+  .time-select__btn,
+  .btn--icon,
+  .tag-select__delete,
+  .tag-dot--clickable,
+  .inline-form__close,
+  .color-swatch,
+  .selected-tag-chip__remove,
+  .item__action-menu button {
+    position: relative;
+  }
+
+  .datetime-row__clear::after,
+  .datetime-row__done::after,
+  .datetime-row__end-toggle::after,
+  .time-select__btn::after,
+  .btn--icon::after,
+  .tag-select__delete::after,
+  .tag-dot--clickable::after,
+  .inline-form__close::after,
+  .color-swatch::after,
+  .selected-tag-chip__remove::after {
+    content: "";
+    position: absolute;
+    inset: -0.4rem;
   }
 
   .item__main {

@@ -529,6 +529,11 @@
   cursor: pointer;
 }
 
+.cal-table__row:focus-visible td {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .cal-table__row:hover td {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
@@ -1178,5 +1183,22 @@
     width: 1.9rem;
     height: 1.9rem;
     font-size: 0.78rem;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cal-day-btn {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+
+  .cal-mini__day {
+    position: relative;
+  }
+
+  .cal-mini__day::after {
+    content: "";
+    position: absolute;
+    inset: -0.45rem;
   }
 }

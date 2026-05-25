@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { Task, Project } from '../types/task';
 import { isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
@@ -24,6 +25,12 @@ interface Props {
 }
 
 // Date helpers keep calendar calculations normalized to local day boundaries.
+const activateOnEnterOrSpace = (event: KeyboardEvent, action: () => void) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    action();
+  }
+};
 
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const firstDay    = new Date(year, month, 1).getDay();
@@ -574,7 +581,13 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                           setSelWeek(weekStart(firstReal));
                           setView('week');
                         }}
+                        onKeyDown={firstReal ? e => activateOnEnterOrSpace(e, () => {
+                          setSelMonth(m);
+                          setSelWeek(weekStart(firstReal));
+                          setView('week');
+                        }) : undefined}
                         role={firstReal ? 'button' : undefined}
+                        tabIndex={firstReal ? 0 : undefined}
                         title={firstReal ? 'View this week' : undefined}
                       >
                         {week.map((date, di) => {
@@ -597,6 +610,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                               ].filter(Boolean).join(' ')}
                               onClick={e => { e.stopPropagation(); goDay(date, m); }}
                               title={n > 0 ? `${n} task${n !== 1 ? 's' : ''}` : undefined}
+                              aria-label={`${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${n > 0 ? `, ${n} task${n !== 1 ? 's' : ''}` : ''}`}
                             >
                               {date.getDate()}
                             </button>
@@ -664,7 +678,9 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                     weekTasks.length > 0  ? 'cal-table__row--tasks'   : '',
                   ].filter(Boolean).join(' ')}
                   onClick={() => { setSelWeek(weekStart(firstReal)); setView('week'); }}
+                  onKeyDown={e => activateOnEnterOrSpace(e, () => { setSelWeek(weekStart(firstReal)); setView('week'); })}
                   role="button"
+                  tabIndex={0}
                   title="View this week"
                 >
                   {week.map((date, di) => {
@@ -687,6 +703,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                           ].filter(Boolean).join(' ')}
                           onClick={e => { e.stopPropagation(); goDay(date, selMonth); }}
                           title={n > 0 ? `${n} task${n !== 1 ? 's' : ''}` : undefined}
+                          aria-label={`${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${n > 0 ? `, ${n} task${n !== 1 ? 's' : ''}` : ''}`}
                         >
                           {date.getDate()}
                           {n > 0 && <span className="cal-day-count">{n}</span>}
@@ -820,11 +837,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       <div className="cal-nav cal-nav--day">
         {renderBreadcrumbs()}
         <div className="cal-nav__ctrl">
-          <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(-1)}>‹</button>
+          <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(-1)} aria-label="Previous day">‹</button>
           <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
             Today
           </button>
-          <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(+1)}>›</button>
+          <button className="btn btn--ghost btn--icon" onClick={() => shiftDay(+1)} aria-label="Next day">›</button>
         </div>
         <div className="cal-day-current">{dayLabel}</div>
       </div>

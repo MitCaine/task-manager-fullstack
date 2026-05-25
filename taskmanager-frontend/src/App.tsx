@@ -1917,7 +1917,7 @@ function App(): JSX.Element {
             <div key={toast.id} className="toast">
               <div className="toast__header">
                 <span className="toast__title">⏰ {toast.taskTitle}</span>
-                <button className="toast__close" onClick={() => dismissToast(toast.id)}>×</button>
+                <button className="toast__close" onClick={() => dismissToast(toast.id)} aria-label="Dismiss notification">×</button>
               </div>
               <p className="toast__msg">{toast.message}</p>
               <div className="toast__actions">
@@ -1935,7 +1935,7 @@ function App(): JSX.Element {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal__header">
               <h2 className="modal__title">Stats</h2>
-              <button className="btn btn--ghost btn--icon" onClick={() => setShowStats(false)}>×</button>
+              <button className="btn btn--ghost btn--icon" onClick={() => setShowStats(false)} aria-label="Close stats">×</button>
             </div>
             <div className="stats">
               <div className="stats__row">
@@ -1982,7 +1982,7 @@ function App(): JSX.Element {
         {error && (
           <div className="error-banner">
             <span>{error}</span>
-            <button className="error-banner__close" onClick={() => setError(null)}>✕</button>
+            <button className="error-banner__close" onClick={() => setError(null)} aria-label="Dismiss error">✕</button>
           </div>
         )}
 
@@ -1995,6 +1995,7 @@ function App(): JSX.Element {
             onChange={e => { setInput(e.target.value); if (titleError) setTitleError(false); }}
             onKeyDown={e => e.key === 'Enter' && addTask()}
             placeholder="Task title"
+            aria-label="Task title"
           />
           {titleError && <p className="input-error-msg">Title is required.</p>}
           {!titleError && input.trim() !== '' && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) && (
@@ -2006,6 +2007,7 @@ function App(): JSX.Element {
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Description (optional)"
+              aria-label="Task description"
               maxLength={1000}
               rows={2}
             />
@@ -2055,21 +2057,23 @@ function App(): JSX.Element {
               </button>
               {openCreateControl === 'priority' && (
                 <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <label
+                  <button
+                    type="button"
                     className={`tag-select__item tag-select__item--remove${newPriority === '' ? ' tag-select__item--on' : ''}`}
                     onClick={() => { setNewPriority(''); setOpenCreateControl(null); }}
                   >
                     Remove priority
-                  </label>
+                  </button>
                   {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
-                    <label
+                    <button
                       key={p}
+                      type="button"
                       className={`tag-select__item${newPriority === p ? ' tag-select__item--on' : ''}`}
                       onClick={() => { setNewPriority(p); setOpenCreateControl(null); }}
                     >
                       <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
                       {p[0] + p.slice(1).toLowerCase()}
-                    </label>
+                    </button>
                   ))}
                 </div>
               )}
@@ -2117,6 +2121,7 @@ function App(): JSX.Element {
                             className="tag-select__delete"
                             onClick={e => { e.stopPropagation(); removeProject(p.projectID); }}
                             title="Delete project"
+                            aria-label="Delete project"
                           >×</button>
                         </div>
                       );
@@ -2164,25 +2169,28 @@ function App(): JSX.Element {
                                   selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID]
                                 )}
                               />
-                              <span
-                                className="tag-dot tag-dot--clickable"
-                                style={{ background: tag.color ?? '#6366f1' }}
-                                onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
-                                title="Change color"
-                              />
                               {tag.title}
                             </label>
+                            <button
+                              type="button"
+                              className="tag-dot tag-dot--clickable"
+                              style={{ background: tag.color ?? '#6366f1' }}
+                              onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
+                              title="Change color"
+                              aria-label="Change tag color"
+                            />
                             <button
                               type="button"
                               className="tag-select__delete"
                               onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }}
                               title="Delete tag"
+                              aria-label="Delete tag"
                             >×</button>
                           </div>
                           {colorPickerTagId === tag.tagID && (
                             <div className="tag-color-picker">
                               {TAG_COLORS.map(c => (
-                                <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} />
+                                <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} aria-label={`Set tag color ${c}`} />
                               ))}
                             </div>
                           )}
@@ -2201,7 +2209,7 @@ function App(): JSX.Element {
             return proj ? (
               <div className="form-selected-chip">
                 <span className="item__badge item__project-chip">{proj.title}</span>
-                <button type="button" className="form-chip-clear" onClick={() => setNewProjectID('')}>×</button>
+                <button type="button" className="form-chip-clear" onClick={() => setNewProjectID('')} aria-label={`Remove project ${proj.title}`}>×</button>
               </div>
             ) : null;
           })()}
@@ -2218,6 +2226,7 @@ function App(): JSX.Element {
                       type="button"
                       className="selected-tag-chip__remove"
                       onClick={() => setNewTaskTagIDs(prev => prev.filter(i => i !== id))}
+                      aria-label={`Remove tag ${tag.title}`}
                     >×</button>
                   </span>
                 );
@@ -2230,6 +2239,7 @@ function App(): JSX.Element {
                 ref={inlineProjectInputRef}
                 className="input project-inline-form__input"
                 placeholder="Project name…"
+                aria-label="Project name"
                 value={newProjectTitle}
                 maxLength={PROJECT_MAX_LENGTH}
                 onChange={e => setNewProjectTitle(e.target.value)}
@@ -2240,7 +2250,7 @@ function App(): JSX.Element {
                 autoFocus
               />
               <button className="btn btn--sm" onClick={addProject} disabled={!newProjectTitle.trim()}>Create</button>
-              <button type="button" className="inline-form__close" onClick={() => { setShowInlineProject(false); setNewProjectTitle(''); }} title="Close">×</button>
+              <button type="button" className="inline-form__close" onClick={() => { setShowInlineProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
             </div>
           )}
           {showInlineTag && (
@@ -2250,6 +2260,7 @@ function App(): JSX.Element {
                   ref={inlineTagInputRef}
                   className="input project-inline-form__input"
                   placeholder="Tag name…"
+                  aria-label="Tag name"
                   value={newTagTitle}
                   onChange={e => setNewTagTitle(e.target.value)}
                   onKeyDown={e => {
@@ -2260,7 +2271,7 @@ function App(): JSX.Element {
                   autoFocus
                 />
                 <button className="btn btn--sm" onClick={addTagInline} disabled={!newTagTitle.trim()}>Create</button>
-                <button type="button" className="inline-form__close" onClick={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close">×</button>
+                <button type="button" className="inline-form__close" onClick={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
               </div>
               <div className="color-palette">
                 {TAG_COLORS.map(c => (
@@ -2271,6 +2282,7 @@ function App(): JSX.Element {
                     style={{ background: c }}
                     onClick={() => setNewTagColor(c)}
                     title={c}
+                    aria-label={`Set new tag color ${c}`}
                   />
                 ))}
               </div>
@@ -2449,6 +2461,7 @@ function App(): JSX.Element {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search tasks"
+          aria-label="Search tasks"
         />
 
         <div className="spread mtop small task-overview">
@@ -2551,6 +2564,7 @@ function App(): JSX.Element {
                             checked={bulkSelectedIds.has(task.taskID)}
                             onChange={() => toggleBulkSelect(task.taskID)}
                             onClick={e => e.stopPropagation()}
+                            aria-label={`Select task ${task.title}`}
                           />
                         )}
                         {!bulkMode && (
@@ -2561,6 +2575,7 @@ function App(): JSX.Element {
                             onChange={e => { e.stopPropagation(); toggleComplete(task); }}
                             onClick={e => e.stopPropagation()}
                             title={completed ? 'Mark as active' : 'Mark as done'}
+                            aria-label={completed ? `Mark ${task.title} as active` : `Mark ${task.title} as done`}
                           />
                         )}
                         <div className="item__body">
@@ -2614,7 +2629,7 @@ function App(): JSX.Element {
                         <div className="item__actions" onClick={e => e.stopPropagation()}>
                           <button
                             className={`btn btn--ghost btn--icon item__action-toggle${openActionTaskId === task.taskID ? ' item__action-toggle--open' : ''}`}
-                            aria-label="Task actions"
+                            aria-label="Open task actions"
                             aria-expanded={openActionTaskId === task.taskID}
                             onClick={() => {
                               const next = openActionTaskId === task.taskID ? null : task.taskID;
@@ -2641,6 +2656,7 @@ function App(): JSX.Element {
                             value={editTitle}
                             onChange={e => setEditTitle(e.target.value)}
                             placeholder="Task title"
+                            aria-label="Task title"
                           />
                           <div className="desc-wrap">
                             <textarea
@@ -2648,6 +2664,7 @@ function App(): JSX.Element {
                               value={editDescription}
                               onChange={e => setEditDescription(e.target.value)}
                               placeholder="Description"
+                              aria-label="Task description"
                               maxLength={1000}
                               rows={2}
                             />
@@ -2757,11 +2774,12 @@ function App(): JSX.Element {
                 value={editTitle}
                 onChange={e => { setEditTitle(e.target.value); scheduleAutoSave(); }}
                 placeholder="Task title"
+                aria-label="Task title"
               />
               {editTitle.trim() !== '' && tasks.some(t => t.taskID !== panelTask.taskID && t.title.toLowerCase() === editTitle.trim().toLowerCase()) && (
                 <p className="input-warn-msg">A task with this title already exists.</p>
               )}
-              <button className="btn btn--ghost btn--icon detail__close" onClick={closePanel} title="Close">×</button>
+              <button className="btn btn--ghost btn--icon detail__close" onClick={closePanel} title="Close" aria-label="Close task details">×</button>
             </div>
             {(panelOverdue || panelTask.projectID) && (
               <div className="detail__status-row">
@@ -2780,6 +2798,7 @@ function App(): JSX.Element {
                   value={editDescription}
                   onChange={e => { setEditDescription(e.target.value); scheduleAutoSave(); }}
                   placeholder="Description"
+                  aria-label="Task description"
                   maxLength={1000}
                   rows={3}
                 />
@@ -2830,12 +2849,12 @@ function App(): JSX.Element {
                   </button>
                   {showEditPriorityDropdown && (
                     <div className="tag-select__dropdown">
-                      <label className={`tag-select__item${editPriority === '' ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(''); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>Remove priority</label>
+                      <button type="button" className={`tag-select__item${editPriority === '' ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(''); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>Remove priority</button>
                       {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
-                        <label key={p} className={`tag-select__item${editPriority === p ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(p); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>
+                        <button key={p} type="button" className={`tag-select__item${editPriority === p ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(p); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>
                           <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
                           {p[0] + p.slice(1).toLowerCase()}
-                        </label>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -2866,7 +2885,7 @@ function App(): JSX.Element {
                                 <input type="checkbox" checked={selected} onChange={() => { setEditProjectID(selected ? '' : p.projectID); scheduleAutoSave(0); }} />
                                 📁 {p.title}
                               </label>
-                              <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeProject(p.projectID); }} title="Delete project">×</button>
+                              <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeProject(p.projectID); }} title="Delete project" aria-label="Delete project">×</button>
                             </div>
                           );
                         })
@@ -2899,20 +2918,22 @@ function App(): JSX.Element {
                               <div className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
                                 <label className="tag-select__item-label">
                                   <input type="checkbox" checked={selected} onChange={() => { setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID]); scheduleAutoSave(0); }} />
-                                  <span
-                                    className="tag-dot tag-dot--clickable"
-                                    style={{ background: tag.color ?? '#6366f1' }}
-                                    onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
-                                    title="Change color"
-                                  />
                                   {tag.title}
                                 </label>
-                                <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }} title="Delete tag">×</button>
+                                <button
+                                  type="button"
+                                  className="tag-dot tag-dot--clickable"
+                                  style={{ background: tag.color ?? '#6366f1' }}
+                                  onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
+                                  title="Change color"
+                                  aria-label="Change tag color"
+                                />
+                                <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }} title="Delete tag" aria-label="Delete tag">×</button>
                               </div>
                               {colorPickerTagId === tag.tagID && (
                                 <div className="tag-color-picker">
                                   {TAG_COLORS.map(c => (
-                                    <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} />
+                                    <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} aria-label={`Set tag color ${c}`} />
                                   ))}
                                 </div>
                               )}
@@ -2934,7 +2955,7 @@ function App(): JSX.Element {
                       <span key={id} className="selected-tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
                         <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
                         {tag.title}
-                        <button type="button" className="selected-tag-chip__remove" onClick={() => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }}>×</button>
+                        <button type="button" className="selected-tag-chip__remove" onClick={() => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }} aria-label={`Remove tag ${tag.title}`}>×</button>
                       </span>
                     );
                   })}
@@ -2943,22 +2964,22 @@ function App(): JSX.Element {
 
               {showInlineEditProject && (
                 <div className="project-inline-form">
-                  <input ref={inlineEditProjectInputRef} className="input project-inline-form__input" placeholder="Project name…" value={newProjectTitle} maxLength={PROJECT_MAX_LENGTH} onChange={e => setNewProjectTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addProjectInlineEdit(); if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); } }} autoFocus />
+                  <input ref={inlineEditProjectInputRef} className="input project-inline-form__input" placeholder="Project name…" aria-label="Project name" value={newProjectTitle} maxLength={PROJECT_MAX_LENGTH} onChange={e => setNewProjectTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addProjectInlineEdit(); if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); } }} autoFocus />
                   <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
-                  <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close">×</button>
+                  <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
                 </div>
               )}
 
               {showInlineEditTag && (
                 <div className="project-inline-form project-inline-form--tag">
                   <div className="tag-inline-top">
-                    <input ref={inlineEditTagInputRef} className="input project-inline-form__input" placeholder="Tag name…" value={newTagTitle} onChange={e => setNewTagTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addTagInlineEdit(); if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); } }} maxLength={TAG_MAX_LENGTH} autoFocus />
+                    <input ref={inlineEditTagInputRef} className="input project-inline-form__input" placeholder="Tag name…" aria-label="Tag name" value={newTagTitle} onChange={e => setNewTagTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addTagInlineEdit(); if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); } }} maxLength={TAG_MAX_LENGTH} autoFocus />
                     <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
-                    <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close">×</button>
+                    <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
                   </div>
                   <div className="color-palette">
                     {TAG_COLORS.map(c => (
-                      <button key={c} type="button" className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={() => setNewTagColor(c)} title={c} />
+                      <button key={c} type="button" className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={() => setNewTagColor(c)} title={c} aria-label={`Set new tag color ${c}`} />
                     ))}
                   </div>
                 </div>
@@ -2998,6 +3019,7 @@ function App(): JSX.Element {
                     <input
                       className="input"
                       placeholder="New subtask…"
+                      aria-label="New subtask"
                       value={newSubtaskTitle}
                       onChange={e => setNewSubtaskTitle(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addSubtask(selectedTaskId); }}
@@ -3009,10 +3031,11 @@ function App(): JSX.Element {
                     ? <p className="sec-panel__empty">No subtasks yet.</p>
                     : panelSubtasks.map(s => (
                       <div key={s.subTaskID} className="sec-row">
-                        <input type="checkbox" className="item__checkbox" checked={s.statusID === 2} onChange={() => toggleSubtask(selectedTaskId, s)} />
+                        <input type="checkbox" className="item__checkbox" checked={s.statusID === 2} onChange={() => toggleSubtask(selectedTaskId, s)} aria-label={`Toggle subtask ${s.title}`} />
                         {editingSubtaskId === s.subTaskID ? (
                           <input
                             className="input sec-row__edit-input"
+                            aria-label="Subtask title"
                             autoFocus
                             value={editingSubtaskTitle}
                             onChange={e => setEditingSubtaskTitle(e.target.value)}
@@ -3031,7 +3054,7 @@ function App(): JSX.Element {
                             {s.title}
                           </span>
                         )}
-                        <button className="btn btn--danger btn--icon" onClick={() => removeSubtask(selectedTaskId, s.subTaskID)}>✕</button>
+                        <button className="btn btn--danger btn--icon" onClick={() => removeSubtask(selectedTaskId, s.subTaskID)} aria-label={`Delete subtask ${s.title}`}>✕</button>
                       </div>
                     ))
                   }
@@ -3050,7 +3073,7 @@ function App(): JSX.Element {
               {openSections.has('notes') && (
                 <>
                   <div className="sec-panel__add sec-panel__add--col">
-                    <textarea className="input controls__description" placeholder="Note content…" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} rows={2} autoFocus />
+                    <textarea className="input controls__description" placeholder="Note content…" aria-label="Note text" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} rows={2} autoFocus />
                     <button className="btn btn--sm" onClick={() => addNote(selectedTaskId)}>Add Note</button>
                   </div>
                   {panelNotes.length === 0
@@ -3061,7 +3084,7 @@ function App(): JSX.Element {
                           <p className="note-row__content">{n.context}</p>
                           <span className="note-row__time">{formatDateTime(n.timestamp)}</span>
                         </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeNote(selectedTaskId, n.noteID)}>✕</button>
+                        <button className="btn btn--danger btn--icon" onClick={() => removeNote(selectedTaskId, n.noteID)} aria-label="Delete note">✕</button>
                       </div>
                     ))
                   }
@@ -3090,7 +3113,7 @@ function App(): JSX.Element {
                       dateVal={newReminderDate} hourVal={newReminderHour} minuteVal={newReminderMinute} ampmVal={newReminderAmpm}
                       onDate={setNewReminderDate} onHour={setNewReminderHour} onMinute={setNewReminderMinute} onAmpm={setNewReminderAmpm}
                     />
-                    <input className="input" placeholder="Reminder message (optional)…" value={newReminderMessage} onChange={e => setNewReminderMessage(e.target.value)} />
+                    <input className="input" placeholder="Reminder message (optional)…" aria-label="Reminder message" value={newReminderMessage} onChange={e => setNewReminderMessage(e.target.value)} />
                     <button className="btn btn--sm" onClick={() => addReminder(selectedTaskId)}>Add Reminder</button>
                   </div>
                   {panelReminders.length === 0
@@ -3101,7 +3124,7 @@ function App(): JSX.Element {
                           <span className="sec-row__title">{formatDateTime(r.dueDate)}</span>
                           {r.message && <span className="sec-row__sub">{r.message}</span>}
                         </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeReminder(selectedTaskId, r.reminderID)}>✕</button>
+                        <button className="btn btn--danger btn--icon" onClick={() => removeReminder(selectedTaskId, r.reminderID)} aria-label="Delete reminder">✕</button>
                       </div>
                     ))
                   }
@@ -3125,6 +3148,7 @@ function App(): JSX.Element {
                     <input
                       className="input"
                       placeholder="URL…"
+                      aria-label="Attachment URL"
                       value={newAttachmentUrl}
                       onChange={e => setNewAttachmentUrl(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addAttachment(selectedTaskId); }}
@@ -3133,6 +3157,7 @@ function App(): JSX.Element {
                     <input
                       className="input"
                       placeholder="Label (optional)…"
+                      aria-label="Attachment label"
                       value={newAttachmentLabel}
                       onChange={e => setNewAttachmentLabel(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addAttachment(selectedTaskId); }}
@@ -3148,7 +3173,7 @@ function App(): JSX.Element {
                             {a.metadata || a.fileORLink}
                           </a>
                         </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeAttachment(selectedTaskId, a.attachmentID)}>✕</button>
+                        <button className="btn btn--danger btn--icon" onClick={() => removeAttachment(selectedTaskId, a.attachmentID)} aria-label="Delete attachment">✕</button>
                       </div>
                     ))
                   }

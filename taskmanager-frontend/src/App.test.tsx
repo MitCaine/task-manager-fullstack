@@ -418,6 +418,17 @@ test('project opens in one tap when priority is open', async () => {
   expect(screen.getByText(/\+ new project/i)).toBeInTheDocument();
 });
 
+test('priority menu options are real buttons', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+  });
+
+  expect(screen.getByRole('button', { name: /remove priority/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^high$/i })).toBeInTheDocument();
+});
+
 test('start time editor closes when clicking the create title input', async () => {
   render(<App />);
 
@@ -912,7 +923,7 @@ test('closing the stats modal removes it from the DOM', async () => {
     userEvent.click(screen.getByRole('button', { name: /stats/i }));
   });
   await screen.findByRole('heading', { name: /stats/i });
-  const closeBtn = screen.getByRole('button', { name: /×/i });
+  const closeBtn = screen.getByRole('button', { name: /close stats/i });
   await act(async () => { userEvent.click(closeBtn); });
   await waitFor(() => {
     expect(screen.queryByRole('heading', { name: /stats/i })).not.toBeInTheDocument();
