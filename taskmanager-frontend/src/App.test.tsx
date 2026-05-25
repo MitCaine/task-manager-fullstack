@@ -8,7 +8,12 @@ import {
 import type { Task } from './types/task';
 
 jest.mock('./api/tasks');
-jest.mock('./components/Calendar', () => () => null);
+jest.mock('./components/Calendar', () => () => (
+  <div className="cal-card">
+    <button type="button" className="cal-today-btn">Today</button>
+    <div data-testid="calendar-background">Calendar background</div>
+  </div>
+));
 
 const mockGetTasks       = getTasks       as jest.MockedFunction<typeof getTasks>;
 const mockGetTask        = getTask        as jest.MockedFunction<typeof getTask>;
@@ -93,6 +98,21 @@ async function openCreateDateInput() {
     fireEvent.click(getCreateDateInput());
   });
   await waitFor(() => expect(getCreateDateInput()).toHaveAttribute('data-open', 'true'));
+}
+
+function mobilePager(): HTMLElement {
+  const pager = document.querySelector('.mobile-pager');
+  if (!(pager instanceof HTMLElement)) throw new Error('Mobile pager not found');
+  return pager;
+}
+
+function swipeOn(element: HTMLElement, startX: number, endX: number) {
+  fireEvent.touchStart(element, { touches: [{ clientX: startX, clientY: 100 }] });
+  fireEvent.touchEnd(element, { changedTouches: [{ clientX: endX, clientY: 105 }] });
+}
+
+function expectMobilePage(page: 'Add' | 'Tasks' | 'Calendar') {
+  expect(screen.getByRole('button', { name: page })).toHaveClass('mobile-page-nav__btn--active');
 }
 
 // Rendering behavior.
@@ -553,6 +573,117 @@ test('selected create date is used when creating the task', async () => {
     title: 'Dated task',
     dateTimeScheduled: '2026-06-20T00:00:00',
   }));
+});
+
+test('swipe starting on the page area changes mobile view', async () => {
+  render(<App />);
+  expectMobilePage('Tasks');
+
+  await act(async () => {
+    swipeOn(mobilePager(), 320, 120);
+  });
+
+  expectMobilePage('Calendar');
+});
+
+test('swipe starting on the task creation card background changes back to task list', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: 'Add' }));
+  });
+  expectMobilePage('Add');
+
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+
+  await act(async () => {
+    swipeOn(createCard, 320, 120);
+  });
+
+  expectMobilePage('Tasks');
+});
+
+test('swipe starting on the calendar background changes back to task list', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+  });
+  expectMobilePage('Calendar');
+
+  await act(async () => {
+    swipeOn(screen.getByTestId('calendar-background'), 120, 320);
+  });
+
+  expectMobilePage('Tasks');
+});
+
+test('swipe starting inside the title input does not change mobile view', async () => {
+  render(<App />);
+  expectMobilePage('Tasks');
+
+  await act(async () => {
+    swipeOn(screen.getByPlaceholderText(/task title/i), 320, 120);
+  });
+
+  expectMobilePage('Tasks');
+});
+
+test('swipe starting inside a time dropdown does not change mobile view', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: 'Add' }));
+  });
+  expectMobilePage('Add');
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  const firstTimeButton = document.querySelector('.time-select__btn');
+  if (!(firstTimeButton instanceof HTMLElement)) throw new Error('Time selector button not found');
+  await act(async () => {
+    fireEvent.click(firstTimeButton);
+  });
+  const dropdown = document.querySelector('.time-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error('Time dropdown not found');
+
+  await act(async () => {
+    swipeOn(dropdown, 320, 120);
+  });
+
+  expectMobilePage('Add');
+});
+
+test('swipe starting on a calendar navigation button does not change mobile view', async () => {
+  render(<App />);
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+  });
+  expectMobilePage('Calendar');
+  const calendarTodayButton = document.querySelector('.cal-today-btn');
+  if (!(calendarTodayButton instanceof HTMLElement)) throw new Error('Calendar Today button not found');
+
+  await act(async () => {
+    swipeOn(calendarTodayButton, 120, 320);
+  });
+
+  expectMobilePage('Calendar');
+});
+
+test('swipe starting inside a task action menu does not change mobile view', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+  expectMobilePage('Tasks');
+
+  await openTaskActions();
+  const menu = document.querySelector('.item__action-menu');
+  if (!(menu instanceof HTMLElement)) throw new Error('Task action menu not found');
+
+  await act(async () => {
+    swipeOn(menu, 320, 120);
+  });
+
+  expectMobilePage('Tasks');
 });
 
 test('create task with start and end sends endDateTimeScheduled with priority project and tags', async () => {

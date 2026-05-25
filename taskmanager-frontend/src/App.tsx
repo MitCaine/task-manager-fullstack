@@ -62,6 +62,30 @@ const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2
 const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 const PRIORITY_COLOR: Record<string, string> = { LOW: '#4ade80', MEDIUM: '#fbbf24', HIGH: '#f87171' };
 const MOBILE_PAGES: MobilePage[] = ['add', 'tasks', 'calendar'];
+const SWIPE_IGNORE_SELECTOR = [
+  'input',
+  'textarea',
+  'select',
+  'button',
+  'a',
+  'label',
+  '[role="button"]',
+  '[role="menu"]',
+  '[role="menuitem"]',
+  '[role="listbox"]',
+  '[role="dialog"]',
+  '[data-create-menu-boundary]',
+  '[data-create-menu-trigger]',
+  '.time-select__dropdown',
+  '.tag-select__dropdown',
+  '.datetime-row__editor',
+  '.dropdown',
+  '.menu',
+  '.modal',
+  '.modal-overlay',
+  '.item__action-menu',
+  '.status-move',
+].join(',');
 const TASK_STATUS_OPTIONS = [
   { label: 'Active', statusID: null as number | null },
   { label: 'In Progress', statusID: 3 as number | null },
@@ -74,6 +98,10 @@ function normalizeTaskStatus(statusID: number | null | undefined): number | null
 
 function compactText(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function shouldIgnoreSwipeStart(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(SWIPE_IGNORE_SELECTOR));
 }
 
 function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, onClose: () => void) {
@@ -1785,7 +1813,17 @@ function App(): JSX.Element {
   const goMobilePage = (page: MobilePage) => setMobilePage(page);
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (shouldIgnoreSwipeStart(event.target)) {
+      swipeStartX.current = null;
+      swipeStartY.current = null;
+      return;
+    }
     const touch = event.touches[0];
+    if (!touch) {
+      swipeStartX.current = null;
+      swipeStartY.current = null;
+      return;
+    }
     swipeStartX.current = touch.clientX;
     swipeStartY.current = touch.clientY;
   };
@@ -1793,10 +1831,13 @@ function App(): JSX.Element {
   const handleSwipeEnd = (event: TouchEvent<HTMLDivElement>) => {
     if (swipeStartX.current === null || swipeStartY.current === null) return;
     const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - swipeStartX.current;
-    const deltaY = touch.clientY - swipeStartY.current;
+    const startX = swipeStartX.current;
+    const startY = swipeStartY.current;
     swipeStartX.current = null;
     swipeStartY.current = null;
+    if (!touch) return;
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
 
     if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
 

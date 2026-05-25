@@ -2,6 +2,14 @@
 
 A full-stack task management application with a Spring Boot REST API and a React + TypeScript frontend. The app supports task creation, scheduling, filtering, calendar views, projects, tags, subtasks, notes, reminders, attachments, and recurring tasks.
 
+## Screenshots
+
+![Task list view](docs/screenshots/task-list-placeholder.png)
+![Task creation card](docs/screenshots/task-creation-placeholder.png)
+![Calendar month, week, and day views](docs/screenshots/calendar-placeholder.png)
+![Board view](docs/screenshots/board-placeholder.png)
+![Light and dark themes](docs/screenshots/themes-placeholder.png)
+
 ## Tech Stack
 
 Backend:
@@ -33,6 +41,17 @@ Frontend:
 ├── taskmanager-frontend/ios/App             # Capacitor iOS project
 └── pom.xml                                  # Maven backend project
 ```
+
+## Key Engineering Decisions
+
+- The React + TypeScript frontend is wrapped with Capacitor so the same UI can be tested as an iOS app.
+- Capacitor was chosen to allow rapid iteration on a React-based UI while validating mobile interaction behavior directly on iPhone hardware and the iOS simulator.
+- The backend is a Spring Boot REST API with MySQL persistence for local runtime data.
+- Database schema changes are controlled manually with `spring.jpa.hibernate.ddl-auto=none` to avoid accidental schema mutation.
+- The mobile task creation flow was refined around compact controls, one-tap menu switching, stable date selection, and anchored time pickers.
+- Completing a recurring task regenerates the next occurrence and preserves the scheduled duration when both start and end times exist.
+- The shared task model powers multiple derived views: list, board, calendar, agenda, and detail/edit views.
+- Light, dark, and system theme support plus 12-hour / 24-hour time and US / European date settings are persisted user preferences.
 
 ## Features
 
@@ -169,17 +188,17 @@ Many Xcode WebKit, keyboard, haptic, and Auto Layout warnings printed by the
 iOS simulator are system noise. The important app signal is that the WebView
 loads and the API requests succeed.
 
-## Recent Bug Updates
+## Interaction Stability Improvements
 
-- Reworked the mobile task creation card for iPhone-sized screens without
+- Refined the mobile task creation card for iPhone-sized screens without
   changing the main visual style.
-- Fixed create-task menu switching so Priority, Project, Tags, Date, Start Time,
+- Standardized create-task menu switching so Priority, Project, Tags, Date, Start Time,
   End Time, and time segment dropdowns use consistent one-tap open/close behavior.
-- Fixed outside-tap behavior so normal fields close open menus while active
+- Normalized outside-tap behavior so normal fields close open menus while active
   menus, date controls, and time dropdowns remain usable.
-- Fixed create-task date selection so the visible date and preview update
+- Stabilized create-task date selection so the visible date and preview update
   immediately.
-- Fixed time dropdown anchoring and option alignment.
+- Improved time dropdown anchoring and option alignment.
 - Added real `endDateTimeScheduled` persistence across create, edit, duplicate,
   calendar display, task list display, and recurring task completion.
 
@@ -199,7 +218,7 @@ The backend exposes REST endpoints for:
 - `/tags`
 - `/attachments`
 
-Controllers currently live in a flat package structure under `com.example.taskmanager`, with repositories injected directly into controllers.
+The backend currently uses a simplified controller/repository structure without a dedicated service layer. This kept iteration speed high while building the task, calendar, recurrence, and mobile interaction flows. A future backend refactor could move business logic into service classes as the API grows.
 
 ## Validation
 
@@ -217,6 +236,17 @@ Invalid requests return structured validation errors or a bad request response.
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs backend and frontend tests on push and pull request.
 
 Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, and attachments. Frontend tests cover task UI behavior, date/time utilities, API calls, recurring-copy handling, and duplicate title numbering.
+
+## Future Improvements
+
+- Push or local notifications for reminders.
+- Drag-and-drop board movement.
+- Offline-first persistence or a local cache.
+- Service-layer extraction for backend business logic.
+- More explicit database migration tooling.
+- Authentication and deployment hardening.
+- Import/export support.
+- Additional iOS device testing and accessibility review.
 
 ## Notes
 
