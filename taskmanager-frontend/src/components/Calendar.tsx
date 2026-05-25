@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Task, Project } from '../types/task';
 import { formatTime } from '../utils/dateTime';
 import { isTaskOverdue } from '../utils/taskUtils';
@@ -14,6 +14,10 @@ const MONTH_NAMES = [
 const YEAR_RANGE_LABELS = ['Jan - Apr', 'May - Aug', 'Sep - Dec'];
 const DAY_ABBR  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_SHORT = ['S','M','T','W','T','F','S'];
+
+function tagAccentStyle(color?: string | null): CSSProperties {
+  return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
+}
 
 interface Props {
   tasks: Task[];
@@ -453,7 +457,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               </div>
               <div className="cal-item__badges">
                 {(t.tags ?? []).map(tag => (
-                  <span key={tag.tagID} className="cal-item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+                  <span key={tag.tagID} className="cal-item__tag-chip" style={tagAccentStyle(tag.color)}>
                     {tag.title}
                   </span>
                 ))}

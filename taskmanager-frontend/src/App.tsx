@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
+import type { CSSProperties, Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { Attachment, Note, Project, RecurrenceRule, Reminder, Subtask, Tag, Task } from './types/task';
 import {
@@ -22,20 +22,11 @@ type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc
 type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
 type MobilePage = 'add' | 'tasks' | 'calendar';
 type ViewTab = 'all' | 'today' | 'week' | 'month';
-type CreateOpenControl =
-  | null
-  | 'priority'
-  | 'project'
-  | 'tags'
-  | 'date'
-  | 'start'
-  | 'end'
-  | 'start-hour'
-  | 'start-minute'
-  | 'start-ampm'
-  | 'end-hour'
-  | 'end-minute'
-  | 'end-ampm';
+type CreateOpenControl = string | null;
+
+function tagAccentStyle(color?: string | null): CSSProperties {
+  return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
+}
 
 function convertHourForTimeMode(hourValue: string, ampmValue: Ampm, to24Hour: boolean): { hour: string; ampm: Ampm } {
   const parsed = parseInt(hourValue, 10);
@@ -152,7 +143,7 @@ type TimeSelectProps = {
   openId: string | null;
   setOpenId: (id: string | null) => void;
   sharedOpenId?: string | null;
-  setSharedOpenId?: Dispatch<SetStateAction<CreateOpenControl>>;
+  setSharedOpenId?: Dispatch<SetStateAction<string | null>>;
   fallbackOpenId?: string;
 };
 
@@ -175,12 +166,12 @@ function TimeSelect({
 
   const closeSelect = () => {
     setOpenId(null);
-    setSharedOpenId?.((fallbackOpenId ?? null) as CreateOpenControl);
+    setSharedOpenId?.(fallbackOpenId ?? null);
   };
 
   const handleOpen = () => {
     setOpenId(open ? null : id);
-    setSharedOpenId?.((open ? (fallbackOpenId ?? null) : id) as CreateOpenControl);
+    setSharedOpenId?.(open ? (fallbackOpenId ?? null) : id);
   };
 
   useEffect(() => {
@@ -234,7 +225,7 @@ type DateTimeRowProps = {
   is24Hour: boolean;
   hourOptions: string[];
   openControl?: string | null;
-  setOpenControl?: Dispatch<SetStateAction<CreateOpenControl>>;
+  setOpenControl?: Dispatch<SetStateAction<string | null>>;
   controlIds?: {
     date: string;
     start: string;
@@ -323,16 +314,19 @@ function DateTimeRow({
   const setScopedTimeSelect = (next: string | null) => {
     setOpenTimeSelect(next);
   };
+  const canRenderActiveEditor =
+    activeEditor === 'start' ||
+    (activeEditor === 'end' && Boolean(showEndTime && onEndHour && onEndMinute && onEndAmpm));
 
   const openDateControl = () => {
     closeFloatingControls({ createControls: false });
     setOpenTimeEditorScope(current => current?.startsWith(`${editorScope}:`) ? null : current);
-    setOpenControl?.(dateControl as CreateOpenControl);
+    setOpenControl?.(dateControl);
   };
 
   const handleDateChange = (nextDate: string) => {
     onDate(nextDate);
-    if (controlledCreateRow) setOpenControl?.(dateControl as CreateOpenControl);
+    if (controlledCreateRow) setOpenControl?.(dateControl);
   };
 
   const closeTimeEditor = () => {
@@ -342,7 +336,7 @@ function DateTimeRow({
   };
 
   const openStartEditor = () => {
-    if (controlledCreateRow && isCreateControlGroupActive(openControl as CreateOpenControl, startControl as Exclude<CreateOpenControl, null>)) {
+    if (controlledCreateRow && activeEditor === 'start') {
       closeTimeEditor();
       return;
     }
@@ -351,14 +345,14 @@ function DateTimeRow({
       return;
     }
     closeFloatingControls({ timeEditors: false, createControls: false });
-    setOpenControl?.(startControl as CreateOpenControl);
+    setOpenControl?.(startControl);
     setOpenTimeEditorScope(`${editorScope}:start`);
     if (showTime === false) onToggleTime?.();
     setOpenTimeSelect(null);
   };
 
   const openEndEditor = () => {
-    if (controlledCreateRow && isCreateControlGroupActive(openControl as CreateOpenControl, endControl as Exclude<CreateOpenControl, null>)) {
+    if (controlledCreateRow && activeEditor === 'end') {
       closeTimeEditor();
       return;
     }
@@ -367,7 +361,7 @@ function DateTimeRow({
       return;
     }
     closeFloatingControls({ timeEditors: false, createControls: false });
-    setOpenControl?.(endControl as CreateOpenControl);
+    setOpenControl?.(endControl);
     setOpenTimeEditorScope(`${editorScope}:end`);
     if (!showEndTime) onToggleEndTime?.();
     setOpenTimeSelect(null);
@@ -454,7 +448,7 @@ function DateTimeRow({
           </button>
         ) : null}
       </div>
-      {activeEditor && (
+      {canRenderActiveEditor && (
         <div className="datetime-row__editor" data-create-menu-boundary>
           {activeEditor === 'start' ? (
             <div className="datetime-row__time datetime-row__time--end">
@@ -615,6 +609,7 @@ function App(): JSX.Element {
   const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
   const [showInlineEditProject, setShowInlineEditProject] = useState(false);
   const [showInlineEditTag, setShowInlineEditTag] = useState(false);
+  const [inlineEditOpenControl, setInlineEditOpenControl] = useState<string | null>(null);
 
   // Delete confirmation is tracked by task ID.
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -786,6 +781,7 @@ function App(): JSX.Element {
         if (selectedTaskId !== null) { closePanel(); return; }
         if (
           openCreateControl !== null ||
+          inlineEditOpenControl !== null ||
           openTimeEditorScope !== null ||
           openActionTaskId !== null ||
           showEditPriorityDropdown ||
@@ -818,6 +814,7 @@ function App(): JSX.Element {
     showStats,
     showSettings,
     openCreateControl,
+    inlineEditOpenControl,
     openTimeEditorScope,
     openActionTaskId,
     showEditPriorityDropdown,
@@ -867,6 +864,21 @@ function App(): JSX.Element {
     document.addEventListener('pointerdown', handler, true);
     return () => document.removeEventListener('pointerdown', handler, true);
   }, [openCreateControl]);
+
+  useEffect(() => {
+    if (!inlineEditOpenControl) return;
+    const handler = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-create-menu-trigger]')) return;
+      if (target.closest('[data-create-menu-boundary]')) return;
+      if (target.closest('[data-inline-edit-menu-trigger]')) return;
+      if (target.closest('[data-inline-edit-menu-boundary]')) return;
+      setInlineEditOpenControl(null);
+      setOpenTimeEditorScope(null);
+    };
+    document.addEventListener('pointerdown', handler, true);
+    return () => document.removeEventListener('pointerdown', handler, true);
+  }, [inlineEditOpenControl]);
 
   useEffect(() => {
     if (openActionTaskId === null) return;
@@ -1090,6 +1102,7 @@ function App(): JSX.Element {
     setShowSettings(false);
     setShowStats(false);
     setStatusMoveTask(null);
+    setInlineEditOpenControl(null);
     if (options.timeEditors !== false) setOpenTimeEditorScope(null);
     if (options.createControls !== false) setOpenCreateControl(null);
   };
@@ -1117,6 +1130,12 @@ function App(): JSX.Element {
   const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags') => {
     closeFloatingControls({ createControls: false });
     setOpenCreateControl(current => isCreateControlGroupActive(current, control) ? null : control);
+  };
+
+  const toggleInlineEditDropdown = (control: 'project' | 'tags') => {
+    closeFloatingControls({ timeEditors: false });
+    setOpenTimeEditorScope(null);
+    setInlineEditOpenControl(current => current === control ? null : control);
   };
 
   // Task create, update, completion, and focus handlers.
@@ -1302,6 +1321,7 @@ function App(): JSX.Element {
     setShowEditTagDropdown(false);
     setShowInlineEditProject(false);
     setShowInlineEditTag(false);
+    setInlineEditOpenControl(null);
     if (task.dateTimeScheduled) {
       const parts = extractDateParts(task.dateTimeScheduled, is24Hour);
       const dt = new Date(task.dateTimeScheduled);
@@ -1940,7 +1960,7 @@ function App(): JSX.Element {
     return (
       <div className={`item__chips${extraClass ? ` ${extraClass}` : ''}`}>
         {visibleTags.map(tag => (
-          <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+          <span key={tag.tagID} className="item__tag-chip" style={tagAccentStyle(tag.color)}>
             {tag.title}
           </span>
         ))}
@@ -2367,7 +2387,7 @@ function App(): JSX.Element {
                 const tag = tags.find(t => t.tagID === id);
                 if (!tag) return null;
                 return (
-                  <span key={id} className="selected-tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+                  <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
                     <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
                     {tag.title}
                     <button
@@ -2454,7 +2474,7 @@ function App(): JSX.Element {
                     </span>
                   )}
                   {draftTags.slice(0, 3).map(tag => (
-                    <span key={tag.tagID} className="item__tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+                    <span key={tag.tagID} className="item__tag-chip" style={tagAccentStyle(tag.color)}>
                       <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
                       {tag.title}
                     </span>
@@ -2685,6 +2705,7 @@ function App(): JSX.Element {
                     overdue   ? 'item--overdue'   : '',
                     completed ? 'item--completed' : '',
                     isSelected ? 'item--selected' : '',
+                    editingId === task.taskID && selectedTaskId !== task.taskID ? 'item--editing' : '',
                     bulkMode && bulkSelectedIds.has(task.taskID) ? 'item--bulk-selected' : '',
                   ].filter(Boolean).join(' ')}
                 >
@@ -2820,6 +2841,19 @@ function App(): JSX.Element {
                             closeFloatingControls={closeFloatingControls}
                             is24Hour={is24Hour}
                             hourOptions={hourOptions}
+                            openControl={inlineEditOpenControl}
+                            setOpenControl={setInlineEditOpenControl}
+                            controlIds={{
+                              date: `inline-edit-${task.taskID}:date`,
+                              start: `inline-edit-${task.taskID}:start`,
+                              end: `inline-edit-${task.taskID}:end`,
+                              startHour: `inline-edit-${task.taskID}:start-hour`,
+                              startMinute: `inline-edit-${task.taskID}:start-minute`,
+                              startAmpm: `inline-edit-${task.taskID}:start-ampm`,
+                              endHour: `inline-edit-${task.taskID}:end-hour`,
+                              endMinute: `inline-edit-${task.taskID}:end-minute`,
+                              endAmpm: `inline-edit-${task.taskID}:end-ampm`,
+                            }}
                             dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
                             onDate={setEditDate} onHour={setEditHour} onMinute={setEditMinute} onAmpm={setEditAmpm}
                             showTime={editShowTime}
@@ -2830,6 +2864,174 @@ function App(): JSX.Element {
                             endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
                             onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
                           />
+                          <div className="form-row item__edit-meta-row">
+                            <div className="tag-select" ref={editProjectDropdownRef}>
+                              <button
+                                type="button"
+                                className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
+                                data-inline-edit-menu-trigger
+                                onClick={() => {
+                                  toggleInlineEditDropdown('project');
+                                }}
+                              >
+                                {editProjectID === ''
+                                  ? 'Project'
+                                  : projects.find(p => p.projectID === Number(editProjectID))?.title ?? 'Project'}
+                              </button>
+                              {inlineEditOpenControl === 'project' && (
+                                <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
+                                  <button
+                                    type="button"
+                                    className="tag-select__new-btn tag-select__new-btn--top"
+                                    onClick={() => {
+                                      setInlineEditOpenControl(null);
+                                      if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
+                                      else { setShowInlineEditProject(true); }
+                                    }}
+                                  >+ New Project</button>
+                                  <button
+                                    type="button"
+                                    className={`tag-select__item tag-select__item--remove${editProjectID === '' ? ' tag-select__item--on' : ''}`}
+                                    onClick={() => { setEditProjectID(''); setInlineEditOpenControl(null); }}
+                                  >
+                                    No project
+                                  </button>
+                                  {projects.length === 0
+                                    ? <p className="tag-select__empty">No projects yet.</p>
+                                    : projects.map(p => {
+                                      const selected = Number(editProjectID) === p.projectID;
+                                      return (
+                                        <button
+                                          key={p.projectID}
+                                          type="button"
+                                          className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}
+                                          onClick={() => { setEditProjectID(selected ? '' : p.projectID); setInlineEditOpenControl(null); }}
+                                        >
+                                          {p.title}
+                                        </button>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="tag-select" ref={editTagDropdownRef}>
+                              <button
+                                type="button"
+                                className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
+                                data-inline-edit-menu-trigger
+                                onClick={() => {
+                                  toggleInlineEditDropdown('tags');
+                                }}
+                              >
+                                {editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
+                              </button>
+                              {inlineEditOpenControl === 'tags' && (
+                                <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
+                                  <button
+                                    type="button"
+                                    className="tag-select__new-btn tag-select__new-btn--top"
+                                    onClick={() => {
+                                      setInlineEditOpenControl(null);
+                                      if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
+                                      else { setShowInlineEditTag(true); }
+                                    }}
+                                  >+ New Tag</button>
+                                  {tags.length === 0
+                                    ? <p className="tag-select__empty">No tags yet.</p>
+                                    : tags.map(tag => {
+                                      const selected = editTaskTagIDs.includes(tag.tagID);
+                                      return (
+                                        <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
+                                          <input
+                                            type="checkbox"
+                                            checked={selected}
+                                            onChange={() => setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID])}
+                                          />
+                                          <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                                          {tag.title}
+                                        </label>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {editTaskTagIDs.length > 0 && (
+                            <div className="selected-tags item__edit-selected-tags">
+                              {editTaskTagIDs.map(id => {
+                                const tag = tags.find(t => t.tagID === id);
+                                if (!tag) return null;
+                                return (
+                                  <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
+                                    <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                                    {tag.title}
+                                    <button
+                                      type="button"
+                                      className="selected-tag-chip__remove"
+                                      onClick={() => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
+                                      aria-label={`Remove tag ${tag.title}`}
+                                    >×</button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {showInlineEditProject && (
+                            <div className="project-inline-form">
+                              <input
+                                ref={inlineEditProjectInputRef}
+                                className="input project-inline-form__input"
+                                placeholder="Project name..."
+                                aria-label="Project name"
+                                value={newProjectTitle}
+                                maxLength={PROJECT_MAX_LENGTH}
+                                onChange={e => setNewProjectTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') addProjectInlineEdit();
+                                  if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); }
+                                }}
+                                autoFocus
+                              />
+                              <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
+                              <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
+                            </div>
+                          )}
+                          {showInlineEditTag && (
+                            <div className="project-inline-form project-inline-form--tag">
+                              <div className="tag-inline-top">
+                                <input
+                                  ref={inlineEditTagInputRef}
+                                  className="input project-inline-form__input"
+                                  placeholder="Tag name..."
+                                  aria-label="Tag name"
+                                  value={newTagTitle}
+                                  onChange={e => setNewTagTitle(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') addTagInlineEdit();
+                                    if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }
+                                  }}
+                                  maxLength={TAG_MAX_LENGTH}
+                                  autoFocus
+                                />
+                                <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
+                                <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
+                              </div>
+                              <div className="color-palette">
+                                {TAG_COLORS.map(c => (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`}
+                                    style={{ background: c }}
+                                    onClick={() => setNewTagColor(c)}
+                                    title={c}
+                                    aria-label={`Choose tag color ${c}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           <div className="item__edit-actions">
                             <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
                             <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
@@ -3096,7 +3298,7 @@ function App(): JSX.Element {
                     const tag = tags.find(t => t.tagID === id);
                     if (!tag) return null;
                     return (
-                      <span key={id} className="selected-tag-chip" style={{ borderColor: tag.color ?? '#6366f1', color: tag.color ?? '#6366f1' }}>
+                      <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
                         <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
                         {tag.title}
                         <button type="button" className="selected-tag-chip__remove" onClick={() => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }} aria-label={`Remove tag ${tag.title}`}>×</button>

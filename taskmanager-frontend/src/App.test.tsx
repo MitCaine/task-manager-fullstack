@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import App from './App';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
-  getProjects, getTags, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
+  getProjects, createProject, getTags, createTag, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
   getSubtasks, getNotes, getReminders, getAttachments,
 } from './api/tasks';
 import type { Task } from './types/task';
@@ -23,7 +23,9 @@ const mockUpdateTask     = updateTask     as jest.MockedFunction<typeof updateTa
 const mockDeleteTask     = deleteTask     as jest.MockedFunction<typeof deleteTask>;
 const mockPatchStatus    = patchTaskStatus as jest.MockedFunction<typeof patchTaskStatus>;
 const mockGetProjects    = getProjects    as jest.MockedFunction<typeof getProjects>;
+const mockCreateProject  = createProject  as jest.MockedFunction<typeof createProject>;
 const mockGetTags        = getTags        as jest.MockedFunction<typeof getTags>;
+const mockCreateTag      = createTag      as jest.MockedFunction<typeof createTag>;
 const mockGetRecurrence  = getRecurrence  as jest.MockedFunction<typeof getRecurrence>;
 const mockSetRepeat      = setRepeat      as jest.MockedFunction<typeof setRepeat>;
 const mockAddTagToTask   = addTagToTask   as jest.MockedFunction<typeof addTagToTask>;
@@ -55,7 +57,9 @@ beforeEach(() => {
   mockDeleteTask.mockResolvedValue(undefined);
   mockPatchStatus.mockResolvedValue(sampleTask);
   mockGetProjects.mockResolvedValue([]);
+  mockCreateProject.mockImplementation(async project => ({ projectID: 101, title: project.title }));
   mockGetTags.mockResolvedValue([]);
+  mockCreateTag.mockImplementation(async tag => ({ tagID: 102, title: tag.title, color: tag.color }));
   mockGetSubtasks.mockResolvedValue([]);
   mockGetNotes.mockResolvedValue([]);
   mockGetReminders.mockResolvedValue([]);
@@ -800,6 +804,19 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
   await waitFor(() => expect(mockAddTagToTask).toHaveBeenCalledWith(44, 8));
 });
 
+test('task tag chips keep user tag colors as accents instead of foreground text color', async () => {
+  mockGetTasks.mockResolvedValue([{
+    ...sampleTask,
+    tags: [{ tagID: 9, title: 'Pale tag', color: '#fef3c7' }],
+  }]);
+  render(<App />);
+
+  const tagChip = await screen.findByText('Pale tag');
+  expect(tagChip).toHaveClass('item__tag-chip');
+  expect(tagChip.style.getPropertyValue('--tag-color')).toBe('#fef3c7');
+  expect(tagChip.style.color).toBe('');
+});
+
 test('editing a task with end time preserves endDateTimeScheduled and metadata', async () => {
   const taskWithEnd: Task = {
     ...sampleTask,
@@ -836,6 +853,262 @@ test('editing a task with end time preserves endDateTimeScheduled and metadata',
   })));
   expect(mockAddTagToTask).not.toHaveBeenCalled();
   expect(mockRemoveTagFromTask).not.toHaveBeenCalled();
+});
+
+test('inline edit form hydrates and saves changed project and tags', async () => {
+  const taskWithMetadata: Task = {
+    ...sampleTask,
+    taskID: 52,
+    title: 'Metadata task',
+    projectID: 7,
+    tags: [{ tagID: 8, title: 'Errand', color: '#22c55e' }],
+  };
+  mockGetTasks.mockResolvedValue([taskWithMetadata]);
+  mockGetTask.mockResolvedValue(taskWithMetadata);
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 12, title: 'Work' },
+  ]);
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
+    { tagID: 9, title: 'Focus', color: '#6366f1' },
+  ]);
+  render(<App />);
+  await screen.findByText('Metadata task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  expect(editScope.getByRole('button', { name: 'Home' })).toBeInTheDocument();
+  expect(editScope.getByText('Errand')).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: 'Home' }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: 'Work' }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /1 tag/i }));
+  });
+  const tagDropdown = editCard.querySelector('.tag-select__dropdown');
+  if (!(tagDropdown instanceof HTMLElement)) throw new Error('Tag dropdown not found');
+  expect(tagDropdown).toBeVisible();
+  expect(editCard.closest('.item')).toHaveClass('item--editing');
+  const tagOptions = within(tagDropdown).getAllByRole('checkbox');
+  await act(async () => {
+    userEvent.click(tagOptions[0]);
+    userEvent.click(tagOptions[1]);
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(52, expect.objectContaining({
+    projectID: 12,
+  })));
+  expect(mockAddTagToTask).toHaveBeenCalledWith(52, 9);
+  expect(mockRemoveTagFromTask).toHaveBeenCalledWith(52, 8);
+});
+
+test('inline edit uses compact start and end time summaries', async () => {
+  const timedTask: Task = {
+    ...sampleTask,
+    taskID: 53,
+    title: 'Compact timed task',
+    dateTimeScheduled: '2026-06-20T21:40:00',
+    endDateTimeScheduled: '2026-06-20T22:40:00',
+  };
+  mockGetTasks.mockResolvedValue([timedTask]);
+  mockGetTask.mockResolvedValue(timedTask);
+  render(<App />);
+  await screen.findByText('Compact timed task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  const startSummary = editScope.getByRole('button', { name: /start:\s*09:40 PM/i });
+  const endSummary = editScope.getByRole('button', { name: /end:\s*10:40 PM/i });
+  expect(startSummary).toBeInTheDocument();
+  expect(endSummary).toBeInTheDocument();
+  expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
+
+  await act(async () => {
+    userEvent.click(endSummary);
+  });
+  expect(endSummary).toHaveClass('datetime-row__time-summary--active');
+  expect(editScope.getByText('End:')).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(endSummary);
+  });
+  expect(editScope.queryByText('End:')).not.toBeInTheDocument();
+  expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
+});
+
+test('inline edit date input updates the edited task date without opening an empty editor block', async () => {
+  const datedTask: Task = {
+    ...sampleTask,
+    taskID: 57,
+    title: 'Date edit task',
+    dateTimeScheduled: '2026-06-20T09:40:00',
+  };
+  mockGetTasks.mockResolvedValue([datedTask]);
+  mockGetTask.mockResolvedValue(datedTask);
+  render(<App />);
+  await screen.findByText('Date edit task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const dateInput = editCard.querySelector('.datetime-row__date');
+  if (!(dateInput instanceof HTMLInputElement)) throw new Error('Inline edit date input not found');
+  expect(dateInput).toHaveAttribute('type', 'date');
+  expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
+
+  await act(async () => {
+    fireEvent.change(dateInput, { target: { value: '2026-06-22' } });
+  });
+  await act(async () => {
+    userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(57, expect.objectContaining({
+    dateTimeScheduled: '2026-06-22T09:40:00',
+  })));
+});
+
+test('inline edit end time can be changed and saved', async () => {
+  const timedTask: Task = {
+    ...sampleTask,
+    taskID: 54,
+    title: 'Change end task',
+    dateTimeScheduled: '2026-06-20T21:40:00',
+    endDateTimeScheduled: '2026-06-20T22:40:00',
+  };
+  mockGetTasks.mockResolvedValue([timedTask]);
+  mockGetTask.mockResolvedValue(timedTask);
+  render(<App />);
+  await screen.findByText('Change end task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+  });
+  const editor = editCard.querySelector('.datetime-row__editor');
+  if (!(editor instanceof HTMLElement)) throw new Error('Time editor not found');
+  const editorScope = within(editor);
+  await act(async () => {
+    userEvent.click(editorScope.getByRole('button', { name: '10' }));
+  });
+  await act(async () => {
+    userEvent.click(editorScope.getByRole('button', { name: '11' }));
+  });
+  await act(async () => {
+    userEvent.click(editorScope.getByRole('button', { name: /done/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(54, expect.objectContaining({
+    endDateTimeScheduled: '2026-06-20T23:40:00',
+  })));
+});
+
+test('creating a new project from inline edit applies it on save', async () => {
+  const task: Task = { ...sampleTask, taskID: 55, title: 'New project task' };
+  mockGetTasks.mockResolvedValue([task]);
+  mockGetTask.mockResolvedValue(task);
+  mockCreateProject.mockResolvedValue({ projectID: 13, title: 'Office' });
+  render(<App />);
+  await screen.findByText('New project task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /\+ new project/i }));
+  });
+  await act(async () => {
+    userEvent.type(editScope.getByLabelText(/project name/i), 'Office');
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
+  await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(55, expect.objectContaining({
+    projectID: 13,
+  })));
+});
+
+test('creating a new tag from inline edit applies it on save', async () => {
+  const task: Task = { ...sampleTask, taskID: 56, title: 'New tag task', tags: [] };
+  mockGetTasks.mockResolvedValue([task]);
+  mockGetTask.mockResolvedValue(task);
+  mockCreateTag.mockResolvedValue({ tagID: 14, title: 'Deep Work', color: '#6366f1' });
+  render(<App />);
+  await screen.findByText('New tag task');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /\+ new tag/i }));
+  });
+  await act(async () => {
+    userEvent.type(editScope.getByLabelText(/tag name/i), 'Deep Work');
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+  });
+
+  expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Deep Work', color: '#6366f1' });
+  await waitFor(() => expect(mockAddTagToTask).toHaveBeenCalledWith(56, 14));
 });
 
 test('editing a task and clearing end time sends null endDateTimeScheduled', async () => {
