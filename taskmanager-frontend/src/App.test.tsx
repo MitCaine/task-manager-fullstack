@@ -181,6 +181,13 @@ test('shows 0 tasks in footer when no tasks are loaded', async () => {
   expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
+test('task list empty state points mobile users to Add', async () => {
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  expect(await screen.findByText('No tasks yet')).toBeInTheDocument();
+  expect(screen.getByText('Swipe to Add and create your first task.')).toBeInTheDocument();
+});
+
 test('shows task titles after loading', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
@@ -251,6 +258,36 @@ test('clicking overdue count badge filters to overdue tasks', async () => {
   expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
   expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /1 overdue/i })).toHaveClass('task-count--active');
+});
+
+test('completed filter empty state explains completed tasks', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
+  ]);
+  render(<App />);
+  await screen.findByText('Active task');
+
+  await act(async () => {
+    userEvent.selectOptions(screen.getByLabelText('Show'), 'completed');
+  });
+
+  expect(screen.getByText('No completed tasks yet')).toBeInTheDocument();
+  expect(screen.getByText('Completed tasks will show here.')).toBeInTheDocument();
+});
+
+test('overdue filter empty state reinforces progress', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Future task', statusID: null, dateTimeScheduled: '2026-12-01T09:00:00' },
+  ]);
+  render(<App />);
+  await screen.findByText('Future task');
+
+  await act(async () => {
+    userEvent.selectOptions(screen.getByLabelText('Show'), 'overdue');
+  });
+
+  expect(screen.getByText('No overdue tasks')).toBeInTheDocument();
+  expect(screen.getByText("You're all caught up.")).toBeInTheDocument();
 });
 
 test('shows "No due date" for tasks without dateTimeScheduled', async () => {

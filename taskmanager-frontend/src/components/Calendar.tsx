@@ -411,8 +411,8 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   }, [tasks]);
 
   // Shared task list markup is reused by smaller calendar scopes.
-  const renderTasks = (items: Task[], showDate = false) => {
-    if (items.length === 0) return <p className="cal-empty">No tasks.</p>;
+  const renderTasks = (items: Task[], showDate = false, emptyMessage = 'No tasks.') => {
+    if (items.length === 0) return <p className="cal-empty">{emptyMessage}</p>;
     return (
       <ul className="cal-list">
         {items.map(t => {
@@ -736,7 +736,9 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               <span className="cal-badge">{upcomingMonthTasks.length}</span>
             )}
           </div>
-          {renderTasks(upcomingMonthTasks, true)}
+          {monthTasks.length === 0
+            ? renderTasks([], true, 'No tasks scheduled this month.')
+            : upcomingMonthTasks.length > 0 && renderTasks(upcomingMonthTasks, true)}
         </div>
       </div>
     );
@@ -786,31 +788,35 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             )}
           </div>
 
-          {days.map(day => {
-            const key      = toKey(day);
-            const dayTasks = sorted((byDate.get(key) ?? []).filter(t => !upcomingThisWeek.has(t.taskID)));
-            const isT      = key === todayKey;
-            return (
-              <div key={key} className="cal-week-row">
-                <button
-                  className={[
-                    'cal-week-row__lbl',
-                    isT             ? 'cal-week-row__lbl--today' : '',
-                    dayTasks.length ? 'cal-week-row__lbl--tasks' : '',
-                  ].filter(Boolean).join(' ')}
-                  onClick={() => goDay(day, day.getMonth())}
-                >
-                  {day.toLocaleDateString(locale, {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                  })}
-                  {dayTasks.length > 0 && (
-                    <span className="cal-badge cal-badge--sm">{dayTasks.length}</span>
-                  )}
-                </button>
-                {dayTasks.length > 0 && renderTasks(dayTasks)}
-              </div>
-            );
-          })}
+          {allWeekTasks.length === 0 ? (
+            <p className="cal-empty">No tasks scheduled this week.</p>
+          ) : (
+            days.map(day => {
+              const key      = toKey(day);
+              const dayTasks = sorted((byDate.get(key) ?? []).filter(t => !upcomingThisWeek.has(t.taskID)));
+              const isT      = key === todayKey;
+              return (
+                <div key={key} className="cal-week-row">
+                  <button
+                    className={[
+                      'cal-week-row__lbl',
+                      isT             ? 'cal-week-row__lbl--today' : '',
+                      dayTasks.length ? 'cal-week-row__lbl--tasks' : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => goDay(day, day.getMonth())}
+                  >
+                    {day.toLocaleDateString(locale, {
+                      weekday: 'short', month: 'short', day: 'numeric',
+                    })}
+                    {dayTasks.length > 0 && (
+                      <span className="cal-badge cal-badge--sm">{dayTasks.length}</span>
+                    )}
+                  </button>
+                  {dayTasks.length > 0 && renderTasks(dayTasks)}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     );
@@ -865,7 +871,9 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           Day tasks
           {upcomingDayTasks.length > 0 && <span className="cal-badge">{upcomingDayTasks.length}</span>}
         </div>
-        {renderTasks(upcomingDayTasks)}
+        {dayTasks.length === 0
+          ? renderTasks([], false, 'No tasks scheduled for this day.')
+          : upcomingDayTasks.length > 0 && renderTasks(upcomingDayTasks)}
       </div>
     </div>
   );

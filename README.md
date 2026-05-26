@@ -1,14 +1,19 @@
 # Task Manager Fullstack
 
-A full-stack task management application with a Spring Boot REST API and a React + TypeScript frontend. The app supports task creation, scheduling, filtering, calendar views, projects, tags, subtasks, notes, reminders, attachments, and recurring tasks.
+A full-stack task management and mobile productivity application with a Spring Boot REST API and a React + TypeScript frontend. The app supports task creation, scheduling, filtering, calendar views, board-style status management, projects, tags, subtasks, notes, reminders, attachments, recurring tasks, and iOS testing through Capacitor.
 
 ## Screenshots
 
-![Task list view](docs/screenshots/task-list-placeholder.png)
-![Task creation card](docs/screenshots/task-creation-placeholder.png)
-![Calendar month, week, and day views](docs/screenshots/calendar-placeholder.png)
-![Board view](docs/screenshots/board-placeholder.png)
-![Light and dark themes](docs/screenshots/themes-placeholder.png)
+- [ ] Task List View
+- [ ] Task Creation
+- [ ] Task Editing
+- [ ] Calendar View
+- [ ] Board View
+- [ ] Statistics Dashboard
+- [ ] Recurring Task Example
+- [ ] Project and Tag Management
+- [ ] Light Theme
+- [ ] Dark Theme
 
 ## Tech Stack
 
@@ -55,19 +60,37 @@ Frontend:
 
 ## Features
 
-- Create, edit, delete, copy, and complete tasks
-- Sort and filter by date, status, priority, project, tag, and search text
-- Board, all, today, week, and month task list views
-- Calendar with year range, month, week, and day views
-- Upcoming task agenda
-- Task details panel with subtasks, notes, reminders, attachments, projects, tags, and recurrence
-- Recurring task support for daily, weekly, and monthly rules
-- Tag and project management
-- Bulk task selection and actions
-- Light, dark, and system theme support
-- 12-hour / 24-hour time and US / European date format toggles
-- Optional persisted task end time, displayed as a start/end range
-- Capacitor iOS build for iPhone testing
+- Task creation, editing, copying, deletion, and completion.
+- Projects, tags, and priority management.
+- Calendar views for Month, Week, and Day planning.
+- Board / Kanban-style status management.
+- Recurring tasks with daily, weekly, and monthly frequencies.
+- Automatic generation of the next occurrence when recurring tasks are completed.
+- Optional start and end times with start/end range display throughout the application.
+- Sorting and filtering by date, status, priority, project, tag, and search text.
+- Interactive task count badges for all, done, and overdue task filters.
+- Task details panel with subtasks, notes, reminders, attachments, projects, tags, and recurrence.
+- Task statistics dashboard.
+- Bulk task selection and actions.
+- Mobile-friendly swipe navigation between task, creation, and calendar views.
+- Light, dark, and system theme support.
+- 12-hour / 24-hour time formats.
+- MM/DD/YYYY and DD/MM/YYYY date formats.
+- Accessibility improvements including ARIA labels, keyboard navigation, touch-target improvements, dialog semantics, and focus management.
+- Capacitor iOS build for iPhone and Xcode Simulator testing.
+
+## Technical Highlights
+
+- React + TypeScript frontend.
+- Spring Boot backend.
+- MySQL persistence for local runtime data.
+- REST API architecture for tasks, projects, tags, recurrence, notes, reminders, attachments, and subtasks.
+- Shared date/time formatting utilities for 12-hour / 24-hour time and US / European date display.
+- Frontend and backend validation for task fields, recurrence frequencies, and start/end time ranges.
+- Recurrence generation logic that creates the next occurrence when recurring tasks are completed.
+- Responsive mobile-first design refined for iPhone-sized screens.
+- Accessibility-focused implementation with semantic dialogs, focus restoration, keyboard behavior, labels, and touch ergonomics.
+- iOS testing through Capacitor and Xcode Simulator.
 
 ## Prerequisites
 
@@ -188,19 +211,21 @@ Many Xcode WebKit, keyboard, haptic, and Auto Layout warnings printed by the
 iOS simulator are system noise. The important app signal is that the WebView
 loads and the API requests succeed.
 
-## Interaction Stability Improvements
+## Recent Improvements
 
-- Refined the mobile task creation card for iPhone-sized screens without
-  changing the main visual style.
-- Standardized create-task menu switching so Priority, Project, Tags, Date, Start Time,
-  End Time, and time segment dropdowns use consistent one-tap open/close behavior.
-- Normalized outside-tap behavior so normal fields close open menus while active
-  menus, date controls, and time dropdowns remain usable.
-- Stabilized create-task date selection so the visible date and preview update
-  immediately.
-- Improved time dropdown anchoring and option alignment.
-- Added real `endDateTimeScheduled` persistence across create, edit, duplicate,
-  calendar display, task list display, and recurring task completion.
+- Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
+- Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
+- Added project and tag editing to the inline task edit form.
+- Fixed time formatting so PM values convert correctly to 24-hour display and AM/PM remains consistently uppercase.
+- Added validation that prevents end times before or equal to start times in both frontend and backend flows.
+- Added immediate inline feedback for invalid start/end time ranges.
+- Improved mobile accessibility with ARIA labels, larger touch targets, and more consistent keyboard behavior.
+- Added dialog semantics, Escape ordering, and focus restoration for modal and popover interactions.
+- Improved swipe gesture safety so page navigation does not conflict with controls, menus, date pickers, time pickers, task cards, or dialogs.
+- Improved contrast and tag-color safety by keeping user-selected tag colors as accents instead of unsafe foreground text.
+- Aligned create and edit control behavior for compact time summaries, anchored dropdowns, project/tag controls, and recurrence selection.
+- Added interactive task count badges for all, done, and overdue task filters.
+- Fixed bulk completion so recurring tasks generate their next occurrence instead of being marked done directly.
 
 ## Main API Areas
 
@@ -228,6 +253,7 @@ The backend validates key inputs such as:
 - Tag title and color format
 - Reminder required due date
 - Supported recurrence frequencies: `daily`, `weekly`, `monthly`
+- End time must be after start time when both are present
 
 Invalid requests return structured validation errors or a bad request response.
 
@@ -235,7 +261,7 @@ Invalid requests return structured validation errors or a bad request response.
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs backend and frontend tests on push and pull request.
 
-Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, and attachments. Frontend tests cover task UI behavior, date/time utilities, API calls, recurring-copy handling, and duplicate title numbering.
+Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, attachments, recurrence, and time-range validation. Frontend tests cover task UI behavior, create/edit interactions, date/time utilities, API calls, recurrence controls, recurring-copy handling, duplicate title numbering, mobile swipe guards, accessibility semantics, and interactive task filters.
 
 ## Future Improvements
 

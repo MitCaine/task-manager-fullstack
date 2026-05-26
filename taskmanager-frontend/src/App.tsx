@@ -2189,6 +2189,18 @@ function App(): JSX.Element {
         body: 'Try a different search term or reset the current filters.',
       };
     }
+    if (filterStatus === 'completed') {
+      return {
+        title: 'No completed tasks yet',
+        body: 'Completed tasks will show here.',
+      };
+    }
+    if (filterStatus === 'overdue') {
+      return {
+        title: 'No overdue tasks',
+        body: "You're all caught up.",
+      };
+    }
     if (hasActiveListFilters) {
       return {
         title: 'No tasks in this filter',
@@ -2203,7 +2215,7 @@ function App(): JSX.Element {
     }
     return {
       title: 'No tasks yet',
-      body: 'Add your first task from the form on the left.',
+      body: 'Swipe to Add and create your first task.',
     };
   })();
 
