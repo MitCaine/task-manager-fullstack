@@ -1293,55 +1293,74 @@ function App(): JSX.Element {
     }
   };
 
+  const completeRecurringTask = async (task: Task, rule: RecurrenceRule) => {
+    const base = task.dateTimeScheduled ? new Date(task.dateTimeScheduled) : new Date();
+    const next = new Date(base);
+    const advance = () => {
+      if (rule.frequency === 'daily')   next.setDate(next.getDate() + 1);
+      if (rule.frequency === 'weekly')  next.setDate(next.getDate() + 7);
+      if (rule.frequency === 'monthly') next.setMonth(next.getMonth() + 1);
+    };
+    advance();
+    const now = new Date();
+    while (next < now) advance();
+    const nextDt = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+    const nextEndDateTimeScheduled = (() => {
+      if (!task.endDateTimeScheduled || !task.dateTimeScheduled) return null;
+      const durationMs = new Date(task.endDateTimeScheduled).getTime() - new Date(task.dateTimeScheduled).getTime();
+      if (!Number.isFinite(durationMs)) return null;
+      const nextEnd = new Date(next.getTime() + durationMs);
+      return new Date(nextEnd.getTime() - nextEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+    })();
+    const nextTask = await createTask({
+      title: task.title, description: task.description ?? '',
+      endDateTimeScheduled: nextEndDateTimeScheduled,
+      dateTimeScheduled: nextDt, userID: task.userID, statusID: null,
+      priority: task.priority ?? null, projectID: task.projectID ?? null,
+    });
+    if (task.tags?.length) {
+      await Promise.all(task.tags.map(tag => addTagToTask(nextTask.taskID, tag.tagID)));
+      nextTask.tags = task.tags;
+    }
+    await setRepeat(nextTask.taskID, rule.frequency);
+    const fresh = await getTask(nextTask.taskID);
+    await deleteTask(task.taskID);
+    const replacementTask = { ...nextTask, recurrenceRuleID: fresh.recurrenceRuleID };
+    setTasks(prev => [
+      ...prev.filter(t => t.taskID !== task.taskID),
+      replacementTask,
+    ]);
+    if (selectedTaskId === task.taskID) setSelectedTaskId(null);
+    // Highlight the next occurrence after it becomes visible in the list.
+    setTimeout(() => {
+      const el = document.getElementById(`task-${nextTask.taskID}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('item--highlight');
+      setTimeout(() => el.classList.remove('item--highlight'), 1200);
+    }, 50);
+    return replacementTask;
+  };
+
+  const getExistingRecurrenceRule = async (task: Task): Promise<RecurrenceRule | null> => {
+    if (task.recurrenceRuleID === null) return null;
+    if (task.recurrenceRuleID === undefined) {
+      try {
+        return await getRecurrence(task.taskID);
+      } catch {
+        return null;
+      }
+    }
+    return getRecurrence(task.taskID);
+  };
+
   const toggleComplete = async (task: Task) => {
-      // Completing a recurring task creates its next scheduled occurrence.
-    if (task.recurrenceRuleID) {
+    const currentStatusID = normalizeTaskStatus(task.statusID);
+    // Completing an active recurring task creates its next scheduled occurrence.
+    if (task.recurrenceRuleID && currentStatusID !== 2) {
       try {
         const rule = await getRecurrence(task.taskID);
-        const base = task.dateTimeScheduled ? new Date(task.dateTimeScheduled) : new Date();
-        const next = new Date(base);
-        const advance = () => {
-          if (rule.frequency === 'daily')   next.setDate(next.getDate() + 1);
-          if (rule.frequency === 'weekly')  next.setDate(next.getDate() + 7);
-          if (rule.frequency === 'monthly') next.setMonth(next.getMonth() + 1);
-        };
-        advance();
-        const now = new Date();
-        while (next < now) advance();
-        const nextDt = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
-        const nextEndDateTimeScheduled = (() => {
-          if (!task.endDateTimeScheduled || !task.dateTimeScheduled) return null;
-          const durationMs = new Date(task.endDateTimeScheduled).getTime() - new Date(task.dateTimeScheduled).getTime();
-          if (!Number.isFinite(durationMs)) return null;
-          const nextEnd = new Date(next.getTime() + durationMs);
-          return new Date(nextEnd.getTime() - nextEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
-        })();
-        const nextTask = await createTask({
-          title: task.title, description: task.description ?? '',
-          endDateTimeScheduled: nextEndDateTimeScheduled,
-          dateTimeScheduled: nextDt, userID: task.userID, statusID: null,
-          priority: task.priority ?? null, projectID: task.projectID ?? null,
-        });
-        if (task.tags?.length) {
-          await Promise.all(task.tags.map(tag => addTagToTask(nextTask.taskID, tag.tagID)));
-          nextTask.tags = task.tags;
-        }
-        await setRepeat(nextTask.taskID, rule.frequency);
-        const fresh = await getTask(nextTask.taskID);
-        await deleteTask(task.taskID);
-        setTasks(prev => [
-          ...prev.filter(t => t.taskID !== task.taskID),
-          { ...nextTask, recurrenceRuleID: fresh.recurrenceRuleID },
-        ]);
-        if (selectedTaskId === task.taskID) setSelectedTaskId(null);
-        // Highlight the next occurrence after it becomes visible in the list.
-        setTimeout(() => {
-          const el = document.getElementById(`task-${nextTask.taskID}`);
-          if (!el) return;
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('item--highlight');
-          setTimeout(() => el.classList.remove('item--highlight'), 1200);
-        }, 50);
+        await completeRecurringTask(task, rule);
       } catch {
         setError('Failed to complete recurring task.');
       }
@@ -1349,7 +1368,7 @@ function App(): JSX.Element {
     }
 
     // Non-recurring tasks only toggle between active and done.
-    const newStatusID = task.statusID === 2 ? null : 2;
+    const newStatusID = currentStatusID === 2 ? null : 2;
     try {
       const saved = await patchTaskStatus(task.taskID, newStatusID);
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
@@ -1360,7 +1379,7 @@ function App(): JSX.Element {
 
   const moveTaskToStatus = async (task: Task, statusID: number | null) => {
     setStatusMoveTask(null);
-    if (statusID === 2 && task.recurrenceRuleID) {
+    if (statusID === 2 && task.recurrenceRuleID && normalizeTaskStatus(task.statusID) !== 2) {
       await toggleComplete(task);
       return;
     }
@@ -1978,8 +1997,21 @@ function App(): JSX.Element {
   const bulkMarkDone = async () => {
     const ids = Array.from(bulkSelectedIds);
     try {
-      await Promise.all(ids.map(id => patchTaskStatus(id, 2)));
-      setTasks(prev => prev.map(t => ids.includes(t.taskID) ? { ...t, statusID: 2 } : t));
+      for (const id of ids) {
+        const fallbackTask = tasksRef.current.find(task => task.taskID === id);
+        if (!fallbackTask) continue;
+        const currentTask = await getTask(id).catch(() => fallbackTask);
+        const currentStatusID = normalizeTaskStatus(currentTask.statusID);
+        const recurrenceRule = currentStatusID !== 2 ? await getExistingRecurrenceRule(currentTask) : null;
+        if (recurrenceRule) {
+          await completeRecurringTask(currentTask, recurrenceRule);
+        } else {
+          const saved = await patchTaskStatus(id, 2);
+          setTasks(prev => prev.map(task => task.taskID === saved.taskID ? saved : task));
+        }
+      }
+      const refreshedTasks = await getTasks();
+      setTasks(refreshedTasks);
       setBulkSelectedIds(new Set());
       setBulkMode(false);
     } catch {

@@ -40,6 +40,7 @@ const sampleTask: Task = {
   title: 'Buy milk',
   description: '',
   dateTimeScheduled: null,
+  recurrenceRuleID: null,
 };
 
 const scheduledTask: Task = {
@@ -2074,6 +2075,214 @@ test('"Mark done" in bulk bar calls patchTaskStatus for each selected task', asy
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 2);
   });
+});
+
+test('bulk mark done on a recurring task generates the next occurrence', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    recurrenceRuleID: 10,
+    dateTimeScheduled: '2099-06-15T14:30:00',
+    endDateTimeScheduled: '2099-06-15T15:30:00',
+    priority: 'HIGH',
+    projectID: 8,
+    tags: [{ tagID: 4, title: 'Focus', color: '#22c55e' }],
+  };
+  const nextOccurrence: Task = {
+    ...recurringTask,
+    taskID: 99,
+    recurrenceRuleID: 12,
+    dateTimeScheduled: '2099-06-22T14:30:00',
+    endDateTimeScheduled: '2099-06-22T15:30:00',
+  };
+  mockGetTasks
+    .mockResolvedValueOnce([recurringTask])
+    .mockResolvedValueOnce([nextOccurrence]);
+  mockGetTask.mockImplementation(async id => id === recurringTask.taskID
+    ? recurringTask
+    : nextOccurrence);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2099-06-15T14:30:00',
+    endDateTime: '2109-06-15T14:30:00',
+  });
+  mockCreateTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: null, tags: [] });
+
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => { userEvent.click(checkboxes[0]); });
+  await screen.findByText(/1 selected/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      title: recurringTask.title,
+      description: recurringTask.description,
+      priority: recurringTask.priority,
+      projectID: recurringTask.projectID,
+      dateTimeScheduled: '2099-06-22T14:30:00',
+      endDateTimeScheduled: '2099-06-22T15:30:00',
+    }));
+  });
+  expect(mockAddTagToTask).toHaveBeenCalledWith(99, 4);
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'weekly');
+  expect(mockDeleteTask).toHaveBeenCalledWith(recurringTask.taskID);
+  expect(mockPatchStatus).not.toHaveBeenCalled();
+  expect(await screen.findByText(/06\/22\/2099/)).toBeInTheDocument();
+});
+
+test('bulk mark done on mixed recurring and non-recurring tasks handles both paths', async () => {
+  const recurringTask: Task = {
+    ...sampleTask,
+    taskID: 1,
+    title: 'Recurring task',
+    statusID: 3,
+    recurrenceRuleID: 10,
+    dateTimeScheduled: '2099-06-15T09:00:00',
+  };
+  const oneTimeTask: Task = {
+    ...sampleTask,
+    taskID: 2,
+    title: 'One-time task',
+    recurrenceRuleID: null,
+  };
+  const nextOccurrence: Task = {
+    ...recurringTask,
+    taskID: 99,
+    recurrenceRuleID: 12,
+    dateTimeScheduled: '2099-06-16T09:00:00',
+  };
+  mockGetTasks
+    .mockResolvedValueOnce([recurringTask, oneTimeTask])
+    .mockResolvedValueOnce([{ ...oneTimeTask, statusID: 2 }, nextOccurrence]);
+  mockGetTask.mockImplementation(async id => {
+    if (id === recurringTask.taskID) return recurringTask;
+    if (id === oneTimeTask.taskID) return oneTimeTask;
+    return nextOccurrence;
+  });
+  mockPatchStatus.mockResolvedValue({ ...oneTimeTask, statusID: 2 });
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'daily',
+    timesOfRecurrence: 0,
+    startDateTime: '2099-06-15T09:00:00',
+    endDateTime: '2109-06-15T09:00:00',
+  });
+  mockCreateTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: null });
+
+  render(<App />);
+  await screen.findByText('Recurring task');
+  await screen.findByText('One-time task');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => {
+    userEvent.click(checkboxes[0]);
+    userEvent.click(checkboxes[1]);
+  });
+  await screen.findByText(/2 selected/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(oneTimeTask.taskID, 2);
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      title: recurringTask.title,
+      dateTimeScheduled: '2099-06-16T09:00:00',
+    }));
+  });
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'daily');
+  expect(mockDeleteTask).toHaveBeenCalledWith(recurringTask.taskID);
+  expect(mockPatchStatus).not.toHaveBeenCalledWith(recurringTask.taskID, 2);
+  expect(await screen.findByText(/06\/16\/2099/)).toBeInTheDocument();
+});
+
+test('completed recurring task checkbox toggles back to active without generating a next occurrence', async () => {
+  const completedRecurringTask: Task = {
+    ...sampleTask,
+    recurrenceRuleID: 10,
+    statusID: 2,
+    dateTimeScheduled: '2099-06-15T09:00:00',
+  };
+  mockGetTasks.mockResolvedValue([completedRecurringTask]);
+  mockPatchStatus.mockResolvedValue({ ...completedRecurringTask, statusID: null });
+
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByTitle(/mark as active/i));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(completedRecurringTask.taskID, null);
+  });
+  expect(mockGetRecurrence).not.toHaveBeenCalled();
+  expect(mockCreateTask).not.toHaveBeenCalled();
+  expect(mockDeleteTask).not.toHaveBeenCalled();
+});
+
+test('bulk mark done probes recurrence when selected task data has no recurrenceRuleID', async () => {
+  const listTaskWithoutRuleId: Task = {
+    ...sampleTask,
+    recurrenceRuleID: undefined,
+    dateTimeScheduled: '2099-06-15T14:30:00',
+  };
+  const nextOccurrence: Task = {
+    ...listTaskWithoutRuleId,
+    taskID: 99,
+    recurrenceRuleID: 12,
+    dateTimeScheduled: '2099-06-22T14:30:00',
+  };
+  mockGetTasks
+    .mockResolvedValueOnce([listTaskWithoutRuleId])
+    .mockResolvedValueOnce([nextOccurrence]);
+  mockGetTask.mockImplementation(async id => id === listTaskWithoutRuleId.taskID
+    ? listTaskWithoutRuleId
+    : nextOccurrence);
+  mockGetRecurrence.mockResolvedValue({
+    recurrenceRuleID: 10,
+    frequency: 'weekly',
+    timesOfRecurrence: 0,
+    startDateTime: '2099-06-15T14:30:00',
+    endDateTime: '2109-06-15T14:30:00',
+  });
+  mockCreateTask.mockResolvedValue({ ...listTaskWithoutRuleId, taskID: 99, recurrenceRuleID: null });
+
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  const checkboxes = screen.getAllByRole('checkbox');
+  await act(async () => { userEvent.click(checkboxes[0]); });
+  await screen.findByText(/1 selected/i);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockGetRecurrence).toHaveBeenCalledWith(listTaskWithoutRuleId.taskID);
+    expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
+      dateTimeScheduled: '2099-06-22T14:30:00',
+    }));
+  });
+  expect(mockPatchStatus).not.toHaveBeenCalledWith(listTaskWithoutRuleId.taskID, 2);
 });
 
 test('"Delete" in bulk bar calls deleteTask for each selected task', async () => {
