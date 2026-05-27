@@ -3202,6 +3202,10 @@ input[type="datetime-local"] {
     box-shadow: var(--shadow-card);
   }
 
+  .mobile-page--tasks .mobile-edit-panel > .recurrence-select {
+    flex: 0 0 auto;
+  }
+
   .spread,
   .detail__header,
   .datetime-row__top,
