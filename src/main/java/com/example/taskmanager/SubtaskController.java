@@ -20,21 +20,22 @@ public class SubtaskController {
 
     @GetMapping("/tasks/{taskId}/subtasks")
     public ResponseEntity<List<Subtask>> getSubtasks(@PathVariable Long taskId) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(subtaskRepository.findByParentTaskID(taskId));
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId,
+                () -> ResponseEntity.ok(subtaskRepository.findByParentTaskID(taskId)));
     }
 
     @PostMapping("/tasks/{taskId}/subtasks")
     public ResponseEntity<Subtask> createSubtask(
             @PathVariable Long taskId,
             @Valid @RequestBody Subtask subtask) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        subtask.setSubTaskID(null);
-        subtask.setParentTaskID(taskId);
-        Subtask saved = subtaskRepository.save(subtask);
-        return ResponseEntity
-                .created(URI.create("/tasks/" + taskId + "/subtasks/" + saved.getSubTaskID()))
-                .body(saved);
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId, () -> {
+            subtask.setSubTaskID(null);
+            subtask.setParentTaskID(taskId);
+            Subtask saved = subtaskRepository.save(subtask);
+            return ResponseEntity
+                    .created(URI.create("/tasks/" + taskId + "/subtasks/" + saved.getSubTaskID()))
+                    .body(saved);
+        });
     }
 
     private record StatusUpdateRequest(Long statusID) {}

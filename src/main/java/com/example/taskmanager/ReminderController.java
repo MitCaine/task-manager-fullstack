@@ -22,21 +22,22 @@ public class ReminderController {
 
     @GetMapping("/tasks/{taskId}/reminders")
     public ResponseEntity<List<Reminder>> getReminders(@PathVariable Long taskId) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(reminderRepository.findByTaskID(taskId));
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId,
+                () -> ResponseEntity.ok(reminderRepository.findByTaskID(taskId)));
     }
 
     @PostMapping("/tasks/{taskId}/reminders")
     public ResponseEntity<Reminder> createReminder(
             @PathVariable Long taskId,
             @Valid @RequestBody Reminder reminder) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        reminder.setReminderID(null);
-        reminder.setTaskID(taskId);
-        Reminder saved = reminderRepository.save(reminder);
-        return ResponseEntity
-                .created(URI.create("/tasks/" + taskId + "/reminders/" + saved.getReminderID()))
-                .body(saved);
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId, () -> {
+            reminder.setReminderID(null);
+            reminder.setTaskID(taskId);
+            Reminder saved = reminderRepository.save(reminder);
+            return ResponseEntity
+                    .created(URI.create("/tasks/" + taskId + "/reminders/" + saved.getReminderID()))
+                    .body(saved);
+        });
     }
 
     private record DueDateUpdate(@NotNull(message = "Due date must not be null") LocalDateTime dueDate) {}

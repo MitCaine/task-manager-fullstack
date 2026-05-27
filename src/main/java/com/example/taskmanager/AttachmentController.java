@@ -20,22 +20,23 @@ public class AttachmentController {
 
     @GetMapping("/tasks/{taskId}/attachments")
     public ResponseEntity<List<Attachment>> getAttachments(@PathVariable Long taskId) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(attachmentRepository.findByTaskID(taskId));
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId,
+                () -> ResponseEntity.ok(attachmentRepository.findByTaskID(taskId)));
     }
 
     @PostMapping("/tasks/{taskId}/attachments")
     public ResponseEntity<Attachment> createAttachment(
             @PathVariable Long taskId,
             @Valid @RequestBody Attachment attachment) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        attachment.setAttachmentID(null);
-        attachment.setTaskID(taskId);
-        attachment.setFileSize(0);
-        Attachment saved = attachmentRepository.save(attachment);
-        return ResponseEntity
-                .created(URI.create("/tasks/" + taskId + "/attachments/" + saved.getAttachmentID()))
-                .body(saved);
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId, () -> {
+            attachment.setAttachmentID(null);
+            attachment.setTaskID(taskId);
+            attachment.setFileSize(0);
+            Attachment saved = attachmentRepository.save(attachment);
+            return ResponseEntity
+                    .created(URI.create("/tasks/" + taskId + "/attachments/" + saved.getAttachmentID()))
+                    .body(saved);
+        });
     }
 
     @DeleteMapping("/attachments/{id}")

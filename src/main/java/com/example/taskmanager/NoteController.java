@@ -21,22 +21,23 @@ public class NoteController {
 
     @GetMapping("/tasks/{taskId}/notes")
     public ResponseEntity<List<Note>> getNotes(@PathVariable Long taskId) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(noteRepository.findByTaskID(taskId));
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId,
+                () -> ResponseEntity.ok(noteRepository.findByTaskID(taskId)));
     }
 
     @PostMapping("/tasks/{taskId}/notes")
     public ResponseEntity<Note> createNote(
             @PathVariable Long taskId,
             @Valid @RequestBody Note note) {
-        if (!taskRepository.existsById(taskId)) return ResponseEntity.notFound().build();
-        note.setNoteID(null);
-        note.setTaskID(taskId);
-        note.setTimestamp(LocalDateTime.now());
-        Note saved = noteRepository.save(note);
-        return ResponseEntity
-                .created(URI.create("/tasks/" + taskId + "/notes/" + saved.getNoteID()))
-                .body(saved);
+        return ParentTaskGuard.withExistingTask(taskRepository, taskId, () -> {
+            note.setNoteID(null);
+            note.setTaskID(taskId);
+            note.setTimestamp(LocalDateTime.now());
+            Note saved = noteRepository.save(note);
+            return ResponseEntity
+                    .created(URI.create("/tasks/" + taskId + "/notes/" + saved.getNoteID()))
+                    .body(saved);
+        });
     }
 
     @DeleteMapping("/notes/{id}")
