@@ -9,6 +9,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -71,6 +73,16 @@ class AttachmentControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void getAttachments_taskNotFound_doesNotQueryAttachments() throws Exception {
+        when(taskRepository.existsById(99L)).thenReturn(false);
+
+        mockMvc.perform(get("/tasks/99/attachments"))
+                .andExpect(status().isNotFound());
+
+        verify(attachmentRepository, never()).findByTaskID(any());
+    }
+
     // POST /tasks/{taskId}/attachments
 
     @Test
@@ -110,12 +122,40 @@ class AttachmentControllerTest {
     }
 
     @Test
+    void createAttachment_missingFileORLink_returns400() throws Exception {
+        when(taskRepository.existsById(1L)).thenReturn(true);
+
+        mockMvc.perform(post("/tasks/1/attachments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"metadata\":\"Docs\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createAttachment_valid_setsTaskIdFromPathNotBody() throws Exception {
+        when(taskRepository.existsById(1L)).thenReturn(true);
+        when(attachmentRepository.save(any(Attachment.class))).thenAnswer(inv -> {
+            Attachment arg = inv.getArgument(0);
+            assertEquals(1L, arg.getTaskID(), "taskID must come from the path");
+            Attachment saved = makeAttachment(8L, arg.getFileORLink(), arg.getTaskID());
+            saved.setMetadata(arg.getMetadata());
+            return saved;
+        });
+
+        mockMvc.perform(post("/tasks/1/attachments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fileORLink\":\"https://example.com\",\"metadata\":\"Docs\",\"taskID\":99}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.taskID").value(1));
+    }
+
+    @Test
     void createAttachment_setsFileSizeToZero() throws Exception {
         when(taskRepository.existsById(1L)).thenReturn(true);
         Attachment saved = makeAttachment(1L, "https://example.com", 1L);
         when(attachmentRepository.save(any(Attachment.class))).thenAnswer(inv -> {
             Attachment arg = inv.getArgument(0);
-            assert arg.getFileSize() == 0 : "fileSize must be set to 0 by controller";
+            assertEquals(0, arg.getFileSize(), "fileSize must be set to 0 by controller");
             return saved;
         });
 
@@ -131,7 +171,7 @@ class AttachmentControllerTest {
         Attachment saved = makeAttachment(20L, "https://example.com", 1L);
         when(attachmentRepository.save(any(Attachment.class))).thenAnswer(inv -> {
             Attachment arg = inv.getArgument(0);
-            assert arg.getAttachmentID() == null : "attachmentID should be null before save";
+            assertNull(arg.getAttachmentID(), "attachmentID should be null before save");
             return saved;
         });
 
