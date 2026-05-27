@@ -74,6 +74,16 @@ class NoteControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void getNotes_taskNotFound_doesNotQueryNotes() throws Exception {
+        when(taskRepository.existsById(99L)).thenReturn(false);
+
+        mockMvc.perform(get("/tasks/99/notes"))
+                .andExpect(status().isNotFound());
+
+        verify(noteRepository, never()).findByTaskID(any());
+    }
+
     // POST /tasks/{taskId}/notes
 
     @Test

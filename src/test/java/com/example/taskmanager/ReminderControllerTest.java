@@ -73,6 +73,16 @@ class ReminderControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void getReminders_taskNotFound_doesNotQueryReminders() throws Exception {
+        when(taskRepository.existsById(99L)).thenReturn(false);
+
+        mockMvc.perform(get("/tasks/99/reminders"))
+                .andExpect(status().isNotFound());
+
+        verify(reminderRepository, never()).findByTaskID(any());
+    }
+
     // POST /tasks/{taskId}/reminders
 
     @Test

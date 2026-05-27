@@ -65,6 +65,16 @@ class SubtaskControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void getSubtasks_taskNotFound_doesNotQuerySubtasks() throws Exception {
+        when(taskRepository.existsById(99L)).thenReturn(false);
+
+        mockMvc.perform(get("/tasks/99/subtasks"))
+                .andExpect(status().isNotFound());
+
+        verify(subtaskRepository, never()).findByParentTaskID(any());
+    }
+
     // POST /tasks/{taskId}/subtasks
 
     @Test
