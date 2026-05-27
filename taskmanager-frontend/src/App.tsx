@@ -16,6 +16,12 @@ import { buildDateTimeString, formatDate, formatDateTime as formatDateTimeDispla
 import { isTaskOverdue } from './utils/taskUtils';
 import Calendar from './components/Calendar';
 
+declare global {
+  interface Window {
+    __taskManagerTextFocusDebug?: boolean;
+  }
+}
+
 type Ampm = 'AM' | 'PM';
 type Theme = 'system' | 'light' | 'dark';
 type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
@@ -744,6 +750,11 @@ function App(): JSX.Element {
   const toastIdRef = useRef(0);
 
   const [mobilePage, setMobilePage] = useState<MobilePage>('tasks');
+  const [mobileEditLayout, setMobileEditLayout] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 720px), (pointer: coarse)').matches
+  );
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
   const taskLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -811,6 +822,22 @@ function App(): JSX.Element {
   // Prevent the same due reminder from opening duplicate toasts.
   const firedReminders = useRef<Set<number>>(new Set());
 
+  const resetDocumentViewportScroll = () => {
+    if (window.scrollY !== 0) window.scrollTo(0, 0);
+    const scrollingElement = document.scrollingElement;
+    if (scrollingElement) scrollingElement.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
+  const prepareInlineEditViewport = () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    resetDocumentViewportScroll();
+    document.dispatchEvent(new CustomEvent('task-manager:edit-entry-reset'));
+    window.requestAnimationFrame(() => resetDocumentViewportScroll());
+    window.setTimeout(() => resetDocumentViewportScroll(), 40);
+  };
+
   // Initial API hydration.
   useEffect(() => {
     getTasks()
@@ -821,33 +848,682 @@ function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    const isTextInputFocused = () => {
-      const active = document.activeElement;
-      if (!active) return false;
-      return active instanceof HTMLInputElement ||
-        active instanceof HTMLTextAreaElement ||
-        active instanceof HTMLSelectElement;
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(max-width: 720px), (pointer: coarse)');
+    const update = () => setMobileEditLayout(query.matches);
+    update();
+    if (typeof query.addEventListener === 'function') {
+      query.addEventListener('change', update);
+      return () => query.removeEventListener('change', update);
+    }
+    query.addListener(update);
+    return () => query.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    const textInputTypesWithoutKeyboard = ['button', 'checkbox', 'color', 'date', 'file', 'radio', 'range', 'time'];
+    const isTextInput = (target: EventTarget | null): target is HTMLInputElement | HTMLTextAreaElement => target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLInputElement && !textInputTypesWithoutKeyboard.includes(target.type));
+    const getActiveTextElement = () => isTextInput(document.activeElement) ? document.activeElement : null;
+    const isTextInputFocused = () => getActiveTextElement() !== null;
+    const getTextFocusScope = (element: HTMLInputElement | HTMLTextAreaElement) =>
+      element.closest<HTMLElement>('[data-text-focus-scope]') ?? element.closest<HTMLElement>('.card');
+    const textFocusDebugEnabled = () => {
+      try {
+        return window.localStorage.getItem('taskManagerTextFocusDebug') === '1' ||
+          window.__taskManagerTextFocusDebug === true;
+      } catch {
+        return false;
+      }
+    };
+    const describeElement = (element: EventTarget | Element | null) => {
+      if (!(element instanceof Element)) return 'null';
+      const className = typeof element.className === 'string' ? `.${element.className.trim().replace(/\s+/g, '.')}` : '';
+      const label = element.getAttribute('aria-label') ?? element.getAttribute('name') ?? element.getAttribute('placeholder') ?? '';
+      return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${className}${label ? `[${label}]` : ''}`;
+    };
+    const isMobileTouchEnvironment = () =>
+      (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0;
+    const getScrollSnapshot = () => {
+      const root = document.getElementById('root');
+      const app = document.querySelector('.app');
+      const pager = document.querySelector('.mobile-pager');
+      const activeElement = getActiveTextElement();
+      const scope = activeElement ? getTextFocusScope(activeElement) : null;
+      const mobilePage = activeElement?.closest('.mobile-page');
+      const controls = scope?.querySelector('.controls');
+      const taskList = document.querySelector('.app__list');
+      const editCard = activeElement?.closest('.item__edit-card');
+      return {
+        windowY: window.scrollY,
+        documentElement: document.documentElement.scrollTop,
+        body: document.body.scrollTop,
+        root: root?.scrollTop ?? null,
+        app: app instanceof HTMLElement ? app.scrollTop : null,
+        pager: pager instanceof HTMLElement ? pager.scrollTop : null,
+        mobilePage: mobilePage instanceof HTMLElement ? mobilePage.scrollTop : null,
+        scope: scope?.scrollTop ?? null,
+        controls: controls instanceof HTMLElement ? controls.scrollTop : null,
+        taskList: taskList instanceof HTMLElement ? taskList.scrollTop : null,
+        editCard: editCard instanceof HTMLElement ? editCard.scrollTop : null,
+        activeText: activeElement?.scrollTop ?? null,
+      };
+    };
+    const getVisualViewportSnapshot = () => window.visualViewport ? {
+      height: window.visualViewport.height,
+      offsetTop: window.visualViewport.offsetTop,
+      pageTop: window.visualViewport.pageTop,
+      scale: window.visualViewport.scale,
+    } : null;
+    const logTextFocusDebug = (event: string, details: Record<string, unknown> = {}) => {
+      if (!textFocusDebugEnabled()) return;
+      const activeElement = getActiveTextElement();
+      const scope = activeElement ? getTextFocusScope(activeElement) : null;
+      console.debug('[text-focus-guard]', {
+        event,
+        keyboardTextMode,
+        activeTextElement: describeElement(activeTextElement),
+        documentActiveElement: describeElement(document.activeElement),
+        activeTextScope: describeElement(activeTextScope),
+        currentScope: describeElement(scope),
+        transitionId,
+        focusSequence,
+        correctionMode: 'document',
+        scroll: getScrollSnapshot(),
+        visualViewport: getVisualViewportSnapshot(),
+        ...details,
+      });
+    };
+    const logTextFocusSummary = (details: Record<string, unknown>) => {
+      if (!textFocusDebugEnabled()) return;
+      const scroll = getScrollSnapshot();
+      const visualViewport = getVisualViewportSnapshot();
+      console.info('[text-focus-summary]', {
+        ...details,
+        documentActiveElement: describeElement(document.activeElement),
+        keyboardTextMode,
+        windowScrollY: scroll.windowY,
+        docScrollTop: scroll.documentElement,
+        bodyScrollTop: scroll.body,
+        rootScrollTop: scroll.root,
+        appScrollTop: scroll.app,
+        mobilePageScrollTop: scroll.mobilePage,
+        controlsScrollTop: scroll.controls,
+        visualViewportOffsetTop: visualViewport?.offsetTop ?? null,
+        visualViewportPageTop: visualViewport?.pageTop ?? null,
+        visualViewportScale: visualViewport?.scale ?? null,
+      });
+    };
+    const logTextFocusCorrectionSummary = (details: Record<string, unknown>) => {
+      if (!textFocusDebugEnabled()) return;
+      console.info(
+        '[text-focus-correction-summary] ' +
+        `transitionId=${details.transitionId} ` +
+        `event=${details.event} ` +
+        `source=${details.source} ` +
+        `active=${details.active} ` +
+        `scope=${details.scope} ` +
+        `windowY=${details.beforeWindowY}->${details.afterWindowY} ` +
+        `docTop=${details.beforeDocTop}->${details.afterDocTop} ` +
+        `bodyTop=${details.beforeBodyTop}->${details.afterBodyTop} ` +
+        `viewportOffset=${details.beforeViewportOffsetTop}->${details.afterViewportOffsetTop} ` +
+        `viewportPageTop=${details.beforeViewportPageTop}->${details.afterViewportPageTop} ` +
+        `viewportHeight=${details.beforeViewportHeight}->${details.afterViewportHeight} ` +
+        `viewportScale=${details.beforeViewportScale}->${details.afterViewportScale} ` +
+        `taskList=${details.beforeTaskListTop}->${details.afterTaskListTop} ` +
+        `scopeTop=${details.beforeScopeTop}->${details.afterScopeTop} ` +
+        `field=${details.beforeActiveTextTop}->${details.afterActiveTextTop} ` +
+        `changed=${Array.isArray(details.changed) ? details.changed.join('|') : details.changed} ` +
+        `scrollTo=${details.windowScrollToCalled} ` +
+        `docAssign=${details.documentElementAssignmentCalled} ` +
+        `bodyAssign=${details.bodyAssignmentCalled} ` +
+        `scrollToIgnored=${details.windowScrollIgnored} ` +
+        `docAssignIgnored=${details.documentElementAssignmentIgnored} ` +
+        `bodyAssignIgnored=${details.bodyAssignmentIgnored} ` +
+        `viewportStillOffset=${details.visualViewportStillOffset} ` +
+        `viewportStillPaged=${details.visualViewportStillPaged} ` +
+        `stillDrifted=${details.stillDrifted}`
+      );
+    };
+    const logTextFocusInfo = (message: string, details: Record<string, unknown> = {}) => {
+      if (!textFocusDebugEnabled()) return;
+      console.info(`[text-focus-debug] ${message}`, details);
+    };
+    const logTextFocusLayout = (phase: string) => {
+      if (!textFocusDebugEnabled()) return;
+      const activeElement = getActiveTextElement();
+      const scope = activeElement ? getTextFocusScope(activeElement) : activeTextScope;
+      const card = scope;
+      const fieldRect = activeElement?.getBoundingClientRect();
+      const cardRect = card?.getBoundingClientRect();
+      const visualViewport = getVisualViewportSnapshot();
+      console.info(
+        '[text-focus-layout] ' +
+        `phase=${phase} ` +
+        `scope=${describeElement(scope)} ` +
+        `active=${describeElement(activeElement)} ` +
+        `cardRectTop=${cardRect?.top ?? 'null'} ` +
+        `cardRectBottom=${cardRect?.bottom ?? 'null'} ` +
+        `fieldRectTop=${fieldRect?.top ?? 'null'} ` +
+        `fieldRectBottom=${fieldRect?.bottom ?? 'null'} ` +
+        `viewportHeight=${visualViewport?.height ?? window.innerHeight} ` +
+        `viewportOffset=${visualViewport?.offsetTop ?? 'null'} ` +
+        `pageTop=${visualViewport?.pageTop ?? 'null'} ` +
+        `windowY=${window.scrollY} ` +
+        `docTop=${document.documentElement.scrollTop}`
+      );
+    };
+
+    let keyboardTextMode = false;
+    let activeTextElement: HTMLInputElement | HTMLTextAreaElement | null = null;
+    let activeTextScope: HTMLElement | null = null;
+    let focusSequence = 0;
+    let transitionId = 0;
+    let currentTransition: { transitionId: number; from: string; scopeFrom: string; to: string; scopeTo: string } | undefined;
+    let pendingNonTextTransition: { transitionId: number; from: string; scopeFrom: string; timer: ReturnType<typeof setTimeout> } | undefined;
+    const scheduledTransitionSummaries = new Set<string>();
+    const transitionSummaryTimers: ReturnType<typeof setTimeout>[] = [];
+    let blurCleanupTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const clearPendingNonTextTransition = () => {
+      if (!pendingNonTextTransition) return;
+      window.clearTimeout(pendingNonTextTransition.timer);
+      pendingNonTextTransition = undefined;
+    };
+
+    const createTransition = (reason: string, from: string, scopeFrom: string, to: string, scopeTo: string) => {
+      if (currentTransition?.to === to && currentTransition.scopeTo === scopeTo) {
+        logTextFocusDebug('transition-deduped', {
+          transitionCreationReason: reason,
+          transitionTime: performance.now(),
+          existingTransitionId: currentTransition.transitionId,
+          from,
+          to,
+          scopeFrom,
+          scopeTo,
+        });
+        return currentTransition;
+      }
+      transitionId += 1;
+      currentTransition = { transitionId, from, scopeFrom, to, scopeTo };
+      logTextFocusDebug('transition-created', {
+        transitionCreationReason: reason,
+        transitionTime: performance.now(),
+        transitionId,
+        from,
+        to,
+        scopeFrom,
+        scopeTo,
+      });
+      return currentTransition;
+    };
+
+    const scheduleTransitionSummaries = (
+      reason: string,
+      transition: { transitionId: number; from: string; scopeFrom: string },
+      initialChangedValues: string[],
+    ) => {
+      if (!textFocusDebugEnabled()) return;
+      [40, 120, 300].forEach(delay => {
+        const summaryKey = `${transition.transitionId}:${delay}`;
+        if (scheduledTransitionSummaries.has(summaryKey)) {
+          logTextFocusDebug('summary-deduped', {
+            transitionId: transition.transitionId,
+            settledAtMs: delay,
+            reason,
+          });
+          return;
+        }
+        scheduledTransitionSummaries.add(summaryKey);
+        const timer = window.setTimeout(() => {
+          const activeElement = getActiveTextElement();
+          logTextFocusSummary({
+            transitionId: transition.transitionId,
+            settledAtMs: delay,
+            from: transition.from,
+            to: describeElement(activeElement),
+            scopeFrom: transition.scopeFrom,
+            scopeTo: activeElement ? describeElement(getTextFocusScope(activeElement)) : 'null',
+            correctionChangedValues: delay === 40 ? initialChangedValues : [],
+          });
+        }, delay);
+        transitionSummaryTimers.push(timer);
+      });
+    };
+
+    const scheduleNonTextTransition = (from: string, scopeFrom: string) => {
+      clearPendingNonTextTransition();
+      const nonTextTransitionId = transitionId + 1;
+      const timer = window.setTimeout(() => {
+        pendingNonTextTransition = undefined;
+        const activeElement = getActiveTextElement();
+        if (activeElement) return;
+        transitionId = nonTextTransitionId;
+        currentTransition = { transitionId, from, scopeFrom, to: 'null', scopeTo: 'null' };
+        logTextFocusDebug('transition-created', {
+          transitionCreationReason: 'blur-to-non-text-debounced',
+          transitionTime: performance.now(),
+          transitionId,
+          from,
+          to: 'null',
+          scopeFrom,
+          scopeTo: 'null',
+        });
+        resetDocumentScrollBurst('focusout-settled', currentTransition);
+      }, 80);
+      pendingNonTextTransition = { transitionId: nonTextTransitionId, from, scopeFrom, timer };
+      logTextFocusDebug('transition-pending-non-text', {
+        transitionCreationReason: 'focusout-body-gap',
+        transitionTime: performance.now(),
+        pendingTransitionId: nonTextTransitionId,
+        from,
+        scopeFrom,
+        documentActiveElement: describeElement(document.activeElement),
+      });
+    };
+
+    const resetDocumentScrollDetailed = () => {
+      const changedValues: string[] = [];
+      const assignment = {
+        windowScrollToCalled: false,
+        documentScrollingElementAssignmentCalled: false,
+        documentElementAssignmentCalled: false,
+        bodyAssignmentCalled: false,
+      };
+      const scrollingElement = document.scrollingElement;
+      if (window.scrollY !== 0) {
+        assignment.windowScrollToCalled = true;
+        changedValues.push('window.scrollY');
+        window.scrollTo(0, 0);
+      }
+      if (scrollingElement && scrollingElement.scrollTop !== 0) {
+        assignment.documentScrollingElementAssignmentCalled = true;
+        changedValues.push('document.scrollingElement.scrollTop');
+        scrollingElement.scrollTop = 0;
+      }
+      if (document.documentElement.scrollTop !== 0) {
+        assignment.documentElementAssignmentCalled = true;
+        changedValues.push('document.documentElement.scrollTop');
+        document.documentElement.scrollTop = 0;
+      }
+      if (document.body.scrollTop !== 0) {
+        assignment.bodyAssignmentCalled = true;
+        changedValues.push('document.body.scrollTop');
+        document.body.scrollTop = 0;
+      }
+      return { changedValues, assignment };
+    };
+
+    const resetDocumentScroll = () => {
+      return resetDocumentScrollDetailed().changedValues;
+    };
+
+    let lastTextFocusTouchY: number | null = null;
+
+    const visualViewportDriftDetected = (
+      scroll: ReturnType<typeof getScrollSnapshot>,
+      visualViewport: ReturnType<typeof getVisualViewportSnapshot>,
+    ) => Boolean(
+      keyboardTextMode &&
+      getActiveTextElement() &&
+      scroll.windowY === 0 &&
+      scroll.documentElement === 0 &&
+      scroll.body === 0 &&
+      ((visualViewport?.offsetTop ?? 0) !== 0 || (visualViewport?.pageTop ?? 0) !== 0)
+    );
+
+    const resetTextFocusScroll = (reason = 'scroll-correction', source = 'null') => {
+      const beforeScroll = getScrollSnapshot();
+      const beforeVisualViewport = getVisualViewportSnapshot();
+      const { changedValues, assignment } = resetDocumentScrollDetailed();
+      const afterScroll = getScrollSnapshot();
+      const afterVisualViewport = getVisualViewportSnapshot();
+      const visualViewportDrifted =
+        (afterVisualViewport?.offsetTop ?? 0) !== 0 ||
+        (afterVisualViewport?.pageTop ?? 0) !== 0;
+      const stillDrifted = afterScroll.windowY !== 0 ||
+        afterScroll.documentElement !== 0 ||
+        afterScroll.body !== 0 ||
+        visualViewportDrifted;
+      logTextFocusDebug('correction-result', {
+        correctionEvent: reason,
+        source,
+        before: {
+          scroll: beforeScroll,
+          visualViewport: beforeVisualViewport,
+        },
+        after: {
+          scroll: afterScroll,
+          visualViewport: afterVisualViewport,
+        },
+        changed: changedValues,
+        windowScrollToAttempted: beforeScroll.windowY !== 0,
+        stillDrifted,
+      });
+      logTextFocusCorrectionSummary({
+        transitionId,
+        event: reason,
+        source,
+        active: describeElement(getActiveTextElement()),
+        scope: describeElement(activeTextScope),
+        beforeWindowY: beforeScroll.windowY,
+        afterWindowY: afterScroll.windowY,
+        beforeDocTop: beforeScroll.documentElement,
+        afterDocTop: afterScroll.documentElement,
+        beforeBodyTop: beforeScroll.body,
+        afterBodyTop: afterScroll.body,
+        beforeTaskListTop: beforeScroll.taskList,
+        afterTaskListTop: afterScroll.taskList,
+        beforeScopeTop: beforeScroll.scope,
+        afterScopeTop: afterScroll.scope,
+        beforeActiveTextTop: beforeScroll.activeText,
+        afterActiveTextTop: afterScroll.activeText,
+        beforeViewportOffsetTop: beforeVisualViewport?.offsetTop ?? null,
+        afterViewportOffsetTop: afterVisualViewport?.offsetTop ?? null,
+        beforeViewportPageTop: beforeVisualViewport?.pageTop ?? null,
+        afterViewportPageTop: afterVisualViewport?.pageTop ?? null,
+        beforeViewportHeight: beforeVisualViewport?.height ?? null,
+        afterViewportHeight: afterVisualViewport?.height ?? null,
+        beforeViewportScale: beforeVisualViewport?.scale ?? null,
+        afterViewportScale: afterVisualViewport?.scale ?? null,
+        changed: changedValues,
+        stillDrifted,
+        windowScrollToCalled: assignment.windowScrollToCalled,
+        documentScrollingElementAssignmentCalled: assignment.documentScrollingElementAssignmentCalled,
+        documentElementAssignmentCalled: assignment.documentElementAssignmentCalled,
+        bodyAssignmentCalled: assignment.bodyAssignmentCalled,
+        windowScrollIgnored: assignment.windowScrollToCalled && afterScroll.windowY !== 0,
+        documentElementAssignmentIgnored: assignment.documentElementAssignmentCalled && afterScroll.documentElement !== 0,
+        bodyAssignmentIgnored: assignment.bodyAssignmentCalled && afterScroll.body !== 0,
+        visualViewportStillOffset: (afterVisualViewport?.offsetTop ?? 0) !== 0,
+        visualViewportStillPaged: (afterVisualViewport?.pageTop ?? 0) !== 0,
+      });
+      const delayedCorrection = /:(raf|40|120|300)$/.test(reason);
+      if (!delayedCorrection || changedValues.length > 0) {
+        logTextFocusDebug(reason, { correctionChangedValues: changedValues });
+      }
+      if (visualViewportDriftDetected(afterScroll, afterVisualViewport)) {
+        logTextFocusDebug('visual-viewport-drift-detected', {
+          correctionEvent: reason,
+          visualViewport: afterVisualViewport,
+        });
+      }
+      return changedValues;
+    };
+
+    const resetDocumentScrollBurst = (
+      reason = 'scroll-burst',
+      transition?: { transitionId: number; from: string; scopeFrom: string },
+      source = 'null',
+    ) => {
+      const changedValues = resetTextFocusScroll(reason, source);
+      window.requestAnimationFrame(() => resetTextFocusScroll(`${reason}:raf`, source));
+      [40, 120, 300].forEach(delay => {
+        window.setTimeout(() => resetTextFocusScroll(`${reason}:${delay}`, source), delay);
+      });
+      if (transition) scheduleTransitionSummaries(reason, transition, changedValues);
     };
 
     const setStableViewportHeight = (force = false) => {
       if (!force && isTextInputFocused()) return;
       document.documentElement.style.setProperty('--app-viewport-height', `${window.innerHeight}px`);
+      resetDocumentScroll();
     };
 
-    const handleResize = () => setStableViewportHeight(false);
+    const clearBlurCleanupTimer = () => {
+      if (!blurCleanupTimer) return;
+      window.clearTimeout(blurCleanupTimer);
+      blurCleanupTimer = undefined;
+    };
+
+    const syncTextModeFromActiveElement = () => {
+      const currentTextElement = getActiveTextElement();
+      if (!currentTextElement) return false;
+      keyboardTextMode = true;
+      activeTextElement = currentTextElement;
+      activeTextScope = getTextFocusScope(currentTextElement);
+      return true;
+    };
+
+    const restoreFullHeight = () => {
+      if (syncTextModeFromActiveElement()) {
+        resetDocumentScrollBurst('restore-kept-active');
+        return;
+      }
+      keyboardTextMode = false;
+      activeTextElement = null;
+      activeTextScope = null;
+      setStableViewportHeight(true);
+      resetDocumentScrollBurst('restore-full-height');
+    };
+
+    const handleResize = () => {
+      if (keyboardTextMode) return;
+      setStableViewportHeight(false);
+    };
     const handleOrientationChange = () => {
       window.setTimeout(() => setStableViewportHeight(true), 250);
     };
+    const handleTextFocus = (event: FocusEvent) => {
+      if (!isTextInput(event.target)) return;
+      const previousActiveTextElement = activeTextElement;
+      const previousScope = activeTextScope;
+      const previousActiveTextElementLabel = describeElement(previousActiveTextElement);
+      const previousScopeLabel = describeElement(previousScope);
+      clearBlurCleanupTimer();
+      clearPendingNonTextTransition();
+      focusSequence += 1;
+      syncTextModeFromActiveElement();
+      if (activeTextElement !== event.target) {
+        keyboardTextMode = true;
+        activeTextElement = event.target;
+        activeTextScope = getTextFocusScope(event.target);
+      }
+      const nextActiveTextElement = activeTextElement;
+      const nextScope = activeTextScope;
+      const eventTargetScope = getTextFocusScope(event.target);
+      const eventTargetIsCurrentActiveGuardedElement = activeTextElement === event.target && activeTextScope === eventTargetScope;
+      const transition = createTransition(
+        event.type,
+        previousActiveTextElementLabel,
+        previousScopeLabel,
+        describeElement(nextActiveTextElement),
+        describeElement(nextScope),
+      );
+      logTextFocusDebug(event.type, {
+        eventTarget: describeElement(event.target),
+        relatedTarget: describeElement(event.relatedTarget),
+        previousActiveTextElement: previousActiveTextElementLabel,
+        nextActiveTextElement: describeElement(nextActiveTextElement),
+        previousScope: previousScopeLabel,
+        nextScope: describeElement(nextScope),
+        eventTargetIsCurrentActiveGuardedElement,
+        transitionCreationReason: event.type,
+        transitionTime: performance.now(),
+      });
+      logTextFocusLayout('focusin');
+      resetDocumentScrollBurst('focusin', transition);
+    };
+    const handleTextBlur = (event: FocusEvent) => {
+      if (!isTextInput(event.target)) return;
+      const previousActiveTextElement = activeTextElement;
+      const previousScope = activeTextScope;
+      const previousActiveTextElementLabel = describeElement(previousActiveTextElement);
+      const previousScopeLabel = describeElement(previousScope);
+      focusSequence += 1;
+      const blurredScope = getTextFocusScope(event.target);
+      const blurredActiveText = activeTextElement === event.target && activeTextScope === blurredScope;
+      const eventTargetIsCurrentActiveGuardedElement = blurredActiveText;
+      const relatedTextTarget = isTextInput(event.relatedTarget) ? event.relatedTarget : null;
+      const transition = relatedTextTarget
+        ? createTransition(
+            event.type,
+            describeElement(event.target),
+            describeElement(blurredScope),
+            describeElement(relatedTextTarget),
+            describeElement(getTextFocusScope(relatedTextTarget)),
+          )
+        : currentTransition;
+      logTextFocusDebug(event.type, {
+        eventTarget: describeElement(event.target),
+        relatedTarget: describeElement(event.relatedTarget),
+        previousActiveTextElement: previousActiveTextElementLabel,
+        nextActiveTextElement: describeElement(getActiveTextElement()),
+        previousScope: previousScopeLabel,
+        nextScope: event.relatedTarget && isTextInput(event.relatedTarget) ? describeElement(getTextFocusScope(event.relatedTarget)) : describeElement(activeTextScope),
+        eventTargetIsCurrentActiveGuardedElement,
+        blurredActiveText,
+        transitionCreationReason: relatedTextTarget ? event.type : 'intermediate-non-text',
+        transitionTime: performance.now(),
+        transitionId: transition?.transitionId ?? transitionId,
+      });
+      if (transition) resetDocumentScrollBurst('focusout', transition);
+      if (relatedTextTarget) {
+        clearBlurCleanupTimer();
+        keyboardTextMode = true;
+        activeTextElement = relatedTextTarget;
+        activeTextScope = getTextFocusScope(relatedTextTarget);
+        return;
+      }
+      scheduleNonTextTransition(describeElement(event.target), describeElement(blurredScope));
+      clearBlurCleanupTimer();
+      const blurSequence = focusSequence;
+      logTextFocusDebug('restore-scheduled', { blurSequence, transitionId });
+      blurCleanupTimer = window.setTimeout(() => {
+        logTextFocusDebug('restore-fired', { blurSequence, transitionId });
+        if (blurSequence !== focusSequence) return;
+        if (!blurredActiveText && syncTextModeFromActiveElement()) {
+          if (currentTransition) resetDocumentScrollBurst('restore-stale-blur-active', currentTransition);
+          return;
+        }
+        restoreFullHeight();
+      }, 300);
+    };
+    const handleScroll = (event: Event) => {
+      const nestedScroll = event.target !== document && event.target !== window;
+      if (nestedScroll && !textFocusDebugEnabled()) return;
+      if (!keyboardTextMode && !syncTextModeFromActiveElement()) return;
+      syncTextModeFromActiveElement();
+      const source = describeElement(event.target);
+      logTextFocusDebug('scroll', { source });
+      logTextFocusLayout('scroll');
+      resetDocumentScrollBurst('scroll', undefined, source);
+    };
+    const textareaCanScrollInTouchDirection = (textarea: HTMLTextAreaElement, event: TouchEvent) => {
+      const maxScrollTop = textarea.scrollHeight - textarea.clientHeight;
+      if (maxScrollTop <= 0) return false;
+      const currentTouchY = event.touches?.[0]?.clientY ?? null;
+      if (currentTouchY === null || lastTextFocusTouchY === null) return true;
+      const scrollDelta = lastTextFocusTouchY - currentTouchY;
+      if (scrollDelta < 0 && textarea.scrollTop <= 0) return false;
+      if (scrollDelta > 0 && textarea.scrollTop >= maxScrollTop) return false;
+      return true;
+    };
+    const handleTextFocusTouchStart = (event: TouchEvent) => {
+      if (!isMobileTouchEnvironment()) return;
+      lastTextFocusTouchY = event.touches?.[0]?.clientY ?? null;
+    };
+    const handleTextFocusTouchMove = (event: TouchEvent) => {
+      if (!isMobileTouchEnvironment()) return;
+      const activeElement = getActiveTextElement();
+      if (!activeElement && !keyboardTextMode && !syncTextModeFromActiveElement()) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!activeElement) return;
+      if (activeElement instanceof HTMLTextAreaElement && target && (target === activeElement || activeElement.contains(target))) {
+        if (textareaCanScrollInTouchDirection(activeElement, event)) {
+          lastTextFocusTouchY = event.touches?.[0]?.clientY ?? lastTextFocusTouchY;
+          logTextFocusDebug('prevent-vv-drag:touchmove-allowed', {
+            reason: 'textarea-internal-scroll',
+            eventTarget: describeElement(event.target),
+            active: describeElement(activeElement),
+            scrollTop: activeElement.scrollTop,
+            scrollHeight: activeElement.scrollHeight,
+            clientHeight: activeElement.clientHeight,
+          });
+          return;
+        }
+        event.preventDefault();
+        logTextFocusDebug('prevent-vv-drag:touchmove-prevented', {
+          reason: 'textarea-no-scroll-or-overscroll',
+          eventTarget: describeElement(event.target),
+          active: describeElement(activeElement),
+          scrollTop: activeElement.scrollTop,
+          scrollHeight: activeElement.scrollHeight,
+          clientHeight: activeElement.clientHeight,
+        });
+        lastTextFocusTouchY = event.touches?.[0]?.clientY ?? lastTextFocusTouchY;
+        return;
+      }
+      if (target && (target === activeElement || activeElement.contains(target))) return;
+      event.preventDefault();
+      logTextFocusDebug('prevent-vv-drag:touchmove-prevented', {
+        eventTarget: describeElement(event.target),
+        active: describeElement(activeElement),
+      });
+    };
+    const handleVisualViewportChange = (event: Event) => {
+      logTextFocusDebug(`visualViewport:${event.type}`);
+      logTextFocusLayout(`vv-${event.type}`);
+      const scroll = getScrollSnapshot();
+      const visualViewport = getVisualViewportSnapshot();
+      if (visualViewportDriftDetected(scroll, visualViewport)) {
+        logTextFocusDebug('visual-viewport-drift-detected', {
+          correctionEvent: `visualViewport:${event.type}`,
+          visualViewport,
+        });
+      }
+    };
+    const handleEditEntryReset = () => {
+      clearBlurCleanupTimer();
+      clearPendingNonTextTransition();
+      if (syncTextModeFromActiveElement()) {
+        logTextFocusDebug('edit-entry-reset-kept-active');
+        resetDocumentScrollBurst('edit-entry-reset-kept-active');
+        return;
+      }
+      keyboardTextMode = false;
+      activeTextElement = null;
+      activeTextScope = null;
+      currentTransition = undefined;
+      logTextFocusDebug('edit-entry-reset');
+      logTextFocusLayout('edit-open');
+      resetDocumentScrollBurst('edit-entry-reset');
+    };
 
+    logTextFocusInfo('enabled', { href: window.location.href });
     setStableViewportHeight(true);
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleOrientationChange);
-    window.visualViewport?.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    document.addEventListener('touchstart', handleTextFocusTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove', handleTextFocusTouchMove, { capture: true, passive: false });
+    document.addEventListener('focusin', handleTextFocus);
+    document.addEventListener('focusout', handleTextBlur);
+    document.addEventListener('blur', handleTextBlur, true);
+    document.addEventListener('task-manager:edit-entry-reset', handleEditEntryReset);
+    window.visualViewport?.addEventListener('resize', handleVisualViewportChange);
+    window.visualViewport?.addEventListener('scroll', handleVisualViewportChange);
+    logTextFocusInfo('listeners attached');
 
     return () => {
+      clearBlurCleanupTimer();
+      clearPendingNonTextTransition();
+      transitionSummaryTimers.forEach(timer => window.clearTimeout(timer));
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
-      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll, true);
+      document.removeEventListener('touchstart', handleTextFocusTouchStart, true);
+      document.removeEventListener('touchmove', handleTextFocusTouchMove, true);
+      document.removeEventListener('focusin', handleTextFocus);
+      document.removeEventListener('focusout', handleTextBlur);
+      document.removeEventListener('blur', handleTextBlur, true);
+      document.removeEventListener('task-manager:edit-entry-reset', handleEditEntryReset);
+      window.visualViewport?.removeEventListener('resize', handleVisualViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleVisualViewportChange);
     };
   }, []);
 
@@ -1415,6 +2091,7 @@ function App(): JSX.Element {
   };
 
   const handleEditTaskAction = (task: Task) => {
+    prepareInlineEditViewport();
     setOpenActionTaskId(null);
     setSelectedTaskId(null);
     startEdit(task);
@@ -2227,6 +2904,295 @@ function App(): JSX.Element {
     filterStatus === 'high' || filterStatus === 'medium' || filterStatus === 'low'
       ? filterStatus
       : 'all';
+  const renderTaskDescriptionField = ({
+    value,
+    onValue,
+    placeholder,
+    ariaLabel,
+    rows,
+    maxLength,
+    titleStyleInput = false,
+  }: {
+    value: string;
+    onValue: (value: string) => void;
+    placeholder: string;
+    ariaLabel: string;
+    rows: number;
+    maxLength: number;
+    titleStyleInput?: boolean;
+  }) => titleStyleInput ? (
+    <input
+      className="input"
+      type="text"
+      value={value}
+      onChange={e => onValue(e.currentTarget.value)}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      maxLength={maxLength}
+    />
+  ) : (
+    <textarea
+      className="input controls__description"
+      value={value}
+      onChange={e => onValue(e.currentTarget.value)}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      maxLength={maxLength}
+      rows={rows}
+    />
+  );
+  const renderInlineEditForm = (task: Task, variant: 'inline' | 'mobile' = 'inline') => {
+    const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
+    return (
+      <div
+        className={`item__edit-card${variant === 'mobile' ? ' mobile-edit-panel' : ''}`}
+        data-text-focus-scope={scopeId}
+        data-edit-layout={variant}
+        onClick={e => e.stopPropagation()}
+      >
+        {variant === 'mobile' && (
+          <div className="mobile-edit-panel__header">
+            <span className="mobile-edit-panel__title">Edit task</span>
+            <button className="btn btn--ghost btn--icon" onClick={cancelEdit} aria-label="Close edit task">×</button>
+          </div>
+        )}
+        <input
+          className="input"
+          value={editTitle}
+          onChange={e => setEditTitle(e.target.value)}
+          placeholder="Task title"
+          aria-label="Task title"
+        />
+        <div className="desc-wrap">
+          {renderTaskDescriptionField({
+            value: editDescription,
+            onValue: setEditDescription,
+            placeholder: 'Description',
+            ariaLabel: 'Task description',
+            maxLength: 1000,
+            rows: 2,
+            titleStyleInput: variant === 'mobile',
+          })}
+          <span className="char-count">{editDescription.length}/1000</span>
+        </div>
+        <DateTimeRow
+          editorScope={scopeId}
+          openTimeEditorScope={openTimeEditorScope}
+          setOpenTimeEditorScope={setOpenTimeEditorScope}
+          closeFloatingControls={closeFloatingControls}
+          is24Hour={is24Hour}
+          hourOptions={hourOptions}
+          openControl={inlineEditOpenControl}
+          setOpenControl={setInlineEditOpenControl}
+          controlIds={{
+            date: `${scopeId}:date`,
+            start: `${scopeId}:start`,
+            end: `${scopeId}:end`,
+            startHour: `${scopeId}:start-hour`,
+            startMinute: `${scopeId}:start-minute`,
+            startAmpm: `${scopeId}:start-ampm`,
+            endHour: `${scopeId}:end-hour`,
+            endMinute: `${scopeId}:end-minute`,
+            endAmpm: `${scopeId}:end-ampm`,
+          }}
+          dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
+          onDate={setEditDate} onHour={setEditHour} onMinute={setEditMinute} onAmpm={setEditAmpm}
+          showTime={editShowTime}
+          onToggleTime={() => setEditShowTime(p => !p)}
+          onRemoveStart={() => setEditShowTime(false)}
+          showEndTime={editShowEndTime}
+          onToggleEndTime={toggleEditEndTime}
+          endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
+          onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
+        />
+        <RecurrenceControl
+          value={editRepeatFrequency}
+          onChange={setEditRepeatFrequency}
+          openControl={inlineEditOpenControl}
+          onToggle={() => toggleInlineEditDropdown('repeat')}
+          onClose={() => setInlineEditOpenControl(null)}
+          controlId="repeat"
+          menuScope={scopeId}
+        />
+        {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
+        <div className="form-row item__edit-meta-row">
+          <div className="tag-select" ref={editProjectDropdownRef}>
+            <button
+              type="button"
+              className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
+              data-inline-edit-menu-trigger
+              onClick={() => {
+                toggleInlineEditDropdown('project');
+              }}
+            >
+              {editProjectID === ''
+                ? 'Project'
+                : projects.find(p => p.projectID === Number(editProjectID))?.title ?? 'Project'}
+            </button>
+            {inlineEditOpenControl === 'project' && (
+              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
+                <button
+                  type="button"
+                  className="tag-select__new-btn tag-select__new-btn--top"
+                  onClick={() => {
+                    setInlineEditOpenControl(null);
+                    if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
+                    else { setShowInlineEditProject(true); }
+                  }}
+                >+ New Project</button>
+                <button
+                  type="button"
+                  className={`tag-select__item tag-select__item--remove${editProjectID === '' ? ' tag-select__item--on' : ''}`}
+                  onClick={() => { setEditProjectID(''); setInlineEditOpenControl(null); }}
+                >
+                  No project
+                </button>
+                {projects.length === 0
+                  ? <p className="tag-select__empty">No projects yet.</p>
+                  : projects.map(p => {
+                    const selected = Number(editProjectID) === p.projectID;
+                    return (
+                      <button
+                        key={p.projectID}
+                        type="button"
+                        className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}
+                        onClick={() => { setEditProjectID(selected ? '' : p.projectID); setInlineEditOpenControl(null); }}
+                      >
+                        {p.title}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+
+          <div className="tag-select" ref={editTagDropdownRef}>
+            <button
+              type="button"
+              className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
+              data-inline-edit-menu-trigger
+              onClick={() => {
+                toggleInlineEditDropdown('tags');
+              }}
+            >
+              {editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
+            </button>
+            {inlineEditOpenControl === 'tags' && (
+              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
+                <button
+                  type="button"
+                  className="tag-select__new-btn tag-select__new-btn--top"
+                  onClick={() => {
+                    setInlineEditOpenControl(null);
+                    if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
+                    else { setShowInlineEditTag(true); }
+                  }}
+                >+ New Tag</button>
+                {tags.length === 0
+                  ? <p className="tag-select__empty">No tags yet.</p>
+                  : tags.map(tag => {
+                    const selected = editTaskTagIDs.includes(tag.tagID);
+                    return (
+                      <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID])}
+                        />
+                        <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                        {tag.title}
+                      </label>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+        {editTaskTagIDs.length > 0 && (
+          <div className="selected-tags item__edit-selected-tags">
+            {editTaskTagIDs.map(id => {
+              const tag = tags.find(t => t.tagID === id);
+              if (!tag) return null;
+              return (
+                <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
+                  <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                  {tag.title}
+                  <button
+                    type="button"
+                    className="selected-tag-chip__remove"
+                    onClick={() => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
+                    aria-label={`Remove tag ${tag.title}`}
+                  >×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {showInlineEditProject && (
+          <div className="project-inline-form">
+            <input
+              ref={inlineEditProjectInputRef}
+              className="input project-inline-form__input"
+              placeholder="Project name..."
+              aria-label="Project name"
+              value={newProjectTitle}
+              maxLength={PROJECT_MAX_LENGTH}
+              onChange={e => setNewProjectTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') addProjectInlineEdit();
+                if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); }
+              }}
+              autoFocus
+            />
+            <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
+            <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
+          </div>
+        )}
+        {showInlineEditTag && (
+          <div className="project-inline-form project-inline-form--tag">
+            <div className="tag-inline-top">
+              <input
+                ref={inlineEditTagInputRef}
+                className="input project-inline-form__input"
+                placeholder="Tag name..."
+                aria-label="Tag name"
+                value={newTagTitle}
+                onChange={e => setNewTagTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') addTagInlineEdit();
+                  if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }
+                }}
+                maxLength={TAG_MAX_LENGTH}
+                autoFocus
+              />
+              <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
+              <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
+            </div>
+            <div className="color-palette">
+              {TAG_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => setNewTagColor(c)}
+                  title={c}
+                  aria-label={`Choose tag color ${c}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="item__edit-actions">
+          <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
+          <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
+        </div>
+      </div>
+    );
+  };
+  const mobileEditingTask = mobileEditLayout && selectedTaskId === null && editingId !== null
+    ? tasks.find(task => task.taskID === editingId) ?? null
+    : null;
 
   return (
     <div className="app">
@@ -2296,7 +3262,7 @@ function App(): JSX.Element {
         onTouchEnd={handleSwipeEnd}
       >
       <section className="mobile-page mobile-page--add" data-active={mobilePage === 'add'}>
-      <div className="card app__add">
+      <div className="card app__add" data-text-focus-scope="create-task">
 
         {error && (
           <div className="error-banner">
@@ -2321,15 +3287,14 @@ function App(): JSX.Element {
             <p className="input-warn-msg">A task with this title already exists.</p>
           )}
           <div className="desc-wrap">
-            <textarea
-              className="input controls__description"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              aria-label="Task description"
-              maxLength={1000}
-              rows={2}
-            />
+            {renderTaskDescriptionField({
+              value: description,
+              onValue: setDescription,
+              placeholder: 'Description (optional)',
+              ariaLabel: 'Task description',
+              maxLength: 1000,
+              rows: 2,
+            })}
             <span className="char-count">{description.length}/1000</span>
           </div>
           <DateTimeRow
@@ -2790,6 +3755,8 @@ function App(): JSX.Element {
           aria-label="Search tasks"
         />
 
+        {mobileEditingTask && renderInlineEditForm(mobileEditingTask, 'mobile')}
+
         <div className="spread mtop small task-overview">
           <div className="task-count-row">
             <button
@@ -2998,241 +3965,7 @@ function App(): JSX.Element {
                         </div>
                       </div>
 
-                      {editingId === task.taskID && selectedTaskId !== task.taskID && (
-                        <div className="item__edit-card" onClick={e => e.stopPropagation()}>
-                          <input
-                            className="input"
-                            value={editTitle}
-                            onChange={e => setEditTitle(e.target.value)}
-                            placeholder="Task title"
-                            aria-label="Task title"
-                          />
-                          <div className="desc-wrap">
-                            <textarea
-                              className="input controls__description"
-                              value={editDescription}
-                              onChange={e => setEditDescription(e.target.value)}
-                              placeholder="Description"
-                              aria-label="Task description"
-                              maxLength={1000}
-                              rows={2}
-                            />
-                            <span className="char-count">{editDescription.length}/1000</span>
-                          </div>
-                          <DateTimeRow
-                            editorScope={`inline-edit-${task.taskID}`}
-                            openTimeEditorScope={openTimeEditorScope}
-                            setOpenTimeEditorScope={setOpenTimeEditorScope}
-                            closeFloatingControls={closeFloatingControls}
-                            is24Hour={is24Hour}
-                            hourOptions={hourOptions}
-                            openControl={inlineEditOpenControl}
-                            setOpenControl={setInlineEditOpenControl}
-                            controlIds={{
-                              date: `inline-edit-${task.taskID}:date`,
-                              start: `inline-edit-${task.taskID}:start`,
-                              end: `inline-edit-${task.taskID}:end`,
-                              startHour: `inline-edit-${task.taskID}:start-hour`,
-                              startMinute: `inline-edit-${task.taskID}:start-minute`,
-                              startAmpm: `inline-edit-${task.taskID}:start-ampm`,
-                              endHour: `inline-edit-${task.taskID}:end-hour`,
-                              endMinute: `inline-edit-${task.taskID}:end-minute`,
-                              endAmpm: `inline-edit-${task.taskID}:end-ampm`,
-                            }}
-                            dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
-                            onDate={setEditDate} onHour={setEditHour} onMinute={setEditMinute} onAmpm={setEditAmpm}
-                            showTime={editShowTime}
-                            onToggleTime={() => setEditShowTime(p => !p)}
-                            onRemoveStart={() => setEditShowTime(false)}
-                            showEndTime={editShowEndTime}
-                            onToggleEndTime={toggleEditEndTime}
-                            endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
-                            onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
-                          />
-                          <RecurrenceControl
-                            value={editRepeatFrequency}
-                            onChange={setEditRepeatFrequency}
-                            openControl={inlineEditOpenControl}
-                            onToggle={() => toggleInlineEditDropdown('repeat')}
-                            onClose={() => setInlineEditOpenControl(null)}
-                            controlId="repeat"
-                            menuScope="inline-edit"
-                          />
-                          {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
-                          <div className="form-row item__edit-meta-row">
-                            <div className="tag-select" ref={editProjectDropdownRef}>
-                              <button
-                                type="button"
-                                className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                                data-inline-edit-menu-trigger
-                                onClick={() => {
-                                  toggleInlineEditDropdown('project');
-                                }}
-                              >
-                                {editProjectID === ''
-                                  ? 'Project'
-                                  : projects.find(p => p.projectID === Number(editProjectID))?.title ?? 'Project'}
-                              </button>
-                              {inlineEditOpenControl === 'project' && (
-                                <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-                                  <button
-                                    type="button"
-                                    className="tag-select__new-btn tag-select__new-btn--top"
-                                    onClick={() => {
-                                      setInlineEditOpenControl(null);
-                                      if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
-                                      else { setShowInlineEditProject(true); }
-                                    }}
-                                  >+ New Project</button>
-                                  <button
-                                    type="button"
-                                    className={`tag-select__item tag-select__item--remove${editProjectID === '' ? ' tag-select__item--on' : ''}`}
-                                    onClick={() => { setEditProjectID(''); setInlineEditOpenControl(null); }}
-                                  >
-                                    No project
-                                  </button>
-                                  {projects.length === 0
-                                    ? <p className="tag-select__empty">No projects yet.</p>
-                                    : projects.map(p => {
-                                      const selected = Number(editProjectID) === p.projectID;
-                                      return (
-                                        <button
-                                          key={p.projectID}
-                                          type="button"
-                                          className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}
-                                          onClick={() => { setEditProjectID(selected ? '' : p.projectID); setInlineEditOpenControl(null); }}
-                                        >
-                                          {p.title}
-                                        </button>
-                                      );
-                                    })}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="tag-select" ref={editTagDropdownRef}>
-                              <button
-                                type="button"
-                                className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                                data-inline-edit-menu-trigger
-                                onClick={() => {
-                                  toggleInlineEditDropdown('tags');
-                                }}
-                              >
-                                {editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
-                              </button>
-                              {inlineEditOpenControl === 'tags' && (
-                                <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-                                  <button
-                                    type="button"
-                                    className="tag-select__new-btn tag-select__new-btn--top"
-                                    onClick={() => {
-                                      setInlineEditOpenControl(null);
-                                      if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
-                                      else { setShowInlineEditTag(true); }
-                                    }}
-                                  >+ New Tag</button>
-                                  {tags.length === 0
-                                    ? <p className="tag-select__empty">No tags yet.</p>
-                                    : tags.map(tag => {
-                                      const selected = editTaskTagIDs.includes(tag.tagID);
-                                      return (
-                                        <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
-                                          <input
-                                            type="checkbox"
-                                            checked={selected}
-                                            onChange={() => setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID])}
-                                          />
-                                          <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                                          {tag.title}
-                                        </label>
-                                      );
-                                    })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {editTaskTagIDs.length > 0 && (
-                            <div className="selected-tags item__edit-selected-tags">
-                              {editTaskTagIDs.map(id => {
-                                const tag = tags.find(t => t.tagID === id);
-                                if (!tag) return null;
-                                return (
-                                  <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
-                                    <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                                    {tag.title}
-                                    <button
-                                      type="button"
-                                      className="selected-tag-chip__remove"
-                                      onClick={() => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
-                                      aria-label={`Remove tag ${tag.title}`}
-                                    >×</button>
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {showInlineEditProject && (
-                            <div className="project-inline-form">
-                              <input
-                                ref={inlineEditProjectInputRef}
-                                className="input project-inline-form__input"
-                                placeholder="Project name..."
-                                aria-label="Project name"
-                                value={newProjectTitle}
-                                maxLength={PROJECT_MAX_LENGTH}
-                                onChange={e => setNewProjectTitle(e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') addProjectInlineEdit();
-                                  if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); }
-                                }}
-                                autoFocus
-                              />
-                              <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
-                              <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
-                            </div>
-                          )}
-                          {showInlineEditTag && (
-                            <div className="project-inline-form project-inline-form--tag">
-                              <div className="tag-inline-top">
-                                <input
-                                  ref={inlineEditTagInputRef}
-                                  className="input project-inline-form__input"
-                                  placeholder="Tag name..."
-                                  aria-label="Tag name"
-                                  value={newTagTitle}
-                                  onChange={e => setNewTagTitle(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') addTagInlineEdit();
-                                    if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }
-                                  }}
-                                  maxLength={TAG_MAX_LENGTH}
-                                  autoFocus
-                                />
-                                <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
-                                <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
-                              </div>
-                              <div className="color-palette">
-                                {TAG_COLORS.map(c => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`}
-                                    style={{ background: c }}
-                                    onClick={() => setNewTagColor(c)}
-                                    title={c}
-                                    aria-label={`Choose tag color ${c}`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="item__edit-actions">
-                            <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
-                            <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
-                          </div>
-                        </div>
-                      )}
+                      {editingId === task.taskID && selectedTaskId !== task.taskID && !mobileEditLayout && renderInlineEditForm(task)}
 
                       {confirmDeleteId === task.taskID && (
                         <div className="confirm-delete">
@@ -3308,7 +4041,7 @@ function App(): JSX.Element {
         const panelDone = panelSubtasks.filter(s => s.statusID === 2).length;
 
         return (
-          <div className="card app__detail">
+          <div className="card app__detail" data-text-focus-scope={`detail-edit-${selectedTaskId}`}>
             <div className="detail__header">
               <input
                 className="input detail__title-input"
@@ -3334,15 +4067,14 @@ function App(): JSX.Element {
 
             <div className="detail__fields">
               <div className="desc-wrap">
-                <textarea
-                  className="input controls__description"
-                  value={editDescription}
-                  onChange={e => { setEditDescription(e.target.value); scheduleAutoSave(); }}
-                  placeholder="Description"
-                  aria-label="Task description"
-                  maxLength={1000}
-                  rows={3}
-                />
+                {renderTaskDescriptionField({
+                  value: editDescription,
+                  onValue: value => { setEditDescription(value); scheduleAutoSave(); },
+                  placeholder: 'Description',
+                  ariaLabel: 'Task description',
+                  maxLength: 1000,
+                  rows: 3,
+                })}
                 <span className="char-count">{editDescription.length}/1000</span>
               </div>
 

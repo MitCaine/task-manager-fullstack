@@ -1,5 +1,6 @@
 import { render, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'fs';
 import App from './App';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
@@ -83,6 +84,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.clearAllMocks();
+  window.localStorage.clear();
 });
 
 // Render helper supplies the common app setup for interaction tests.
@@ -166,6 +168,228 @@ function swipeOn(element: HTMLElement, startX: number, endX: number) {
 
 function expectMobilePage(page: 'Add' | 'Tasks' | 'Calendar') {
   expect(screen.getByRole('button', { name: page })).toHaveClass('mobile-page-nav__btn--active');
+}
+
+function getCreateCard(): HTMLElement {
+  const createCard = document.querySelector('.app__add');
+  if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
+  return createCard;
+}
+
+function setWindowScrollY(value: number) {
+  Object.defineProperty(window, 'scrollY', {
+    configurable: true,
+    value,
+  });
+}
+
+function dirtyDocumentScroll(value = 48) {
+  setWindowScrollY(value);
+  document.documentElement.scrollTop = value;
+  document.body.scrollTop = value;
+}
+
+function expectDocumentScrollReset() {
+  expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+  expect(document.documentElement.scrollTop).toBe(0);
+  expect(document.body.scrollTop).toBe(0);
+}
+
+async function focusTextField(element: HTMLInputElement | HTMLTextAreaElement) {
+  await act(async () => {
+    element.focus();
+    fireEvent.focusIn(element);
+  });
+  expect(document.activeElement).toBe(element);
+}
+
+function textFocusSummaryLogs(info: jest.SpyInstance) {
+  return info.mock.calls.filter(call => call[0] === '[text-focus-summary]');
+}
+
+async function expectScrollCorrectionStillActive(scrollTo: jest.SpyInstance) {
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.scroll(window);
+  });
+
+  expectDocumentScrollReset();
+}
+
+function dirtyElementScroll(element: HTMLElement, value = 42) {
+  element.scrollTop = value;
+  element.scrollLeft = value;
+}
+
+function dispatchCancelableTouchMove(target: EventTarget) {
+  const event = new Event('touchmove', { bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+function dispatchTextTouch(target: EventTarget, type: 'touchstart' | 'touchmove', clientY: number) {
+  const event = new Event(type, { bubbles: true, cancelable: type === 'touchmove' });
+  Object.defineProperty(event, 'touches', {
+    configurable: true,
+    value: [{ clientY }],
+  });
+  target.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+function mockElementScrollRange(element: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop = 0) {
+  Object.defineProperty(element, 'scrollHeight', { configurable: true, value: scrollHeight });
+  Object.defineProperty(element, 'clientHeight', { configurable: true, value: clientHeight });
+  Object.defineProperty(element, 'scrollTop', { configurable: true, writable: true, value: scrollTop });
+}
+
+function mockMobileTouchEnvironment() {
+  const originalMatchMedia = window.matchMedia;
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: query.includes('pointer: coarse') || query.includes('max-width: 720px'),
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+  return () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  };
+}
+
+function mockDesktopMediaEnvironment() {
+  const originalMatchMedia = window.matchMedia;
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+  return () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  };
+}
+
+function mockInlineEditRects(fieldTop = 459) {
+  const original = HTMLElement.prototype.getBoundingClientRect;
+  const rect = (top: number, bottom: number) => ({
+    x: 0,
+    y: top,
+    top,
+    bottom,
+    left: 0,
+    right: 320,
+    width: 320,
+    height: bottom - top,
+    toJSON: () => ({}),
+  });
+  const spy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getMockRect() {
+    if (this.classList.contains('app__list')) return rect(67, 900);
+    if (
+      this instanceof HTMLInputElement &&
+      this.getAttribute('aria-label') === 'Task title' &&
+      this.closest('.item__edit-card')
+    ) {
+      const list = document.querySelector('.app__list');
+      const scrollTop = list instanceof HTMLElement ? list.scrollTop : 0;
+      return rect(fieldTop - scrollTop, fieldTop + 40 - scrollTop);
+    }
+    if (this.classList.contains('item__edit-card')) {
+      const list = document.querySelector('.app__list');
+      const scrollTop = list instanceof HTMLElement ? list.scrollTop : 0;
+      return rect(fieldTop - 13 - scrollTop, fieldTop + 241 - scrollTop);
+    }
+    return original.call(this);
+  });
+  return () => spy.mockRestore();
+}
+
+function mockVisualViewport(values: Partial<VisualViewport>) {
+  const original = window.visualViewport;
+  const visualViewport = {
+    height: 500,
+    offsetTop: 0,
+    pageTop: 0,
+    scale: 1,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    ...values,
+  };
+  Object.defineProperty(window, 'visualViewport', {
+    configurable: true,
+    value: visualViewport,
+  });
+  return () => {
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: original,
+    });
+  };
+}
+
+function getCreateTitleInput(): HTMLInputElement {
+  const title = within(getCreateCard()).getByPlaceholderText(/task title/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Create title input not found');
+  return title;
+}
+
+function getCreateDescriptionTextarea(): HTMLTextAreaElement {
+  const description = within(getCreateCard()).getByLabelText(/task description/i);
+  if (!(description instanceof HTMLTextAreaElement)) throw new Error('Create description textarea not found');
+  return description;
+}
+
+async function openInlineEditCard(task: Task = sampleTask): Promise<HTMLElement> {
+  mockGetTasks.mockResolvedValue([task]);
+  mockGetTask.mockResolvedValue(task);
+  render(<App />);
+  await screen.findByText(task.title);
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  return editCard;
+}
+
+async function openMobileEditPanel(task: Task = sampleTask): Promise<HTMLElement> {
+  mockGetTasks.mockResolvedValue([task]);
+  mockGetTask.mockResolvedValue(task);
+  render(<App />);
+  await screen.findByText(task.title);
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  const editPanel = document.querySelector('.mobile-edit-panel');
+  if (!(editPanel instanceof HTMLElement)) throw new Error('Mobile edit panel not found');
+  return editPanel;
 }
 
 // Rendering behavior.
@@ -855,6 +1079,7 @@ test('create task can select weekly and monthly recurrence', async () => {
   });
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, 'weekly'));
+  await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*do not repeat/i })).toBeInTheDocument());
 
   userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
   await act(async () => {
@@ -918,6 +1143,1157 @@ test('swipe starting inside the title input does not change mobile view', async 
   });
 
   expectMobilePage('Tasks');
+});
+
+test('mobile description textareas keep a 16px font size above the iOS focus zoom threshold', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const mobileInputRules = css.match(/input\.input\[type="text"\][\s\S]*?textarea\.input\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
+  const mobileTextareaRules = css.match(/\.controls__description\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
+  const mobileTextareaFocusRules = css.match(/\.controls__description:focus\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
+
+  expect(mobileInputRules.length).toBeGreaterThanOrEqual(2);
+  expect(mobileTextareaRules.length).toBeGreaterThanOrEqual(2);
+  expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
+});
+
+test('mobile text focus guard resets document scroll after create title blur', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  await act(async () => {
+    fireEvent.focusIn(title);
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(title);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('mobile text focus guard resets document scroll after create description blur', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const description = getCreateDescriptionTextarea();
+  await act(async () => {
+    fireEvent.focusIn(description);
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(description);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('mobile text focus guard reinitializes title after description focus', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+  await act(async () => {
+    fireEvent.focusIn(description);
+    fireEvent.focusOut(description, { relatedTarget: title });
+    fireEvent.focusIn(title, { relatedTarget: description });
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(title);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('mobile text focus guard reinitializes description after title focus', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+  await act(async () => {
+    fireEvent.focusIn(title);
+    fireEvent.focusOut(title, { relatedTarget: description });
+    fireEvent.focusIn(description, { relatedTarget: title });
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(description);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('mobile text focus guard covers inline edit title and description fields', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const title = within(editCard).getByLabelText(/task title/i);
+  const description = within(editCard).getByLabelText(/task description/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+  if (!(description instanceof HTMLTextAreaElement)) throw new Error('Inline edit description textarea not found');
+
+  await act(async () => {
+    fireEvent.focusIn(description);
+    fireEvent.focusOut(description, { relatedTarget: title });
+    fireEvent.focusIn(title, { relatedTarget: description });
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(title);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('mobile text focus guard keeps create title active after edit title to edit description to create title', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const editTitle = within(editCard).getByLabelText(/task title/i);
+  const editDescription = within(editCard).getByLabelText(/task description/i);
+  const createTitle = getCreateTitleInput();
+  if (!(editTitle instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+  if (!(editDescription instanceof HTMLTextAreaElement)) throw new Error('Inline edit description textarea not found');
+
+  await act(async () => {
+    fireEvent.focusIn(editTitle);
+    fireEvent.focusOut(editTitle, { relatedTarget: editDescription });
+    fireEvent.focusIn(editDescription, { relatedTarget: editTitle });
+    fireEvent.focusOut(editDescription, { relatedTarget: createTitle });
+    fireEvent.focusIn(createTitle, { relatedTarget: editDescription });
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(createTitle);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('stale edit description blur cannot disable create title scroll correction', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const editDescription = within(editCard).getByLabelText(/task description/i);
+  const createTitle = getCreateTitleInput();
+  if (!(editDescription instanceof HTMLTextAreaElement)) throw new Error('Inline edit description textarea not found');
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(editDescription);
+    await focusTextField(createTitle);
+    await act(async () => {
+      fireEvent.focusOut(editDescription);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+    scrollTo.mockClear();
+    dirtyDocumentScroll();
+
+    await act(async () => {
+      fireEvent.scroll(window);
+    });
+
+    expectDocumentScrollReset();
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+  }
+});
+
+test('mobile text focus guard keeps edit title active after create description to edit title', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const createDescription = getCreateDescriptionTextarea();
+  const editTitle = within(editCard).getByLabelText(/task title/i);
+  if (!(editTitle instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+
+  await act(async () => {
+    fireEvent.focusIn(createDescription);
+    fireEvent.focusOut(createDescription, { relatedTarget: editTitle });
+    fireEvent.focusIn(editTitle, { relatedTarget: createDescription });
+  });
+  scrollTo.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.focusOut(editTitle);
+  });
+
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+});
+
+test('unmounting an edit textarea after create title focus does not disable scroll correction', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const editDescription = within(editCard).getByLabelText(/task description/i);
+  const createTitle = getCreateTitleInput();
+  const cancel = within(editCard).getByRole('button', { name: /^cancel$/i });
+  if (!(editDescription instanceof HTMLTextAreaElement)) throw new Error('Inline edit description textarea not found');
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(editDescription);
+    await focusTextField(createTitle);
+    await act(async () => {
+      fireEvent.click(cancel);
+    });
+    await focusTextField(createTitle);
+    await act(async () => {
+      fireEvent.focusOut(editDescription);
+      jest.advanceTimersByTime(350);
+    });
+    scrollTo.mockClear();
+    dirtyDocumentScroll();
+
+    await act(async () => {
+      fireEvent.scroll(window);
+    });
+
+    expectDocumentScrollReset();
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+  }
+});
+
+test('repeated create title and description swaps preserve scroll correction', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+
+  await focusTextField(title);
+  await act(async () => {
+    fireEvent.focusOut(title, { relatedTarget: description });
+  });
+  await focusTextField(description);
+  await act(async () => {
+    fireEvent.focusOut(description, { relatedTarget: title });
+  });
+  await focusTextField(title);
+  await act(async () => {
+    fireEvent.focusOut(title, { relatedTarget: description });
+  });
+  await focusTextField(description);
+
+  await expectScrollCorrectionStillActive(scrollTo);
+  scrollTo.mockRestore();
+});
+
+test('repeated inline edit title and description swaps preserve scroll correction', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const editCard = await openInlineEditCard();
+  const title = within(editCard).getByLabelText(/task title/i);
+  const description = within(editCard).getByLabelText(/task description/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+  if (!(description instanceof HTMLTextAreaElement)) throw new Error('Inline edit description textarea not found');
+
+  await focusTextField(title);
+  await act(async () => {
+    fireEvent.focusOut(title, { relatedTarget: description });
+  });
+  await focusTextField(description);
+  await act(async () => {
+    fireEvent.focusOut(description, { relatedTarget: title });
+  });
+  await focusTextField(title);
+  await act(async () => {
+    fireEvent.focusOut(title, { relatedTarget: description });
+  });
+  await focusTextField(description);
+
+  await expectScrollCorrectionStillActive(scrollTo);
+  scrollTo.mockRestore();
+});
+
+test('delayed blur cannot disable keyboard text mode while another app text field is active', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(title);
+    await focusTextField(description);
+    await act(async () => {
+      fireEvent.focusOut(title);
+      jest.advanceTimersByTime(350);
+    });
+
+    expect(document.activeElement).toBe(description);
+    await expectScrollCorrectionStillActive(scrollTo);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+  }
+});
+
+test('null relatedTarget during create text transition preserves active DOM text field state', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(title);
+    await act(async () => {
+      description.focus();
+      fireEvent.focusOut(title);
+      jest.advanceTimersByTime(350);
+    });
+    expect(document.activeElement).toBe(description);
+
+    await expectScrollCorrectionStillActive(scrollTo);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+  }
+});
+
+test('scroll correction follows the current active text field after stale previous blur', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const title = getCreateTitleInput();
+  const description = getCreateDescriptionTextarea();
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(title);
+    await focusTextField(description);
+    await act(async () => {
+      fireEvent.focusOut(title);
+      jest.advanceTimersByTime(350);
+    });
+    expect(document.activeElement).toBe(description);
+    await expectScrollCorrectionStillActive(scrollTo);
+
+    await focusTextField(title);
+    await act(async () => {
+      fireEvent.focusOut(description);
+      jest.advanceTimersByTime(350);
+    });
+    expect(document.activeElement).toBe(title);
+    await expectScrollCorrectionStillActive(scrollTo);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+  }
+});
+
+test('text focus debug schedules exactly three summaries for one transition', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  jest.useFakeTimers();
+  try {
+    await focusTextField(getCreateTitleInput());
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+
+    const summaries = textFocusSummaryLogs(info);
+    expect(summaries).toHaveLength(3);
+    expect(summaries.map(call => call[1].settledAtMs)).toEqual([40, 120, 300]);
+    expect(new Set(summaries.map(call => `${call[1].transitionId}:${call[1].settledAtMs}`)).size).toBe(3);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+    info.mockRestore();
+  }
+});
+
+test('deduped text focusin does not schedule duplicate debug summaries', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  jest.useFakeTimers();
+  try {
+    const title = getCreateTitleInput();
+    await focusTextField(title);
+    await focusTextField(title);
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+
+    const summaries = textFocusSummaryLogs(info);
+    expect(summaries).toHaveLength(3);
+    expect(summaries.map(call => call[1].settledAtMs)).toEqual([40, 120, 300]);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+    info.mockRestore();
+  }
+});
+
+test('focusout body gap followed by text focus does not schedule duplicate summaries', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  jest.useFakeTimers();
+  try {
+    const title = getCreateTitleInput();
+    const description = getCreateDescriptionTextarea();
+    await focusTextField(title);
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+    info.mockClear();
+
+    await act(async () => {
+      fireEvent.focusOut(title);
+    });
+    await focusTextField(description);
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+
+    const summaries = textFocusSummaryLogs(info);
+    expect(summaries).toHaveLength(3);
+    expect(summaries.map(call => call[1].settledAtMs)).toEqual([40, 120, 300]);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+    info.mockRestore();
+  }
+});
+
+test('repeated focusin events for the same text field reuse the same summary schedule', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  jest.useFakeTimers();
+  try {
+    const title = getCreateTitleInput();
+    await act(async () => {
+      title.focus();
+      fireEvent.focusIn(title);
+      fireEvent.focusIn(title);
+      fireEvent.focusIn(title);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+    });
+
+    const summaries = textFocusSummaryLogs(info);
+    expect(summaries).toHaveLength(3);
+    expect(summaries.map(call => call[1].settledAtMs)).toEqual([40, 120, 300]);
+  } finally {
+    jest.useRealTimers();
+    scrollTo.mockRestore();
+    info.mockRestore();
+  }
+});
+
+test('entering inline edit from a scrolled task list resets stale document scroll before edit focus', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText(sampleTask.title);
+
+  const search = screen.getByPlaceholderText(/search tasks/i);
+  const taskList = document.querySelector('.app__list');
+  if (!(search instanceof HTMLInputElement)) throw new Error('Search input not found');
+  if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+  await focusTextField(search);
+  dirtyDocumentScroll();
+  dirtyElementScroll(taskList, 88);
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+
+  expectDocumentScrollReset();
+  expect(document.querySelector('.item__edit-card')).toBeInTheDocument();
+  scrollTo.mockRestore();
+});
+
+test('edit-card correction result reports the current edit scope behind debug flag', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  const editCard = await openInlineEditCard();
+  const title = within(editCard).getByLabelText(/task title/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+
+  await focusTextField(title);
+  dirtyDocumentScroll();
+  await act(async () => {
+    fireEvent.scroll(window);
+  });
+
+  const correctionResult = debug.mock.calls.find(call =>
+    call[0] === '[text-focus-guard]' &&
+    call[1]?.event === 'correction-result' &&
+    String(call[1]?.activeTextScope).includes('item__edit-card')
+  );
+  expect(correctionResult).toBeTruthy();
+  expect(String(correctionResult?.[1]?.activeTextScope)).toContain('item__edit-card');
+  scrollTo.mockRestore();
+  debug.mockRestore();
+});
+
+test('search to inline edit title keeps text mode active and corrects document scroll', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText(sampleTask.title);
+
+  const search = screen.getByPlaceholderText(/search tasks/i);
+  if (!(search instanceof HTMLInputElement)) throw new Error('Search input not found');
+  await focusTextField(search);
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Edit card not found');
+  const title = within(editCard).getByLabelText(/task title/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+
+  await focusTextField(title);
+  dirtyDocumentScroll();
+  await act(async () => {
+    fireEvent.scroll(window);
+  });
+
+  const correctionResult = debug.mock.calls.find(call =>
+    call[0] === '[text-focus-guard]' &&
+    call[1]?.event === 'correction-result' &&
+    Array.isArray(call[1]?.changed) &&
+    call[1].changed.includes('document.documentElement.scrollTop') &&
+    call[1].changed.includes('document.body.scrollTop')
+  );
+  expect(correctionResult?.[1]?.keyboardTextMode).toBe(true);
+  expectDocumentScrollReset();
+  scrollTo.mockRestore();
+  debug.mockRestore();
+});
+
+test('opening inline edit after search blur does not inherit the task list text scope', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText(sampleTask.title);
+
+  const search = screen.getByPlaceholderText(/search tasks/i);
+  if (!(search instanceof HTMLInputElement)) throw new Error('Search input not found');
+  await focusTextField(search);
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Edit card not found');
+  const title = within(editCard).getByLabelText(/task title/i);
+  if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+
+  await focusTextField(title);
+
+  const editFocus = debug.mock.calls.find(call =>
+    call[0] === '[text-focus-guard]' &&
+    call[1]?.event === 'focusin' &&
+    String(call[1]?.eventTarget).includes('Task title') &&
+    String(call[1]?.nextScope).includes('item__edit-card')
+  );
+  expect(editFocus?.[1]?.previousScope).toBe('null');
+  scrollTo.mockRestore();
+  debug.mockRestore();
+});
+
+test('correction-result debug log is emitted only behind the text focus debug flag', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  await focusTextField(getCreateTitleInput());
+  dirtyDocumentScroll();
+  await act(async () => {
+    fireEvent.scroll(window);
+  });
+
+  expect(debug.mock.calls.some(call => call[1]?.event === 'correction-result')).toBe(false);
+  expect(info.mock.calls.some(call => call[0] === '[text-focus-correction-summary]')).toBe(false);
+  scrollTo.mockRestore();
+  debug.mockRestore();
+  info.mockRestore();
+});
+
+test('text focus correction summary emits scalar scroll and viewport evidence behind debug flag', async () => {
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  const search = screen.getByPlaceholderText(/search tasks/i);
+  if (!(search instanceof HTMLInputElement)) throw new Error('Search input not found');
+  await focusTextField(search);
+  info.mockClear();
+  dirtyDocumentScroll();
+
+  await act(async () => {
+    fireEvent.scroll(window);
+  });
+
+  const summary = info.mock.calls.find(call =>
+    typeof call[0] === 'string' &&
+    call[0].startsWith('[text-focus-correction-summary]')
+  );
+  expect(summary).toBeTruthy();
+  expect(summary).toHaveLength(1);
+  expect(summary?.[0]).toContain('event=scroll');
+  expect(summary?.[0]).toContain('active=input.input.search.mtop[Search tasks]');
+  expect(summary?.[0]).toContain('scope=div.card.app__list');
+  expect(summary?.[0]).toContain('source=null');
+  expect(summary?.[0]).toContain('windowY=48->48');
+  expect(summary?.[0]).toContain('docTop=48->0');
+  expect(summary?.[0]).toContain('bodyTop=48->0');
+  expect(summary?.[0]).toContain('changed=window.scrollY|document.documentElement.scrollTop|document.body.scrollTop');
+  expect(summary?.[0]).toContain('scrollTo=true');
+  expect(summary?.[0]).toContain('docAssign=true');
+  expect(summary?.[0]).toContain('bodyAssign=true');
+  expect(summary?.[0]).toContain('scrollToIgnored=true');
+  expect(summary?.[0]).toContain('docAssignIgnored=false');
+  expect(summary?.[0]).toContain('bodyAssignIgnored=false');
+  expect(summary?.[0]).toContain('viewportStillOffset=false');
+  expect(summary?.[0]).toContain('viewportStillPaged=false');
+  scrollTo.mockRestore();
+  info.mockRestore();
+});
+
+test('visual viewport drift is detected after document scroll has been corrected', async () => {
+  const restoreVisualViewport = mockVisualViewport({ offsetTop: 22.328125, pageTop: 22.328125 });
+  const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => setWindowScrollY(0));
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    await focusTextField(getCreateTitleInput());
+    dirtyDocumentScroll();
+    await act(async () => {
+      fireEvent.scroll(window);
+    });
+
+    const drift = debug.mock.calls.find(call =>
+      call[0] === '[text-focus-guard]' &&
+      call[1]?.event === 'visual-viewport-drift-detected'
+    );
+    expect(drift?.[1]?.visualViewport).toEqual(expect.objectContaining({
+      offsetTop: 22.328125,
+      pageTop: 22.328125,
+    }));
+  } finally {
+    scrollTo.mockRestore();
+    debug.mockRestore();
+    restoreVisualViewport();
+  }
+});
+
+test('mobile text focus prevents touchmove outside the active text field by default', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    await focusTextField(getCreateTitleInput());
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard is enabled by default', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    await focusTextField(getCreateTitleInput());
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard does not prevent touchmove when keyboard text mode is inactive', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(false);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard prevents active textarea touchmove when it has no internal scroll', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const description = getCreateDescriptionTextarea();
+    mockElementScrollRange(description, 56, 56);
+    await focusTextField(description);
+
+    expect(dispatchCancelableTouchMove(description)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard allows active textarea scrolling within bounds', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const description = getCreateDescriptionTextarea();
+    mockElementScrollRange(description, 240, 80, 40);
+    await focusTextField(description);
+
+    dispatchTextTouch(description, 'touchstart', 200);
+    expect(dispatchTextTouch(description, 'touchmove', 160)).toBe(false);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard prevents textarea overscroll at the top and bottom', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const description = getCreateDescriptionTextarea();
+    mockElementScrollRange(description, 240, 80, 0);
+    await focusTextField(description);
+
+    dispatchTextTouch(description, 'touchstart', 160);
+    expect(dispatchTextTouch(description, 'touchmove', 200)).toBe(true);
+
+    description.scrollTop = 160;
+    dispatchTextTouch(description, 'touchstart', 200);
+    expect(dispatchTextTouch(description, 'touchmove', 160)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('create description textarea without internal scroll does not leak visual viewport drag', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const description = getCreateDescriptionTextarea();
+    mockElementScrollRange(description, 56, 56);
+    await focusTextField(description);
+
+    expect(dispatchCancelableTouchMove(description)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit description renders title-style input by default', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const description = within(editPanel).getByLabelText(/task description/i);
+    expect(description).toBeInstanceOf(HTMLInputElement);
+    expect(description).toHaveClass('input');
+    expect(description).not.toHaveClass('controls__description');
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('create description remains textarea with description class on mobile', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const createDescription = getCreateDescriptionTextarea();
+    expect(createDescription).toBeInstanceOf(HTMLTextAreaElement);
+    expect(createDescription).toHaveClass('input');
+    expect(createDescription).toHaveClass('controls__description');
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('desktop edit description remains textarea', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const editCard = await openInlineEditCard();
+
+  try {
+    const description = within(editCard).getByLabelText(/task description/i);
+    expect(description).toBeInstanceOf(HTMLTextAreaElement);
+    expect(description).toHaveClass('controls__description');
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('mobile edit title-style description keeps save semantics', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel({ ...sampleTask, description: 'old description' });
+
+  try {
+    const editDescription = within(editPanel).getByLabelText(/task description/i);
+    if (!(editDescription instanceof HTMLInputElement)) throw new Error('Mobile edit description input not found');
+
+    fireEvent.change(editDescription, { target: { value: 'new description' } });
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+    });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
+      description: 'new description',
+    })));
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit title and description focus do not report visual viewport drift in a stable viewport', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const restoreViewport = mockVisualViewport({ height: 888, offsetTop: 0, pageTop: 0, scale: 1 });
+  const info = jest.spyOn(console, 'info').mockImplementation(() => {});
+  window.localStorage.setItem('taskManagerTextFocusDebug', '1');
+
+  try {
+    const editPanel = await openMobileEditPanel();
+    const editTitle = within(editPanel).getByLabelText(/^task title$/i);
+    const editDescription = within(editPanel).getByLabelText(/task description/i);
+    if (!(editTitle instanceof HTMLInputElement)) throw new Error('Mobile edit title input not found');
+    if (!(editDescription instanceof HTMLInputElement)) throw new Error('Mobile edit description input not found');
+
+    await act(async () => {
+      fireEvent.focusIn(editTitle);
+      fireEvent.focusOut(editTitle, { relatedTarget: editDescription });
+      fireEvent.focusIn(editDescription, { relatedTarget: editTitle });
+    });
+
+    expect(info.mock.calls.some(call =>
+      typeof call[0] === 'string' &&
+      call[0].includes('[text-focus-correction-summary]') &&
+      call[0].includes('scope=div.item__edit-card.mobile-edit-panel') &&
+      call[0].includes('stillDrifted=true')
+    )).toBe(false);
+  } finally {
+    info.mockRestore();
+    restoreViewport();
+    restoreTouchEnvironment();
+  }
+});
+
+test('inline edit entry does not prevent outside touchmove before the edit field focuses', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    expect(editPanel).toBeInTheDocument();
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(false);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit renders in a stable panel outside the task list item flow', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    expect(editPanel).toHaveClass('mobile-edit-panel');
+    expect(editPanel.closest('li.item')).toBeNull();
+    expect(document.querySelector('.list .item__edit-card')).not.toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit panel stays in the task list context after search controls', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const appList = document.querySelector('.app__list');
+    const viewTabs = document.querySelector('.view-tabs');
+    const search = document.querySelector('.app__list .search');
+    const overview = document.querySelector('.task-overview');
+    if (!(appList instanceof HTMLElement) || !(viewTabs instanceof HTMLElement) || !(search instanceof HTMLInputElement) || !(overview instanceof HTMLElement)) {
+      throw new Error('Task list controls not found');
+    }
+    const children = Array.from(appList.children);
+    expect(children.indexOf(editPanel)).toBeGreaterThan(children.indexOf(viewTabs));
+    expect(children.indexOf(editPanel)).toBeGreaterThan(children.indexOf(search));
+    expect(children.indexOf(editPanel)).toBeLessThan(children.indexOf(overview));
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit panel is not sticky or an independent scroll container', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const panelRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(panelRule).toContain('overflow-y: visible');
+  expect(panelRule).toContain('max-height: none');
+  expect(panelRule).not.toContain('position: sticky');
+  expect(panelRule).not.toContain('top: 0');
+  expect(panelRule).not.toContain('overflow-y: auto');
+  expect(panelRule).not.toContain('-webkit-overflow-scrolling: touch');
+});
+
+test('mobile task list remains the scroll owner for mobile edit', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const appListRules = css.match(/\.mobile-page--tasks \.app__list\s*\{[^}]*\}/g) ?? [];
+  const appListScrollRule = appListRules.find(rule => rule.includes('overflow-y: auto')) ?? '';
+
+  expect(appListScrollRule).toContain('overflow-y: auto');
+  expect(appListScrollRule).toContain('-webkit-overflow-scrolling: touch');
+});
+
+test('mobile edit panel keeps the edit text focus scope separate from the list card', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    expect(editPanel.getAttribute('data-text-focus-scope')).toBe('mobile-edit-1');
+    const title = within(editPanel).getByLabelText(/task title/i);
+    if (!(title instanceof HTMLInputElement)) throw new Error('Mobile edit title input not found');
+    await focusTextField(title);
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('desktop edit remains inline in the task list flow', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const editCard = await openInlineEditCard();
+
+  try {
+    expect(editCard).toBeInTheDocument();
+    expect(editCard.closest('li.item')).toBeInTheDocument();
+    expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('mobile edit entry does not reposition the task list', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    expect(editPanel).toBeInTheDocument();
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    taskList.scrollTop = 120;
+    await new Promise(resolve => window.setTimeout(resolve, 60));
+    expect(taskList.scrollTop).toBe(120);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit panel exposes recurrence project and tag controls', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetProjects.mockResolvedValue([{ projectID: 7, title: 'Home' }]);
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  const editPanel = await openMobileEditPanel({ ...sampleTask, recurrenceRuleID: 10 });
+
+  try {
+    expect(within(editPanel).getByRole('button', { name: /repeat/i })).toBeInTheDocument();
+    expect(within(editPanel).getByRole('button', { name: /project/i })).toBeInTheDocument();
+    expect(within(editPanel).getByRole('button', { name: /tags/i })).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('desktop inline edit entry does not reposition the task list', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const restoreRects = mockInlineEditRects();
+  const editCard = await openInlineEditCard();
+
+  try {
+    expect(editCard).toBeInTheDocument();
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    await new Promise(resolve => window.setTimeout(resolve, 60));
+    expect(taskList.scrollTop).toBe(0);
+  } finally {
+    restoreRects();
+    restoreMedia();
+  }
+});
+
+test('inline edit title first outside touchmove is prevented immediately after focus', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editCard = await openMobileEditPanel();
+
+  try {
+    const title = within(editCard).getByLabelText(/task title/i);
+    if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+    await focusTextField(title);
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('inline edit description first outside touchmove is prevented immediately after focus', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editCard = await openMobileEditPanel();
+
+  try {
+    const description = within(editCard).getByLabelText(/task description/i);
+    if (!(description instanceof HTMLInputElement)) throw new Error('Mobile edit description input not found');
+    await focusTextField(description);
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('edit-entry reset does not clear the active text guard after focusin', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editCard = await openMobileEditPanel();
+
+  try {
+    const title = within(editCard).getByLabelText(/task title/i);
+    if (!(title instanceof HTMLInputElement)) throw new Error('Inline edit title input not found');
+    await focusTextField(title);
+    await act(async () => {
+      document.dispatchEvent(new CustomEvent('task-manager:edit-entry-reset'));
+    });
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard keeps debug logs gated', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    await focusTextField(getCreateTitleInput());
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+    expect(dispatchCancelableTouchMove(taskList)).toBe(true);
+    expect(debug).not.toHaveBeenCalled();
+  } finally {
+    debug.mockRestore();
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile text focus touch guard does not block horizontal pager swipes when no text field is focused', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  expectMobilePage('Tasks');
+
+  try {
+    expect(dispatchCancelableTouchMove(mobilePager())).toBe(false);
+    await act(async () => {
+      swipeOn(mobilePager(), 320, 120);
+    });
+
+    expectMobilePage('Calendar');
+  } finally {
+    restoreTouchEnvironment();
+  }
 });
 
 test('swipe starting inside a time dropdown does not change mobile view', async () => {
@@ -994,9 +2370,11 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
   await act(async () => {
     userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
+  await setActiveEditorTime(createCard, '10', '00', 'AM');
   await act(async () => {
     userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
   });
+  await setActiveEditorTime(createCard, '11', '00', 'AM');
   await act(async () => {
     userEvent.click(createScope.getByRole('button', { name: /^priority$/i }));
   });

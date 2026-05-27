@@ -1309,6 +1309,23 @@ input[type="datetime-local"] {
   gap: 0.45rem;
 }
 
+.mobile-edit-panel {
+  display: none;
+}
+
+.mobile-edit-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mobile-edit-panel__title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
 /* ── Empty state ────────────────────────────────────────── */
 .empty {
   display: flex;
@@ -2974,7 +2991,16 @@ input[type="datetime-local"] {
     height: var(--app-viewport-height);
     min-height: var(--app-viewport-height);
     max-height: var(--app-viewport-height);
+    width: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  body,
+  #root {
+    position: fixed;
+    inset: 0;
   }
 
   .app {
@@ -2982,7 +3008,7 @@ input[type="datetime-local"] {
     --mobile-bottom-edge: max(1rem, env(safe-area-inset-bottom));
     --mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem);
     --mobile-card-bottom-gap: var(--mobile-edge);
-    --mobile-card-height: calc(100% - var(--mobile-card-bottom-gap));
+    --mobile-card-height: calc(var(--app-viewport-height) - var(--mobile-top-offset) - var(--mobile-card-bottom-gap));
     --mobile-phone-corner-radius: 55px;
     --mobile-surface-bottom-radius: max(30px, calc(var(--mobile-phone-corner-radius) - var(--mobile-edge)));
     display: block;
@@ -3096,9 +3122,28 @@ input[type="datetime-local"] {
     padding-top: 0.55rem;
   }
 
-  .app__add input[type="text"],
-  .app__add textarea {
+  input.input[type="text"],
+  input.input[type="search"],
+  input.input[type="email"],
+  input.input[type="url"],
+  input.input[type="tel"],
+  input.input[type="password"],
+  input.input:not([type]),
+  textarea.input {
     font-size: 16px;
+  }
+
+  .controls__description {
+    resize: none;
+    min-height: 56px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .controls__description:focus {
+    min-height: 56px;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
   .app__add .controls {
@@ -3141,6 +3186,20 @@ input[type="datetime-local"] {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  .mobile-page--tasks .mobile-edit-panel {
+    z-index: 35;
+    display: flex;
+    min-height: min(30rem, calc(var(--mobile-card-height) - 1.2rem));
+    max-height: none;
+    margin: 0.75rem 0;
+    padding: 0.85rem;
+    overflow-y: visible;
+    overflow-x: clip;
+    overscroll-behavior: contain;
+    background: var(--card-bg);
+    box-shadow: var(--shadow-card);
   }
 
   .spread,
@@ -3905,9 +3964,28 @@ input[type="datetime-local"] {
     font-size: 0.9rem;
   }
 
-  .app__add input[type="text"],
-  .app__add textarea {
+  input.input[type="text"],
+  input.input[type="search"],
+  input.input[type="email"],
+  input.input[type="url"],
+  input.input[type="tel"],
+  input.input[type="password"],
+  input.input:not([type]),
+  textarea.input {
     font-size: 16px;
+  }
+
+  .controls__description {
+    resize: none;
+    min-height: 56px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .controls__description:focus {
+    min-height: 56px;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
   .stats__row {

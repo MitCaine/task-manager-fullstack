@@ -92,6 +92,16 @@ Frontend:
 - Accessibility-focused implementation with semantic dialogs, focus restoration, keyboard behavior, labels, and touch ergonomics.
 - iOS testing through Capacitor and Xcode Simulator.
 
+## iOS WKWebView Mobile Text-Focus Stability
+
+The Capacitor iOS build includes a mobile text-focus guard for a WKWebView issue where the visual viewport can drift during keyboard resize or touch-drag gestures, leaving a temporary white gap even after document scroll has been reset.
+
+Inline task editing needed special handling because editing inside the task list flow, sticky/nested scroll containers, and description textareas all gave iOS more opportunities to auto-scroll the focused caret into view. Mobile edit now renders in a stable `.mobile-edit-panel` outside the `li.item` flow while staying visually associated with the selected task. The panel uses normal card/list scrolling instead of sticky positioning or its own nested `overflow-y: auto` scroll container.
+
+Mobile/coarse-pointer edit descriptions intentionally use the title-style `input.input` control. Create-task descriptions and desktop edit descriptions remain `textarea.input.controls__description`, where bounded textarea touch handling preserves internal scrolling without leaking overscroll into the visual viewport.
+
+The final production fix avoids Capacitor Keyboard plugin hooks, shell transforms, broad viewport-height calculations, and pre-focus blocking. It relies on focused-field touchmove prevention, bounded textarea overscroll prevention, stable focus transition tracking, and the mobile edit panel structure. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
+
 ## Prerequisites
 
 - Java 17+
@@ -213,6 +223,7 @@ loads and the API requests succeed.
 
 ## Recent Improvements
 
+- Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
 - Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
 - Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
 - Added project and tag editing to the inline task edit form.
