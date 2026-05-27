@@ -1,6 +1,5 @@
 package com.example.taskmanager;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -10,8 +9,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -88,6 +88,44 @@ class NoteControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "/tasks/1/notes/5"))
                 .andExpect(jsonPath("$.context").value("Some content"))
+                .andExpect(jsonPath("$.taskID").value(1));
+    }
+
+    @Test
+    void createNote_blankTitleWithContent_returns201() throws Exception {
+        when(taskRepository.existsById(1L)).thenReturn(true);
+        Note saved = makeNote(6L, "", "Body-only note", 1L);
+        when(noteRepository.save(any(Note.class))).thenAnswer(inv -> {
+            Note arg = inv.getArgument(0);
+            assertEquals("", arg.getTitle(), "blank title should be accepted for body-only notes");
+            return saved;
+        });
+
+        mockMvc.perform(post("/tasks/1/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"\",\"context\":\"Body-only note\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value(""))
+                .andExpect(jsonPath("$.context").value("Body-only note"))
+                .andExpect(jsonPath("$.taskID").value(1));
+    }
+
+    @Test
+    void createNote_missingTitleWithContent_returns201() throws Exception {
+        when(taskRepository.existsById(1L)).thenReturn(true);
+        Note saved = makeNote(7L, null, "Untitled note body", 1L);
+        when(noteRepository.save(any(Note.class))).thenAnswer(inv -> {
+            Note arg = inv.getArgument(0);
+            assertNull(arg.getTitle(), "missing title should be accepted for body-only notes");
+            return saved;
+        });
+
+        mockMvc.perform(post("/tasks/1/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"context\":\"Untitled note body\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").doesNotExist())
+                .andExpect(jsonPath("$.context").value("Untitled note body"))
                 .andExpect(jsonPath("$.taskID").value(1));
     }
 

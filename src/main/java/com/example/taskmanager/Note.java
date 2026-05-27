@@ -1,7 +1,6 @@
 package com.example.taskmanager;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
@@ -13,7 +12,6 @@ public class Note {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long noteID;
 
-    @NotBlank(message = "Title must not be blank")
     private String title;
 
     @Size(max = 5000, message = "Note content must not exceed 5000 characters")
