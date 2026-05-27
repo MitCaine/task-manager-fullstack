@@ -1,7 +1,17 @@
 type Ampm = 'AM' | 'PM';
 
-function parseLocalDateTime(dt: string): Date {
+export function parseLocalDateTime(dt: string): Date {
   return new Date(dt);
+}
+
+export function toLocalDateTimeString(date: Date): string {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 19);
+}
+
+export function dateOnlyToLocalDateTimeString(date: string): string {
+  return `${date}T00:00:00`;
 }
 
 function datePart(dt: string, locale: string): string {
@@ -52,10 +62,45 @@ export function buildDateTimeString(
     if (ampm === 'AM' && hr === 12) hr = 0;
   }
   const local = new Date(year, month - 1, day, hr, parseInt(minute, 10));
-  // Strip timezone offset so the backend receives the user's local time as-is
-  return new Date(local.getTime() - local.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 19);
+  // Strip timezone offset so the backend receives the user's local time as-is.
+  return toLocalDateTimeString(local);
+}
+
+export function buildTaskDateTimeString(
+  date: string,
+  showTime: boolean,
+  hour: string,
+  minute: string,
+  ampm: Ampm,
+  is24Hour: boolean
+): string | null {
+  if (!date) return null;
+  return showTime
+    ? buildDateTimeString(date, hour, minute, ampm, is24Hour)
+    : dateOnlyToLocalDateTimeString(date);
+}
+
+export function compareLocalDateTimes(start: string, end: string): number {
+  return parseLocalDateTime(end).getTime() - parseLocalDateTime(start).getTime();
+}
+
+export function isMidnightLocalDateTime(dt: string): boolean {
+  const d = parseLocalDateTime(dt);
+  return d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
+}
+
+export function isSameLocalDate(dt: string, date: Date): boolean {
+  return parseLocalDateTime(dt).toDateString() === date.toDateString();
+}
+
+export function isInLocalWeek(dt: string, weekStart: Date, weekEnd: Date): boolean {
+  const d = parseLocalDateTime(dt);
+  return d >= weekStart && d < weekEnd;
+}
+
+export function isInLocalMonth(dt: string, date: Date): boolean {
+  const d = parseLocalDateTime(dt);
+  return d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
 }
 
 /**
@@ -82,7 +127,7 @@ export function extractDateParts(
   dt: string,
   is24Hour: boolean
 ): { date: string; hour: string; minute: string; ampm: Ampm } {
-  const d = new Date(dt);
+  const d = parseLocalDateTime(dt);
   const h24 = d.getHours();
   return {
     date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,

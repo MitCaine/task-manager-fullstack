@@ -1,4 +1,17 @@
-import { buildDateTimeString, formatDate, formatTime, extractDateParts } from './dateTime';
+import {
+  buildDateTimeString,
+  buildTaskDateTimeString,
+  compareLocalDateTimes,
+  dateOnlyToLocalDateTimeString,
+  extractDateParts,
+  formatDate,
+  formatTime,
+  isInLocalMonth,
+  isInLocalWeek,
+  isMidnightLocalDateTime,
+  isSameLocalDate,
+  toLocalDateTimeString,
+} from './dateTime';
 
 // buildDateTimeString converts form fields into backend LocalDateTime strings.
 
@@ -61,6 +74,53 @@ describe('buildDateTimeString', () => {
     expect(result).toHaveLength(19);
     expect(result).not.toContain('Z');
     expect(result).not.toContain('+');
+  });
+});
+
+describe('local datetime helpers', () => {
+  test('toLocalDateTimeString preserves local wall-clock values without timezone suffix', () => {
+    const result = toLocalDateTimeString(new Date(2026, 3, 8, 15, 30, 0));
+    expect(result).toBe('2026-04-08T15:30:00');
+    expect(result).toHaveLength(19);
+    expect(result).not.toContain('Z');
+  });
+
+  test('dateOnlyToLocalDateTimeString keeps date-only task payload shape', () => {
+    expect(dateOnlyToLocalDateTimeString('2026-04-08')).toBe('2026-04-08T00:00:00');
+  });
+
+  test('buildTaskDateTimeString returns null for empty date', () => {
+    expect(buildTaskDateTimeString('', false, '12', '00', 'AM', false)).toBeNull();
+  });
+
+  test('buildTaskDateTimeString uses midnight for date-only tasks', () => {
+    expect(buildTaskDateTimeString('2026-04-08', false, '03', '30', 'PM', false)).toBe('2026-04-08T00:00:00');
+  });
+
+  test('buildTaskDateTimeString uses selected time when enabled', () => {
+    expect(buildTaskDateTimeString('2026-04-08', true, '03', '30', 'PM', false)).toBe('2026-04-08T15:30:00');
+  });
+
+  test('compareLocalDateTimes returns positive only when end is after start', () => {
+    expect(compareLocalDateTimes('2026-04-08T15:30:00', '2026-04-08T16:30:00')).toBeGreaterThan(0);
+    expect(compareLocalDateTimes('2026-04-08T15:30:00', '2026-04-08T15:30:00')).toBe(0);
+  });
+
+  test('isMidnightLocalDateTime identifies date-only midnight values', () => {
+    expect(isMidnightLocalDateTime('2026-04-08T00:00:00')).toBe(true);
+    expect(isMidnightLocalDateTime('2026-04-08T00:01:00')).toBe(false);
+  });
+
+  test('local date range helpers match existing tab semantics', () => {
+    const reference = new Date(2026, 3, 8, 12, 0, 0);
+    const weekStart = new Date(2026, 3, 6, 0, 0, 0);
+    const weekEnd = new Date(2026, 3, 13, 0, 0, 0);
+
+    expect(isSameLocalDate('2026-04-08T23:59:00', reference)).toBe(true);
+    expect(isInLocalWeek('2026-04-12T23:59:00', weekStart, weekEnd)).toBe(true);
+    expect(isInLocalWeek('2026-04-13T00:00:00', weekStart, weekEnd)).toBe(false);
+    expect(isInLocalMonth('2026-04-30T12:00:00', reference)).toBe(true);
+    expect(isInLocalMonth('2026-05-01T00:00:00', reference)).toBe(false);
   });
 });
 

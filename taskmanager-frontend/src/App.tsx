@@ -12,7 +12,21 @@ import {
   getAttachments, createAttachment, deleteAttachment as deleteAttachmentAPI,
   getRecurrence, setRepeat,
 } from './api/tasks';
-import { buildDateTimeString, formatDate, formatDateTime as formatDateTimeDisplay, formatTime, extractDateParts } from './utils/dateTime';
+import {
+  buildDateTimeString,
+  buildTaskDateTimeString,
+  compareLocalDateTimes,
+  extractDateParts,
+  formatDate,
+  formatDateTime as formatDateTimeDisplay,
+  formatTime,
+  isInLocalMonth,
+  isInLocalWeek,
+  isMidnightLocalDateTime,
+  isSameLocalDate,
+  parseLocalDateTime,
+  toLocalDateTimeString,
+} from './utils/dateTime';
 import { isTaskOverdue } from './utils/taskUtils';
 import Calendar from './components/Calendar';
 
@@ -39,7 +53,7 @@ const TASK_TIME_RANGE_ERROR = 'End time must be after start time.';
 
 function validateTaskTimeRange(start: string | null, end: string | null): string | null {
   if (!start || !end) return null;
-  return new Date(end).getTime() > new Date(start).getTime() ? null : TASK_TIME_RANGE_ERROR;
+  return compareLocalDateTimes(start, end) > 0 ? null : TASK_TIME_RANGE_ERROR;
 }
 
 function convertHourForTimeMode(hourValue: string, ampmValue: Ampm, to24Hour: boolean): { hour: string; ampm: Ampm } {
@@ -1666,7 +1680,7 @@ function App(): JSX.Element {
       const now = new Date();
       for (const r of allReminders) {
         if (firedReminders.current.has(r.reminderID)) continue;
-        if (new Date(r.dueDate) <= now) {
+        if (parseLocalDateTime(r.dueDate) <= now) {
           const task = tasks.find(t => t.taskID === r.taskID);
           firedReminders.current.add(r.reminderID);
           setToasts(prev => [...prev, {
@@ -1794,7 +1808,7 @@ function App(): JSX.Element {
     if (viewTab === 'today') {
       return displayedTasks.filter(t => {
         if (!t.dateTimeScheduled) return false;
-        return new Date(t.dateTimeScheduled).toDateString() === now.toDateString();
+        return isSameLocalDate(t.dateTimeScheduled, now);
       });
     }
     if (viewTab === 'week') {
@@ -1805,15 +1819,13 @@ function App(): JSX.Element {
       sun.setDate(mon.getDate() + 7);
       return displayedTasks.filter(t => {
         if (!t.dateTimeScheduled) return false;
-        const d = new Date(t.dateTimeScheduled);
-        return d >= mon && d < sun;
+        return isInLocalWeek(t.dateTimeScheduled, mon, sun);
       });
     }
     if (viewTab === 'month') {
       return displayedTasks.filter(t => {
         if (!t.dateTimeScheduled) return false;
-        const d = new Date(t.dateTimeScheduled);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return isInLocalMonth(t.dateTimeScheduled, now);
       });
     }
     return displayedTasks;
@@ -1831,8 +1843,8 @@ function App(): JSX.Element {
   const fmtTaskDateRange = (start: string | null | undefined, end: string | null | undefined) => {
     if (!start) return 'No due date';
     if (!end) return fmtDate(start);
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const startDate = parseLocalDateTime(start);
+    const endDate = parseLocalDateTime(end);
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return fmtDate(start);
     const startLabel = formatDate(start, locale, is24Hour);
     const sameDay = startDate.toDateString() === endDate.toDateString();
@@ -1844,20 +1856,14 @@ function App(): JSX.Element {
 
   const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
 
-  const draftDateTimeScheduled = date
-    ? (showAddTime ? buildDateTimeString(date, hour, minute, ampm, is24Hour) : `${date}T00:00:00`)
-    : null;
+  const draftDateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
   const draftEndDateTimeScheduled = date && showAddEndTime
     ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
     : null;
   const draftProject = newProjectID !== '' ? projects.find(p => p.projectID === newProjectID) : null;
   const draftTags = tags.filter(tag => newTaskTagIDs.includes(tag.tagID));
   const currentCreateTimeRangeError = validateTaskTimeRange(draftDateTimeScheduled, draftEndDateTimeScheduled);
-  const draftEditDateTimeScheduled = editDate
-    ? (editShowTime
-        ? buildDateTimeString(editDate, editHour, editMinute, editAmpm, is24Hour)
-        : `${editDate}T00:00:00`)
-    : null;
+  const draftEditDateTimeScheduled = buildTaskDateTimeString(editDate, editShowTime, editHour, editMinute, editAmpm, is24Hour);
   const draftEditEndDateTimeScheduled = editDate && editShowEndTime
     ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
     : null;
@@ -1929,11 +1935,7 @@ function App(): JSX.Element {
       requestAnimationFrame(() => requestAnimationFrame(() => setTitleError(true)));
       return;
     }
-    const dateTimeScheduled = date
-      ? (showAddTime
-          ? buildDateTimeString(date, hour, minute, ampm, is24Hour)
-          : `${date}T00:00:00`)
-      : null;
+    const dateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
     const endDateTimeScheduled = date && showAddEndTime
       ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
       : null;
@@ -1970,7 +1972,7 @@ function App(): JSX.Element {
   };
 
   const completeRecurringTask = async (task: Task, rule: RecurrenceRule) => {
-    const base = task.dateTimeScheduled ? new Date(task.dateTimeScheduled) : new Date();
+    const base = task.dateTimeScheduled ? parseLocalDateTime(task.dateTimeScheduled) : new Date();
     const next = new Date(base);
     const advance = () => {
       if (rule.frequency === 'daily')   next.setDate(next.getDate() + 1);
@@ -1980,13 +1982,13 @@ function App(): JSX.Element {
     advance();
     const now = new Date();
     while (next < now) advance();
-    const nextDt = new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+    const nextDt = toLocalDateTimeString(next);
     const nextEndDateTimeScheduled = (() => {
       if (!task.endDateTimeScheduled || !task.dateTimeScheduled) return null;
-      const durationMs = new Date(task.endDateTimeScheduled).getTime() - new Date(task.dateTimeScheduled).getTime();
+      const durationMs = parseLocalDateTime(task.endDateTimeScheduled).getTime() - parseLocalDateTime(task.dateTimeScheduled).getTime();
       if (!Number.isFinite(durationMs)) return null;
       const nextEnd = new Date(next.getTime() + durationMs);
-      return new Date(nextEnd.getTime() - nextEnd.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+      return toLocalDateTimeString(nextEnd);
     })();
     const nextTask = await createTask({
       title: task.title, description: task.description ?? '',
@@ -2123,8 +2125,7 @@ function App(): JSX.Element {
     setInlineEditOpenControl(null);
     if (task.dateTimeScheduled) {
       const parts = extractDateParts(task.dateTimeScheduled, is24Hour);
-      const dt = new Date(task.dateTimeScheduled);
-      const isMidnight = dt.getHours() === 0 && dt.getMinutes() === 0 && dt.getSeconds() === 0;
+      const isMidnight = isMidnightLocalDateTime(task.dateTimeScheduled);
       setEditShowTime(!isMidnight);
       setEditDate(parts.date);
       setEditHour(parts.hour);
@@ -2248,11 +2249,7 @@ function App(): JSX.Element {
   };
 
   const saveEdit = async (task: Task) => {
-    const dateTimeScheduled = editDate
-      ? (editShowTime
-          ? buildDateTimeString(editDate, editHour, editMinute, editAmpm, is24Hour)
-          : `${editDate}T00:00:00`)
-      : null;
+    const dateTimeScheduled = buildTaskDateTimeString(editDate, editShowTime, editHour, editMinute, editAmpm, is24Hour);
     const endDateTimeScheduled = editDate && editShowEndTime
       ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
       : null;
@@ -2714,7 +2711,7 @@ function App(): JSX.Element {
 
   const snoozeToast = async (toast: { id: number; reminderID: number; taskID: number }, minutes: number) => {
     const newDue = new Date(Date.now() + minutes * 60 * 1000);
-    const iso = new Date(newDue.getTime() - newDue.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
+    const iso = toLocalDateTimeString(newDue);
     try {
       await patchReminderDate(toast.reminderID, iso);
       firedReminders.current.delete(toast.reminderID);
@@ -2843,7 +2840,7 @@ function App(): JSX.Element {
     const active = tasks.filter(t => t.statusID !== 2).length;
     const overdue = tasks.filter(t => isTaskOverdue(t)).length;
     const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    const doneThisWeek = tasks.filter(t => t.statusID === 2 && t.createdAt && new Date(t.createdAt) >= weekAgo).length;
+    const doneThisWeek = tasks.filter(t => t.statusID === 2 && t.createdAt && parseLocalDateTime(t.createdAt) >= weekAgo).length;
     const high = tasks.filter(t => t.priority === 'HIGH').length;
     const medium = tasks.filter(t => t.priority === 'MEDIUM').length;
     const low = tasks.filter(t => t.priority === 'LOW').length;
