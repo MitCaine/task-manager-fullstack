@@ -105,13 +105,25 @@ public class Task {
         this.statusID = statusID;
     }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 
-    public Long getScheduleID() { return scheduleID; }
-    public void setScheduleID(Long scheduleID) { this.scheduleID = scheduleID; }
+    public Long getScheduleID() {
+        return scheduleID;
+    }
 
-    public Long getRecurrenceRuleID() { return recurrenceRuleID; }
-    public void setRecurrenceRuleID(Long recurrenceRuleID) { this.recurrenceRuleID = recurrenceRuleID; }
+    public void setScheduleID(Long scheduleID) {
+        this.scheduleID = scheduleID;
+    }
+
+    public Long getRecurrenceRuleID() {
+        return recurrenceRuleID;
+    }
+
+    public void setRecurrenceRuleID(Long recurrenceRuleID) {
+        this.recurrenceRuleID = recurrenceRuleID;
+    }
 
     public Long getProjectID() {
         return projectID;
@@ -121,8 +133,13 @@ public class Task {
         this.projectID = projectID;
     }
 
-    public String getPriority() { return priority; }
-    public void setPriority(String priority) { this.priority = priority; }
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -130,8 +147,14 @@ public class Task {
         joinColumns = @JoinColumn(name = "taskID"),
         inverseJoinColumns = @JoinColumn(name = "tagID")
     )
+
     private List<Tag> tags = new ArrayList<>();
 
-    public List<Tag> getTags() { return tags; }
-    public void setTags(List<Tag> tags) { this.tags = tags; }
+    public List<Tag> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<Tag> tags) {
+        this.tags = tags;
+    }
 }

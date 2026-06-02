@@ -1191,6 +1191,27 @@ input[type="datetime-local"] {
   color: var(--danger) !important;
 }
 
+@media (min-width: 721px) and (pointer: fine) {
+  .item__main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 0.65rem;
+    width: 100%;
+  }
+
+  .item__body {
+    padding-right: 0;
+  }
+
+  .item__actions {
+    position: relative;
+    top: auto;
+    right: auto;
+    align-self: start;
+  }
+}
+
 .item:hover .item__actions .btn--ghost {
   background: color-mix(in srgb, var(--accent) 12%, var(--card-bg));
   border-color: color-mix(in srgb, var(--accent) 65%, var(--border));

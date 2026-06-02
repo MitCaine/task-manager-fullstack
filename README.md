@@ -224,6 +224,11 @@ loads and the API requests succeed.
 ## Recent Improvements
 
 - Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
+- Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
+- Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
+- Extracted shared frontend date/time utilities for local `LocalDateTime` input values, snooze handling, overdue checks, and recurrence next-occurrence calculations.
+- Allowed optional note titles in the backend so note creation matches the current body/content-only frontend note UI.
+- Added child-resource parent-not-found regression coverage and extracted a shared parent task existence guard for attachments, notes, reminders, and subtasks.
 - Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
 - Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
 - Added project and tag editing to the inline task edit form.
@@ -284,6 +289,7 @@ Backend tests cover the controller and repository behavior for tasks, tags, remi
 - Authentication and deployment hardening.
 - Import/export support.
 - Additional iOS device testing and accessibility review.
+- Dedicated desktop responsive layout refactor for filter controls, form rows, and detail-panel spacing while keeping iOS mobile edit and text-focus code isolated.
 
 ## Notes
 
