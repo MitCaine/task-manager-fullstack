@@ -862,7 +862,7 @@ input[type="datetime-local"] {
   display: contents;
 }
 
-.datetime-row__date-display {
+.datetime-row__date-shell .datetime-row__date-display {
   display: none;
 }
 
@@ -1487,6 +1487,12 @@ input[type="datetime-local"] {
   background: var(--input-bg);
 }
 
+@media (min-width: 721px) and (pointer: fine) {
+  .item.item--editing > .item__edit-card {
+    margin-top: 0;
+  }
+}
+
 .item__edit-card .datetime-row {
   width: 100%;
   max-width: 100%;
@@ -1570,11 +1576,10 @@ input[type="datetime-local"] {
   display: none;
 }
 
-.mobile-edit-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+.mobile-edit-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .mobile-edit-panel__title {
@@ -3448,15 +3453,24 @@ input[type="datetime-local"] {
   .mobile-page--tasks .mobile-edit-panel {
     z-index: 35;
     display: flex;
-    min-height: min(30rem, calc(var(--mobile-card-height) - 1.2rem));
+    min-height: auto;
     max-height: none;
     margin: 0.75rem 0;
-    padding: 0.85rem;
+    padding: 0.68rem 0.85rem 0.85rem;
     overflow-y: visible;
     overflow-x: clip;
     overscroll-behavior: contain;
     background: var(--card-bg);
     box-shadow: var(--shadow-card);
+  }
+
+  .mobile-page--tasks .mobile-edit-panel__header,
+  .mobile-page--tasks .mobile-edit-panel__title {
+    line-height: 1;
+  }
+
+  .mobile-page--tasks .mobile-edit-panel__header + .input {
+    margin-top: -0.25rem;
   }
 
   .mobile-page--tasks .mobile-edit-panel > .recurrence-select {

@@ -52,6 +52,7 @@ const scheduledTask: Task = {
 };
 
 beforeEach(() => {
+  HTMLElement.prototype.scrollIntoView = jest.fn();
   mockGetTasks.mockResolvedValue([]);
   mockGetTask.mockImplementation(async id => ({ ...sampleTask, taskID: id }));
   mockCreateTask.mockResolvedValue(sampleTask);
@@ -2079,28 +2080,103 @@ test('mobile edit renders in a stable panel outside the task list item flow', as
   try {
     expect(editPanel).toHaveClass('mobile-edit-panel');
     expect(editPanel.closest('li.item')).toBeNull();
-    expect(document.querySelector('.list .item__edit-card')).not.toBeInTheDocument();
+    expect(editPanel.closest('.list')).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }
 });
 
-test('mobile edit panel stays in the task list context after search controls', async () => {
+test('mobile edit panel replaces the edited task item in the task list context', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const editPanel = await openMobileEditPanel();
 
   try {
-    const appList = document.querySelector('.app__list');
-    const viewTabs = document.querySelector('.view-tabs');
-    const search = document.querySelector('.app__list .search');
-    const overview = document.querySelector('.task-overview');
-    if (!(appList instanceof HTMLElement) || !(viewTabs instanceof HTMLElement) || !(search instanceof HTMLInputElement) || !(overview instanceof HTMLElement)) {
-      throw new Error('Task list controls not found');
+    const editRow = editPanel.closest('li.mobile-edit-row');
+    const taskList = editRow?.closest('.list');
+    if (!(editRow instanceof HTMLElement) || !(taskList instanceof HTMLElement)) {
+      throw new Error('Mobile edit row not found');
     }
-    const children = Array.from(appList.children);
-    expect(children.indexOf(editPanel)).toBeGreaterThan(children.indexOf(viewTabs));
-    expect(children.indexOf(editPanel)).toBeGreaterThan(children.indexOf(search));
-    expect(children.indexOf(editPanel)).toBeLessThan(children.indexOf(overview));
+    expect(document.querySelector(`#task-${sampleTask.taskID}`)).not.toBeInTheDocument();
+    expect(taskList).toContainElement(editRow);
+    expect(editRow).toContainElement(editPanel);
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('desktop edit visually replaces the original task card content', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const task: Task = { ...sampleTask, description: 'Persisted only description' };
+  const editCard = await openInlineEditCard(task);
+
+  try {
+    const taskItem = editCard.closest('li.item');
+    if (!(taskItem instanceof HTMLElement)) throw new Error('Task item not found');
+
+    expect(taskItem.querySelector('.item__main')).not.toBeInTheDocument();
+    expect(taskItem.querySelector('.item__desc')).not.toBeInTheDocument();
+    expect(within(editCard).getByDisplayValue('Persisted only description')).toBeInTheDocument();
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('mobile edit visually replaces the original task card content', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const task: Task = { ...sampleTask, description: 'Mobile persisted only description' };
+  const editPanel = await openMobileEditPanel(task);
+
+  try {
+    expect(editPanel).toHaveClass('mobile-edit-panel');
+    expect(editPanel.closest('li.item')).toBeNull();
+    expect(document.querySelector(`#task-${task.taskID}`)).not.toBeInTheDocument();
+    expect(screen.queryByText('Mobile persisted only description')).not.toBeInTheDocument();
+    expect(within(editPanel).getByDisplayValue('Mobile persisted only description')).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('cancel edit restores the original task card', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const task: Task = { ...sampleTask, description: 'Original card description' };
+  const editCard = await openInlineEditCard(task);
+
+  try {
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
+    });
+
+    const taskItem = document.querySelector(`#task-${task.taskID}`);
+    if (!(taskItem instanceof HTMLElement)) throw new Error('Restored task item not found');
+    expect(taskItem.querySelector('.item__main')).toBeInTheDocument();
+    expect(within(taskItem).getByText(task.title)).toBeInTheDocument();
+    expect(within(taskItem).getByText('Original card description')).toBeInTheDocument();
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('saving mobile edit restores the updated task card', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const task: Task = { ...sampleTask, title: 'Original mobile title' };
+  mockUpdateTask.mockImplementation(async (id, updatedTask) => ({ ...task, ...updatedTask, taskID: id } as Task));
+  const editPanel = await openMobileEditPanel(task);
+
+  try {
+    const titleInput = within(editPanel).getByLabelText(/^task title$/i);
+    if (!(titleInput instanceof HTMLInputElement)) throw new Error('Mobile edit title input not found');
+    fireEvent.change(titleInput, { target: { value: 'Updated mobile title' } });
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+    });
+
+    await screen.findByText('Updated mobile title');
+    expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
+    const taskItem = document.querySelector(`#task-${task.taskID}`);
+    if (!(taskItem instanceof HTMLElement)) throw new Error('Updated task item not found');
+    expect(taskItem.querySelector('.item__main')).toBeInTheDocument();
+    expect(within(taskItem).queryByText('Original mobile title')).not.toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }

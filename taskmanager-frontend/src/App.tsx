@@ -3010,12 +3010,9 @@ function App(): JSX.Element {
         data-edit-layout={variant}
         onClick={e => e.stopPropagation()}
       >
-        {variant === 'mobile' && (
-          <div className="mobile-edit-panel__header">
-            <span className="mobile-edit-panel__title">Edit task</span>
-            <button className="btn btn--ghost btn--icon" onClick={cancelEdit} aria-label="Close edit task">×</button>
-          </div>
-        )}
+        <div className="mobile-edit-panel__header">
+          <span className="mobile-edit-panel__title">Edit task</span>
+        </div>
         <input
           className="input"
           value={editTitle}
@@ -3250,10 +3247,6 @@ function App(): JSX.Element {
       </div>
     );
   };
-  const mobileEditingTask = mobileEditLayout && selectedTaskId === null && editingId !== null
-    ? tasks.find(task => task.taskID === editingId) ?? null
-    : null;
-
   return (
     <div className="app">
       {toasts.length > 0 && (
@@ -3817,8 +3810,6 @@ function App(): JSX.Element {
           aria-label="Search tasks"
         />
 
-        {mobileEditingTask && renderInlineEditForm(mobileEditingTask, 'mobile')}
-
         <div className="spread mtop small task-overview">
           <div className="task-count-row">
             <button
@@ -3896,151 +3887,161 @@ function App(): JSX.Element {
               const doneCount = firstDoneIdx >= 0 ? tabTasks.length - firstDoneIdx : 0;
 
               return tabTasks.map((task, idx) => {
-              const overdue   = isTaskOverdue(task);
-              const completed = task.statusID === 2;
-              const statusID = normalizeTaskStatus(task.statusID);
-              const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
-              const isSelected = selectedTaskId === task.taskID;
-              const taskSubtasks = subtasks[task.taskID] ?? [];
-              const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
+                const overdue = isTaskOverdue(task);
+                const completed = task.statusID === 2;
+                const statusID = normalizeTaskStatus(task.statusID);
+                const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
+                const isSelected = selectedTaskId === task.taskID;
+                const isEditingTask = editingId === task.taskID && selectedTaskId !== task.taskID;
+                const taskSubtasks = subtasks[task.taskID] ?? [];
+                const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
 
-              return (
-                <Fragment key={task.taskID}>
-                  {idx === firstDoneIdx && (
-                    <li className="done-divider" aria-hidden="true">
-                      <span className="done-divider__label">{doneCount} done</span>
-                    </li>
-                  )}
-                <li
-                  key={`task-${task.taskID}`}
-                  id={`task-${task.taskID}`}
-                  className={[
-                    'item',
-                    overdue   ? 'item--overdue'   : '',
-                    completed ? 'item--completed' : '',
-                    isSelected ? 'item--selected' : '',
-                    editingId === task.taskID && selectedTaskId !== task.taskID ? 'item--editing' : '',
-                    bulkMode && bulkSelectedIds.has(task.taskID) ? 'item--bulk-selected' : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  <>
-                    <div
-                      className="item__main"
-                      onClick={() => handleTaskCardClick(task)}
-                      onTouchStart={() => beginTaskLongPress(task)}
-                      onTouchMove={cancelTaskLongPress}
-                      onTouchEnd={cancelTaskLongPress}
-                      onMouseDown={() => beginTaskLongPress(task)}
-                      onMouseLeave={cancelTaskLongPress}
-                      onMouseUp={cancelTaskLongPress}
-                      onContextMenu={e => { e.preventDefault(); if (!bulkMode) openStatusMoveDialog(task); }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                        {bulkMode && (
-                          <input
-                            type="checkbox"
-                            className="item__checkbox item__bulk-checkbox"
-                            checked={bulkSelectedIds.has(task.taskID)}
-                            onChange={() => toggleBulkSelect(task.taskID)}
-                            onClick={e => e.stopPropagation()}
-                            aria-label={`Select task ${task.title}`}
-                          />
-                        )}
-                        {!bulkMode && (
-                          <input
-                            type="checkbox"
-                            className="item__checkbox"
-                            checked={completed}
-                            onChange={e => { e.stopPropagation(); toggleComplete(task); }}
-                            onClick={e => e.stopPropagation()}
-                            title={completed ? 'Mark as active' : 'Mark as done'}
-                            aria-label={completed ? `Mark ${task.title} as active` : `Mark ${task.title} as done`}
-                          />
-                        )}
-                        <div className="item__body">
-                          <div className="item__title-row">
-                            <div className="item__title-line">
-                              <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
-                              <button
-                                type="button"
-                                className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
-                                aria-label={`Change status from ${statusLabel}`}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  if (!bulkMode) {
-                                    openStatusMoveDialog(task);
-                                  }
-                                }}
-                                onMouseDown={e => e.stopPropagation()}
-                                onTouchStart={e => e.stopPropagation()}
-                              >
-                                {statusLabel}
-                              </button>
-                              {overdue && <span className="item__badge">Overdue</span>}
-                            </div>
-                            <span className="item__meta item__meta--inline">{fmtTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled)}</span>
-                            {(task.priority || task.projectID || completed || taskSubtasks.length > 0) && (
-                              <div className="item__badges">
-                                {task.projectID && (() => {
-                                  const proj = projects.find(p => p.projectID === Number(task.projectID));
-                                  return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
-                                })()}
-                                {task.priority && (
-                                  <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
-                                    {task.priority[0] + task.priority.slice(1).toLowerCase()}
-                                  </span>
+                return (
+                  <Fragment key={task.taskID}>
+                    {idx === firstDoneIdx && (
+                      <li className="done-divider" aria-hidden="true">
+                        <span className="done-divider__label">{doneCount} done</span>
+                      </li>
+                    )}
+                    {!(isEditingTask && mobileEditLayout) && (
+                      <li
+                        key={`task-${task.taskID}`}
+                        id={`task-${task.taskID}`}
+                        className={[
+                          'item',
+                          overdue ? 'item--overdue' : '',
+                          completed ? 'item--completed' : '',
+                          isSelected ? 'item--selected' : '',
+                          isEditingTask ? 'item--editing' : '',
+                          bulkMode && bulkSelectedIds.has(task.taskID) ? 'item--bulk-selected' : '',
+                        ].filter(Boolean).join(' ')}
+                      >
+                        <>
+                          {!isEditingTask && (
+                            <div
+                              className="item__main"
+                              onClick={() => handleTaskCardClick(task)}
+                              onTouchStart={() => beginTaskLongPress(task)}
+                              onTouchMove={cancelTaskLongPress}
+                              onTouchEnd={cancelTaskLongPress}
+                              onMouseDown={() => beginTaskLongPress(task)}
+                              onMouseLeave={cancelTaskLongPress}
+                              onMouseUp={cancelTaskLongPress}
+                              onContextMenu={e => { e.preventDefault(); if (!bulkMode) openStatusMoveDialog(task); }}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {bulkMode && (
+                                <input
+                                  type="checkbox"
+                                  className="item__checkbox item__bulk-checkbox"
+                                  checked={bulkSelectedIds.has(task.taskID)}
+                                  onChange={() => toggleBulkSelect(task.taskID)}
+                                  onClick={e => e.stopPropagation()}
+                                  aria-label={`Select task ${task.title}`}
+                                />
+                              )}
+                              {!bulkMode && (
+                                <input
+                                  type="checkbox"
+                                  className="item__checkbox"
+                                  checked={completed}
+                                  onChange={e => { e.stopPropagation(); toggleComplete(task); }}
+                                  onClick={e => e.stopPropagation()}
+                                  title={completed ? 'Mark as active' : 'Mark as done'}
+                                  aria-label={completed ? `Mark ${task.title} as active` : `Mark ${task.title} as done`}
+                                />
+                              )}
+                              <div className="item__body">
+                                <div className="item__title-row">
+                                  <div className="item__title-line">
+                                    <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
+                                    <button
+                                      type="button"
+                                      className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
+                                      aria-label={`Change status from ${statusLabel}`}
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        if (!bulkMode) {
+                                          openStatusMoveDialog(task);
+                                        }
+                                      }}
+                                      onMouseDown={e => e.stopPropagation()}
+                                      onTouchStart={e => e.stopPropagation()}
+                                    >
+                                      {statusLabel}
+                                    </button>
+                                    {overdue && <span className="item__badge">Overdue</span>}
+                                  </div>
+                                  <span className="item__meta item__meta--inline">{fmtTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled)}</span>
+                                  {(task.priority || task.projectID || completed || taskSubtasks.length > 0) && (
+                                    <div className="item__badges">
+                                      {task.projectID && (() => {
+                                        const proj = projects.find(p => p.projectID === Number(task.projectID));
+                                        return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
+                                      })()}
+                                      {task.priority && (
+                                        <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
+                                          {task.priority[0] + task.priority.slice(1).toLowerCase()}
+                                        </span>
+                                      )}
+                                      {completed && <span className="item__badge item__badge--done">Done</span>}
+                                      {taskSubtasks.length > 0 && (
+                                        <span className={`item__badge ${subtaskDone === taskSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
+                                          {subtaskDone}/{taskSubtasks.length}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                {task.description && (
+                                  <p className="item__desc">{task.description}</p>
                                 )}
-                                {completed && <span className="item__badge item__badge--done">Done</span>}
-                                {taskSubtasks.length > 0 && (
-                                  <span className={`item__badge ${subtaskDone === taskSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
-                                    {subtaskDone}/{taskSubtasks.length}
-                                  </span>
+                                {renderTaskTags(task)}
+                              </div>
+                              <div className="item__actions" onClick={e => e.stopPropagation()}>
+                                <button
+                                  className={`btn btn--ghost btn--icon item__action-toggle${openActionTaskId === task.taskID ? ' item__action-toggle--open' : ''}`}
+                                  aria-label="Open task actions"
+                                  aria-expanded={openActionTaskId === task.taskID}
+                                  onClick={() => {
+                                    const next = openActionTaskId === task.taskID ? null : task.taskID;
+                                    closeFloatingControls();
+                                    setOpenActionTaskId(next);
+                                  }}
+                                >
+                                  ⋯
+                                </button>
+                                {openActionTaskId === task.taskID && (
+                                  <div className="item__action-menu" role="menu">
+                                    <button type="button" role="menuitem" onClick={() => handleEditTaskAction(task)}>Edit</button>
+                                    <button type="button" role="menuitem" onClick={() => handleDuplicateTaskAction(task)}>Copy</button>
+                                    <button type="button" role="menuitem" className="item__action-menu-danger" onClick={() => handleDeleteTaskAction(task.taskID)}>Delete</button>
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                          {task.description && (
-                            <p className="item__desc">{task.description}</p>
-                          )}
-                          {renderTaskTags(task)}
-                        </div>
-                        <div className="item__actions" onClick={e => e.stopPropagation()}>
-                          <button
-                            className={`btn btn--ghost btn--icon item__action-toggle${openActionTaskId === task.taskID ? ' item__action-toggle--open' : ''}`}
-                            aria-label="Open task actions"
-                            aria-expanded={openActionTaskId === task.taskID}
-                            onClick={() => {
-                              const next = openActionTaskId === task.taskID ? null : task.taskID;
-                              closeFloatingControls();
-                              setOpenActionTaskId(next);
-                            }}
-                          >
-                            ⋯
-                          </button>
-                          {openActionTaskId === task.taskID && (
-                            <div className="item__action-menu" role="menu">
-                              <button type="button" role="menuitem" onClick={() => handleEditTaskAction(task)}>Edit</button>
-                              <button type="button" role="menuitem" onClick={() => handleDuplicateTaskAction(task)}>Copy</button>
-                              <button type="button" role="menuitem" className="item__action-menu-danger" onClick={() => handleDeleteTaskAction(task.taskID)}>Delete</button>
                             </div>
                           )}
-                        </div>
-                      </div>
 
-                      {editingId === task.taskID && selectedTaskId !== task.taskID && !mobileEditLayout && renderInlineEditForm(task)}
+                          {isEditingTask && !mobileEditLayout && renderInlineEditForm(task)}
 
-                      {confirmDeleteId === task.taskID && (
-                        <div className="confirm-delete">
-                          <span>Delete &quot;{task.title}&quot;?</span>
-                          <button className="btn btn--danger btn--sm" onClick={() => removeTask(task.taskID)}>Delete</button>
-                          <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                        </div>
-                      )}
-                  </>
-                </li>
-                </Fragment>
-              );
-            });
+                          {confirmDeleteId === task.taskID && (
+                            <div className="confirm-delete">
+                              <span>Delete &quot;{task.title}&quot;?</span>
+                              <button className="btn btn--danger btn--sm" onClick={() => removeTask(task.taskID)}>Delete</button>
+                              <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                            </div>
+                          )}
+                        </>
+                      </li>
+                    )}
+                    {isEditingTask && mobileEditLayout && (
+                      <li className="mobile-edit-row">
+                        {renderInlineEditForm(task, 'mobile')}
+                      </li>
+                    )}
+                  </Fragment>
+                );
+              });
             })()}
           </ul>
         )}
