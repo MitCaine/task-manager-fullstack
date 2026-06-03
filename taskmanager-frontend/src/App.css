@@ -173,11 +173,15 @@ select {
 }
 
 @media (min-width: 1261px) and (pointer: fine) {
+  .app {
+    padding: 1.5rem 1rem;
+  }
+
   .mobile-pager {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
-    gap: 1.5rem;
+    gap: 1rem;
     width: min(100%, 1500px);
   }
 
@@ -195,6 +199,11 @@ select {
     height: 100%;
     min-width: 0;
     min-height: 0;
+    padding: 1.25rem;
+  }
+
+  .app__add .controls {
+    margin-top: 0;
   }
 }
 
