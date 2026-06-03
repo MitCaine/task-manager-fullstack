@@ -11,7 +11,11 @@ const MONTH_NAMES = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
-const YEAR_RANGE_LABELS = ['Jan - Apr', 'May - Aug', 'Sep - Dec'];
+const DESKTOP_CALENDAR_QUERY = '(min-width: 1261px) and (pointer: fine)';
+const YEAR_RANGE_LABELS_BY_SIZE: Record<number, string[]> = {
+  3: ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'],
+  4: ['Jan - Apr', 'May - Aug', 'Sep - Dec'],
+};
 const DAY_ABBR  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const DAY_SHORT = ['S','M','T','W','T','F','S'];
 
@@ -101,13 +105,44 @@ function buildWeekOptions(year: number, month: number, locale: string) {
     });
 }
 
+function matchesDesktopCalendarQuery(): boolean {
+  return typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia(DESKTOP_CALENDAR_QUERY).matches;
+}
+
+function useDesktopCalendarOverview(): boolean {
+  const [matches, setMatches] = useState(matchesDesktopCalendarQuery);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const query = window.matchMedia(DESKTOP_CALENDAR_QUERY);
+    const update = () => setMatches(query.matches);
+    update();
+
+    if (typeof query.addEventListener === 'function') {
+      query.addEventListener('change', update);
+      return () => query.removeEventListener('change', update);
+    }
+
+    query.addListener(update);
+    return () => query.removeListener(update);
+  }, []);
+
+  return matches;
+}
+
 // Calendar renders year, month, week, and day views over scheduled tasks.
 
 export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, onEditTask, hideCompleted, onToggleHideCompleted }: Props) {
+  const isDesktopOverview = useDesktopCalendarOverview();
+  const yearRangeSize = isDesktopOverview ? 3 : 4;
+  const yearRangeLabels = YEAR_RANGE_LABELS_BY_SIZE[yearRangeSize];
   const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
   const [view,     setView]     = useState<CalView>('week');
   const [selMonth, setSelMonth] = useState(() => new Date().getMonth());
-  const [yearRange, setYearRange] = useState(() => Math.floor(new Date().getMonth() / 4));
+  const [yearRange, setYearRange] = useState(() => Math.floor(new Date().getMonth() / (matchesDesktopCalendarQuery() ? 3 : 4)));
   const [selWeek,  setSelWeek]  = useState(() => weekStart(new Date()));
   const [selDay,   setSelDay]   = useState(() => new Date());
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -123,6 +158,14 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   const locale   = isEuropeanDate ? 'en-GB' : 'en-US';
   const todayKey = toKey(new Date());
   const completedToggleLabel = hideCompleted ? 'Show done' : 'Hide done';
+  const rangeForMonth = (month: number) => Math.min(
+    Math.floor(month / yearRangeSize),
+    yearRangeLabels.length - 1
+  );
+
+  useEffect(() => {
+    setYearRange(rangeForMonth(selMonth));
+  }, [selMonth, yearRangeSize]);
 
   useEffect(() => {
     const closePickers = (event: MouseEvent) => {
@@ -176,7 +219,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
   const goToday = () => goDay(new Date());
 
   const goYearView = () => {
-    setYearRange(Math.floor(selMonth / 4));
+    setYearRange(rangeForMonth(selMonth));
     setView('year');
   };
 
@@ -187,7 +230,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       const yearOptions = Array.from({ length: 201 }, (_, i) => calYear - 100 + i)
         .filter(year => year >= 1 && year <= 9999);
       const selectRange = (index: number) => {
-        const month = index * 4;
+        const month = Math.min(index * yearRangeSize, 11);
         setYearRange(index);
         setSelMonth(month);
         setSelWeek(weekStart(new Date(calYear, month, 1)));
@@ -240,11 +283,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               aria-haspopup="listbox"
               aria-expanded={showHalfPicker}
             >
-              {YEAR_RANGE_LABELS[yearRange]}
+              {yearRangeLabels[yearRange]}
             </button>
             {showHalfPicker && (
               <div className="cal-breadcrumb__menu cal-breadcrumb__menu--half" role="listbox">
-                {YEAR_RANGE_LABELS.map((label, index) => (
+                {yearRangeLabels.map((label, index) => (
                   <button
                     key={label}
                     type="button"
@@ -299,7 +342,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     if (view === 'month' || view === 'week' || view === 'day') {
       const selectMonth = (month: number) => {
         setSelMonth(month);
-        setYearRange(Math.floor(month / 4));
+        setYearRange(rangeForMonth(month));
         setSelWeek(weekStart(new Date(calYear, month, 1)));
         setSelDay(new Date(calYear, month, 1));
         setShowMonthPicker(false);
@@ -522,7 +565,11 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
   // Year view groups each month into a compact task summary.
   if (view === 'year') {
-    const rangeMonths = Array.from({ length: 4 }, (_, offset) => yearRange * 4 + offset);
+    const rangeStartMonth = yearRange * yearRangeSize;
+    const rangeMonths = Array.from(
+      { length: yearRangeSize },
+      (_, offset) => rangeStartMonth + offset
+    ).filter(month => month < 12);
 
     return (
       <div className="cal-card cal-card--year">
@@ -789,7 +836,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           </div>
 
           {allWeekTasks.length === 0 ? (
-            <p className="cal-empty">No tasks scheduled this week.</p>
+            <p className="cal-empty cal-empty--week">No tasks scheduled this week.</p>
           ) : (
             days.map(day => {
               const key      = toKey(day);

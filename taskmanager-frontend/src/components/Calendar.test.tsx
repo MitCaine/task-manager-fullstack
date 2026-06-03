@@ -15,10 +15,30 @@ const renderCalendar = (tasks: Task[] = []) => render(
   />
 );
 
+const mockDesktopCalendarQuery = (matches: boolean) => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
+
+const openYearOverview = async () => {
+  await userEvent.click(screen.getByRole('button', { name: String(new Date().getFullYear()) }));
+};
+
 test('calendar week view shows a week-level empty state', () => {
   renderCalendar();
 
-  expect(screen.getByText('No tasks scheduled this week.')).toBeInTheDocument();
+  expect(screen.getByText('No tasks scheduled this week.')).toHaveClass('cal-empty--week');
 });
 
 test('calendar month view shows month empty state', async () => {
@@ -41,4 +61,24 @@ test('calendar day view shows day empty state', async () => {
   await userEvent.click(dayButton);
 
   expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
+});
+
+test('calendar overview keeps four-month ranges outside desktop shell', async () => {
+  mockDesktopCalendarQuery(false);
+  const { container } = renderCalendar();
+
+  await openYearOverview();
+
+  expect(container.querySelectorAll('.cal-mini')).toHaveLength(4);
+  expect(screen.getByRole('button', { name: /Jan - Apr|May - Aug|Sep - Dec/ })).toBeInTheDocument();
+});
+
+test('calendar overview uses three-month ranges in desktop shell', async () => {
+  mockDesktopCalendarQuery(true);
+  const { container } = renderCalendar();
+
+  await openYearOverview();
+
+  expect(container.querySelectorAll('.cal-mini')).toHaveLength(3);
+  expect(screen.getByRole('button', { name: /Jan-Mar|Apr-Jun|Jul-Sep|Oct-Dec/ })).toBeInTheDocument();
 });
