@@ -2923,7 +2923,10 @@ test('edit warning clears when end time is removed', async () => {
   expect(editScope.getByText('End time must be after start time.')).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /clear end time/i }));
+    userEvent.click(editScope.getByRole('button', { name: /end:\s*08:00 PM/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
   });
   expect(editScope.queryByText('End time must be after start time.')).not.toBeInTheDocument();
 });
@@ -3052,8 +3055,14 @@ test('editing a task and clearing end time sends null endDateTimeScheduled', asy
   await act(async () => {
     userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
+  const editCard = document.querySelector('.item__edit-card');
+  if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+  const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(await screen.findByRole('button', { name: /clear end time/i }));
+    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:45 AM/i }));
+  });
+  await act(async () => {
+    userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
   });
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^save$/i }));

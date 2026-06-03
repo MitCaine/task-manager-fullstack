@@ -294,6 +294,8 @@ type DateTimeRowProps = {
   onEndHour?: (v: string) => void;
   onEndMinute?: (v: string) => void;
   onEndAmpm?: (v: Ampm) => void;
+  useDateDisplayProxy?: boolean;
+  dateDisplayLabel?: string;
 };
 
 // Shared date and optional start/end time controls.
@@ -313,6 +315,8 @@ function DateTimeRow({
   showEndTime, onToggleEndTime,
   endHourVal, endMinuteVal, endAmpmVal,
   onEndHour, onEndMinute, onEndAmpm,
+  useDateDisplayProxy = false,
+  dateDisplayLabel,
 }: DateTimeRowProps): JSX.Element {
   const [openTimeSelect, setOpenTimeSelect] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -355,6 +359,7 @@ function DateTimeRow({
   const canRenderActiveEditor =
     activeEditor === 'start' ||
     (activeEditor === 'end' && Boolean(showEndTime && onEndHour && onEndMinute && onEndAmpm));
+  const dateLabel = dateDisplayLabel ?? dateVal;
 
   const openDateControl = () => {
     closeFloatingControls({ createControls: false });
@@ -366,6 +371,32 @@ function DateTimeRow({
     onDate(nextDate);
     if (controlledCreateRow) setOpenControl?.(dateControl);
   };
+
+  const renderTimeControl = ({
+    control,
+    hasValue,
+    mainLabel,
+    legacyEmptyLabel,
+    onMainClick,
+  }: {
+    control: 'start' | 'end';
+    hasValue: boolean;
+    mainLabel: JSX.Element | string;
+    legacyEmptyLabel?: string;
+    onMainClick: () => void;
+  }) => (
+    <button
+      type="button"
+      className={`btn btn--ghost btn--sm datetime-row__time-control datetime-row__time-control--${control}${hasValue ? ' datetime-row__time-control--has-value datetime-row__time-summary' : ' datetime-row__time-control--empty datetime-row__time-toggle'}${activeEditor === control ? ' datetime-row__time-control--active datetime-row__time-summary--active' : ''}`}
+      onClick={onMainClick}
+      aria-label={!hasValue ? legacyEmptyLabel : undefined}
+      data-create-menu-trigger
+    >
+      <span className="datetime-row__time-text">
+        {hasValue ? mainLabel : `+ ${mainLabel}`}
+      </span>
+    </button>
+  );
 
   const closeTimeEditor = () => {
     setOpenTimeSelect(null);
@@ -432,60 +463,69 @@ function DateTimeRow({
   return (
     <div className="datetime-row" ref={rowRef}>
       <div className="datetime-row__top">
-        <input
-          className={`input datetime-row__date${openControl === dateControl ? ' datetime-row__date--active' : ''}`}
-          type="date"
-          value={dateVal}
-          aria-label={`Task date ${dateVal}`}
-          onClick={openDateControl}
-          data-create-menu-trigger
-          data-open={openControl === dateControl ? 'true' : undefined}
-          onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
-          onChange={e => handleDateChange(e.target.value)}
-        />
+        {useDateDisplayProxy ? (
+          <div className="datetime-row__date-shell">
+            <input
+              className={`input datetime-row__date datetime-row__date--proxy${openControl === dateControl ? ' datetime-row__date--active' : ''}`}
+              type="date"
+              value={dateVal}
+              aria-label={`Task date ${dateLabel}`}
+              onClick={openDateControl}
+              data-create-menu-trigger
+              data-open={openControl === dateControl ? 'true' : undefined}
+              onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
+              onChange={e => handleDateChange(e.target.value)}
+            />
+            <span className="btn btn--ghost btn--sm datetime-row__date-display" aria-hidden="true">
+              {dateLabel}
+            </span>
+          </div>
+        ) : (
+          <input
+            className={`input datetime-row__date${openControl === dateControl ? ' datetime-row__date--active' : ''}`}
+            type="date"
+            value={dateVal}
+            aria-label={`Task date ${dateLabel}`}
+            onClick={openDateControl}
+            data-create-menu-trigger
+            data-open={openControl === dateControl ? 'true' : undefined}
+            onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
+            onChange={e => handleDateChange(e.target.value)}
+          />
+        )}
       </div>
       <div className="datetime-row__summary-row">
-        {showTime === false ? (
-          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={openStartEditor} data-create-menu-trigger>
-            + Start time
-          </button>
-        ) : (
-          <div className="datetime-row__summary-wrap">
-            <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'start' ? ' datetime-row__time-summary--active' : ''}`} onClick={openStartEditor} data-create-menu-trigger>
-              <span className={`datetime-row__summary-label${activeEditor === 'start' ? ' datetime-row__summary-label--active' : ''}`}>Start:</span>
-              {timeSummary(hourVal, minuteVal, ampmVal)}
-            </button>
-            {onRemoveStart && (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm datetime-row__clear"
-                onClick={() => { onRemoveStart(); if (activeEditor === 'start') closeTimeEditor(); }}
-                aria-label="Clear start time"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        )}
-        {showEndTime && onEndHour && onEndMinute && onEndAmpm ? (
-          <div className="datetime-row__summary-wrap">
-            <button type="button" className={`btn btn--ghost btn--sm datetime-row__time-summary${activeEditor === 'end' ? ' datetime-row__time-summary--active' : ''}`} onClick={openEndEditor} data-create-menu-trigger>
-              <span className={`datetime-row__summary-label${activeEditor === 'end' ? ' datetime-row__summary-label--active' : ''}`}>End:</span>
-              {timeSummary(endHourVal ?? '12', endMinuteVal ?? '00', endAmpmVal)}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm datetime-row__clear"
-              onClick={() => { onToggleEndTime?.(); if (activeEditor === 'end') closeTimeEditor(); }}
-              aria-label="Clear end time"
-            >
-              ✕
-            </button>
-          </div>
-        ) : onToggleEndTime ? (
-          <button type="button" className="btn btn--ghost btn--sm datetime-row__time-toggle" onClick={openEndEditor} data-create-menu-trigger>
-            + End time
-          </button>
+        {renderTimeControl({
+          control: 'start',
+          hasValue: showTime !== false,
+          mainLabel: showTime === false
+            ? 'Start time'
+            : (
+              <>
+                <span className={`datetime-row__summary-label${activeEditor === 'start' ? ' datetime-row__summary-label--active' : ''}`}>Start:</span>
+                {' '}
+                {timeSummary(hourVal, minuteVal, ampmVal)}
+              </>
+            ),
+          legacyEmptyLabel: '+ Start time',
+          onMainClick: openStartEditor,
+        })}
+        {onToggleEndTime ? (
+          renderTimeControl({
+            control: 'end',
+            hasValue: Boolean(showEndTime && onEndHour && onEndMinute && onEndAmpm),
+            mainLabel: showEndTime && onEndHour && onEndMinute && onEndAmpm
+              ? (
+                <>
+                  <span className={`datetime-row__summary-label${activeEditor === 'end' ? ' datetime-row__summary-label--active' : ''}`}>End:</span>
+                  {' '}
+                  {timeSummary(endHourVal ?? '12', endMinuteVal ?? '00', endAmpmVal)}
+                </>
+              )
+              : 'End time',
+            legacyEmptyLabel: '+ End time',
+            onMainClick: openEndEditor,
+          })
         ) : null}
       </div>
       {canRenderActiveEditor && (
@@ -529,9 +569,20 @@ function DateTimeRow({
                   fallbackOpenId={startControl}
                 />
               )}
-              <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
-                Done
-              </button>
+              <div className="datetime-row__editor-actions">
+                {showTime !== false && onRemoveStart && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm datetime-row__clear-time"
+                    onClick={() => { onRemoveStart(); closeTimeEditor(); }}
+                  >
+                    Clear Time
+                  </button>
+                )}
+                <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
+                  Done
+                </button>
+              </div>
             </div>
           ) : showEndTime && onEndHour && onEndMinute && onEndAmpm ? (
             <div className="datetime-row__time datetime-row__time--end">
@@ -572,9 +623,18 @@ function DateTimeRow({
                   fallbackOpenId={endControl}
                 />
               )}
-              <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
-                Done
-              </button>
+              <div className="datetime-row__editor-actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm datetime-row__clear-time"
+                  onClick={() => { onToggleEndTime?.(); closeTimeEditor(); }}
+                >
+                  Clear Time
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm datetime-row__done" onClick={closeTimeEditor}>
+                  Done
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
@@ -1855,6 +1915,9 @@ function App(): JSX.Element {
   };
 
   const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
+  const createDateDisplayLabel = date
+    ? formatDate(`${date}T00:00:00`, locale, is24Hour)
+    : 'Select date';
 
   const draftDateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
   const draftEndDateTimeScheduled = date && showAddEndTime
@@ -3316,6 +3379,8 @@ function App(): JSX.Element {
             }}
             dateVal={date} hourVal={hour} minuteVal={minute} ampmVal={ampm}
             onDate={setDate} onHour={setHour} onMinute={setMinute} onAmpm={setAmpm}
+            useDateDisplayProxy
+            dateDisplayLabel={createDateDisplayLabel}
             showTime={showAddTime} onToggleTime={() => setShowAddTime(p => !p)} onRemoveStart={() => setShowAddTime(false)}
             showEndTime={showAddEndTime} onToggleEndTime={toggleAddEndTime}
             endHourVal={endHour} endMinuteVal={endMinute} endAmpmVal={endAmpm}
