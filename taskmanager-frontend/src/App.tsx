@@ -15,7 +15,6 @@ import {
 import {
   buildDateTimeString,
   buildTaskDateTimeString,
-  compareLocalDateTimes,
   extractDateParts,
   formatDate,
   formatDateTime as formatDateTimeDisplay,
@@ -28,6 +27,9 @@ import {
   toLocalDateTimeString,
 } from './utils/dateTime';
 import { isTaskOverdue } from './utils/taskUtils';
+import { compactText, normalizeTaskStatus } from './utils/taskDisplay';
+import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
+import type { Ampm } from './utils/taskForm';
 import Calendar from './components/Calendar';
 
 declare global {
@@ -36,7 +38,6 @@ declare global {
   }
 }
 
-type Ampm = 'AM' | 'PM';
 type Theme = 'system' | 'light' | 'dark';
 type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
@@ -47,29 +48,6 @@ type RepeatFrequency = '' | 'daily' | 'weekly' | 'monthly';
 
 function tagAccentStyle(color?: string | null): CSSProperties {
   return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
-}
-
-const TASK_TIME_RANGE_ERROR = 'End time must be after start time.';
-
-function validateTaskTimeRange(start: string | null, end: string | null): string | null {
-  if (!start || !end) return null;
-  return compareLocalDateTimes(start, end) > 0 ? null : TASK_TIME_RANGE_ERROR;
-}
-
-function convertHourForTimeMode(hourValue: string, ampmValue: Ampm, to24Hour: boolean): { hour: string; ampm: Ampm } {
-  const parsed = parseInt(hourValue, 10);
-  const hour = Number.isNaN(parsed) ? 0 : parsed;
-  if (to24Hour) {
-    let hour24 = hour;
-    if (ampmValue === 'PM' && hour24 !== 12) hour24 += 12;
-    if (ampmValue === 'AM' && hour24 === 12) hour24 = 0;
-    return { hour: String(hour24).padStart(2, '0'), ampm: ampmValue };
-  }
-  const normalized = ((hour % 24) + 24) % 24;
-  return {
-    hour: String(normalized % 12 || 12).padStart(2, '0'),
-    ampm: normalized >= 12 ? 'PM' : 'AM',
-  };
 }
 
 function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
@@ -132,14 +110,6 @@ const REPEAT_OPTIONS: Array<{ value: RepeatFrequency; label: string }> = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
 ];
-
-function normalizeTaskStatus(statusID: number | null | undefined): number | null {
-  return statusID === 1 ? null : statusID ?? null;
-}
-
-function compactText(value: string, maxLength: number): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
-}
 
 function shouldIgnoreSwipeStart(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest(SWIPE_IGNORE_SELECTOR));
