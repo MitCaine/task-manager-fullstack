@@ -719,8 +719,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 8rem;
+  min-height: 4.25rem;
   margin: 0;
+  padding: 0.75rem 1rem;
   border: 1px dashed var(--border);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface-2) 70%, transparent);
