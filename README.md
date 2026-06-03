@@ -105,10 +105,13 @@ The final production fix avoids Capacitor Keyboard plugin hooks, shell transform
 ## Prerequisites
 
 - Java 17+
-- Maven 3.9+
 - Node.js and npm
 - MySQL running locally
 - Xcode for iOS simulator or iPhone builds
+
+Maven does not need to be installed globally for normal backend work. Use the
+checked-in Maven Wrapper from the repository root; it downloads Maven 3.9.16 on
+first use.
 
 The backend is configured for:
 
@@ -137,25 +140,49 @@ ALTER TABLE Task
 
 Existing tasks remain valid because `endDateTimeScheduled` is nullable.
 
+## Fresh Machine Setup
+
+From a clean clone, use this order:
+
+1. Confirm Java 17+ and Node.js/npm are installed.
+2. From the repository root, run backend tests with `./mvnw test`.
+3. Change into `taskmanager-frontend` and install frontend dependencies with `npm install`.
+4. From `taskmanager-frontend`, run frontend tests with `npm test -- --watchAll=false`.
+5. For iOS work, stay in `taskmanager-frontend` and run `npm run ios:sync`.
+6. Open the iOS project with `npm run ios:open` when simulator or Xcode validation is needed.
+
+The frontend `package.json` is in `taskmanager-frontend`, not at the repository
+root. Running npm commands from the repository root will fail with a
+`package.json` `ENOENT` error.
+
 ## Backend
 
 Backend tests run in GitHub Actions on push and pull request.
 
+Run backend tests from the repository root:
+
+```bash
+./mvnw test
+```
+
 Run the API:
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 Build the backend:
 
 ```bash
-mvn clean package
+./mvnw clean package
 ```
 
 The API runs on `http://localhost:8080` by default.
 
 ## Frontend
+
+All frontend npm commands must be run from `taskmanager-frontend`; the
+repository root does not contain a `package.json`.
 
 Install dependencies:
 
@@ -178,6 +205,12 @@ Build the frontend:
 npm run build
 ```
 
+Run frontend tests:
+
+```bash
+npm test -- --watchAll=false
+```
+
 Frontend tests run in GitHub Actions on push and pull request.
 
 ## iOS App
@@ -191,6 +224,7 @@ Apple/iOS-specific updates in this build:
 - `@capacitor/core`, `@capacitor/ios`, and `@capacitor/cli` added to the frontend.
 - `npm run ios:sync` builds React and syncs assets into the iOS project.
 - `npm run ios:open` opens the native project in Xcode.
+- The iOS project uses Swift Package Manager artifacts under `taskmanager-frontend/ios/App/CapApp-SPM`; CocoaPods are not used for the current setup.
 - Frontend API calls can use `REACT_APP_API_BASE_URL` for device testing.
 - Backend binds to `0.0.0.0` so an iPhone can reach the Mac over the LAN.
 - CORS allows `capacitor://localhost` and `ionic://localhost`.
@@ -212,7 +246,7 @@ For production use, point `REACT_APP_API_BASE_URL` at a deployed HTTPS backend.
 
 If the iOS app loads but cannot reach the API, verify that:
 
-- The backend is running with `mvn spring-boot:run`.
+- The backend is running with `./mvnw spring-boot:run` from the repository root.
 - Your Mac and iPhone are on the same network.
 - `.env.local` uses the Mac LAN IP, not `localhost`.
 - `curl http://YOUR_MAC_LAN_IP:8080/tasks` works from another device on the LAN.
