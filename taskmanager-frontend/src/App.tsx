@@ -54,6 +54,7 @@ import AddTaskPreview from './components/AddTaskPreview';
 import ToastList from './components/ToastList';
 import type { ToastListItem } from './components/ToastList';
 import ConfirmDelete from './components/ConfirmDelete';
+import DetailSectionShell from './components/DetailSectionShell';
 
 declare global {
   interface Window {
@@ -3439,19 +3440,13 @@ function App(): JSX.Element {
 
             </div>
 
-            <div className="detail__section">
-              <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('subtasks')}>
-                <span className="detail__section-title">Subtasks</span>
-                <div className="detail__section-header-right">
-                  {panelSubtasks.length > 0 && (
-                    <span className={`item__badge ${panelDone === panelSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
-                      {panelDone}/{panelSubtasks.length}
-                    </span>
-                  )}
-                  <span className="detail__chevron">{openSections.has('subtasks') ? '▲' : '▼'}</span>
-                </div>
-              </button>
-              {openSections.has('subtasks') && (
+            <DetailSectionShell
+              title="Subtasks"
+              isOpen={openSections.has('subtasks')}
+              onToggle={() => togglePanelSection('subtasks')}
+              badgeContent={panelSubtasks.length > 0 ? `${panelDone}/${panelSubtasks.length}` : null}
+              badgeClassName={`item__badge ${panelDone === panelSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}
+            >
                 <>
                   <div className="sec-panel__add">
                     <input
@@ -3497,18 +3492,14 @@ function App(): JSX.Element {
                     ))
                   }
                 </>
-              )}
-            </div>
+            </DetailSectionShell>
 
-            <div className="detail__section">
-              <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('notes')}>
-                <span className="detail__section-title">Notes</span>
-                <div className="detail__section-header-right">
-                  {panelNotes.length > 0 && <span className="item__badge item__badge--subtasks">{panelNotes.length}</span>}
-                  <span className="detail__chevron">{openSections.has('notes') ? '▲' : '▼'}</span>
-                </div>
-              </button>
-              {openSections.has('notes') && (
+            <DetailSectionShell
+              title="Notes"
+              isOpen={openSections.has('notes')}
+              onToggle={() => togglePanelSection('notes')}
+              badgeContent={panelNotes.length > 0 ? panelNotes.length : null}
+            >
                 <>
                   <div className="sec-panel__add sec-panel__add--col">
                     <textarea className="input controls__description" placeholder="Note content…" aria-label="Note text" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} rows={2} autoFocus />
@@ -3527,18 +3518,14 @@ function App(): JSX.Element {
                     ))
                   }
                 </>
-              )}
-            </div>
+            </DetailSectionShell>
 
-            <div className="detail__section">
-              <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('reminders')}>
-                <span className="detail__section-title">Reminders</span>
-                <div className="detail__section-header-right">
-                  {panelReminders.length > 0 && <span className="item__badge item__badge--subtasks">{panelReminders.length}</span>}
-                  <span className="detail__chevron">{openSections.has('reminders') ? '▲' : '▼'}</span>
-                </div>
-              </button>
-              {openSections.has('reminders') && (
+            <DetailSectionShell
+              title="Reminders"
+              isOpen={openSections.has('reminders')}
+              onToggle={() => togglePanelSection('reminders')}
+              badgeContent={panelReminders.length > 0 ? panelReminders.length : null}
+            >
                 <>
                   <div className="sec-panel__add sec-panel__add--col">
                     <DateTimeRow
@@ -3567,20 +3554,14 @@ function App(): JSX.Element {
                     ))
                   }
                 </>
-              )}
-            </div>
+            </DetailSectionShell>
 
-            <div className="detail__section">
-              <button className="detail__section-header detail__section-toggle" onClick={() => togglePanelSection('attachments')}>
-                <span className="detail__section-title">Links</span>
-                <div className="detail__section-header-right">
-                  {(attachments[selectedTaskId] ?? []).length > 0 && (
-                    <span className="item__badge item__badge--subtasks">{(attachments[selectedTaskId] ?? []).length}</span>
-                  )}
-                  <span className="detail__chevron">{openSections.has('attachments') ? '▲' : '▼'}</span>
-                </div>
-              </button>
-              {openSections.has('attachments') && (
+            <DetailSectionShell
+              title="Links"
+              isOpen={openSections.has('attachments')}
+              onToggle={() => togglePanelSection('attachments')}
+              badgeContent={(attachments[selectedTaskId] ?? []).length > 0 ? (attachments[selectedTaskId] ?? []).length : null}
+            >
                 <>
                   <div className="sec-panel__add sec-panel__add--col">
                     <input
@@ -3616,8 +3597,7 @@ function App(): JSX.Element {
                     ))
                   }
                 </>
-              )}
-            </div>
+            </DetailSectionShell>
 
           </div>
         );
