@@ -55,6 +55,7 @@ import ToastList from './components/ToastList';
 import type { ToastListItem } from './components/ToastList';
 import ConfirmDelete from './components/ConfirmDelete';
 import DetailSectionShell from './components/DetailSectionShell';
+import TagColorPicker from './components/TagColorPicker';
 
 declare global {
   interface Window {
@@ -2537,19 +2538,12 @@ function App(): JSX.Element {
               <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
               <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
             </div>
-            <div className="color-palette">
-              {TAG_COLORS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setNewTagColor(c)}
-                  title={c}
-                  aria-label={`Choose tag color ${c}`}
-                />
-              ))}
-            </div>
+            <TagColorPicker
+              colors={TAG_COLORS}
+              selectedColor={newTagColor}
+              onSelectColor={setNewTagColor}
+              getAriaLabel={c => `Choose tag color ${c}`}
+            />
           </div>
         )}
         <div className="item__edit-actions">
@@ -2807,11 +2801,13 @@ function App(): JSX.Element {
                             >×</button>
                           </div>
                           {colorPickerTagId === tag.tagID && (
-                            <div className="tag-color-picker">
-                              {TAG_COLORS.map(c => (
-                                <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} aria-label={`Set tag color ${c}`} />
-                              ))}
-                            </div>
+                            <TagColorPicker
+                              colors={TAG_COLORS}
+                              selectedColor={tag.color}
+                              onSelectColor={(c, e) => { e.stopPropagation(); changeTagColor(tag.tagID, c); }}
+                              className="tag-color-picker"
+                              getAriaLabel={c => `Set tag color ${c}`}
+                            />
                           )}
                         </div>
                       );
@@ -2877,19 +2873,12 @@ function App(): JSX.Element {
                 <button className="btn btn--sm" onClick={addTagInline} disabled={!newTagTitle.trim()}>Create</button>
                 <button type="button" className="inline-form__close" onClick={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
               </div>
-              <div className="color-palette">
-                {TAG_COLORS.map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`}
-                    style={{ background: c }}
-                    onClick={() => setNewTagColor(c)}
-                    title={c}
-                    aria-label={`Set new tag color ${c}`}
-                  />
-                ))}
-              </div>
+              <TagColorPicker
+                colors={TAG_COLORS}
+                selectedColor={newTagColor}
+                onSelectColor={setNewTagColor}
+                getAriaLabel={c => `Set new tag color ${c}`}
+              />
             </div>
           )}
           <AddTaskPreview
@@ -3380,11 +3369,13 @@ function App(): JSX.Element {
                                 <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }} title="Delete tag" aria-label="Delete tag">×</button>
                               </div>
                               {colorPickerTagId === tag.tagID && (
-                                <div className="tag-color-picker">
-                                  {TAG_COLORS.map(c => (
-                                    <button key={c} type="button" className={`color-swatch${tag.color === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={e => { e.stopPropagation(); changeTagColor(tag.tagID, c); }} title={c} aria-label={`Set tag color ${c}`} />
-                                  ))}
-                                </div>
+                                <TagColorPicker
+                                  colors={TAG_COLORS}
+                                  selectedColor={tag.color}
+                                  onSelectColor={(c, e) => { e.stopPropagation(); changeTagColor(tag.tagID, c); }}
+                                  className="tag-color-picker"
+                                  getAriaLabel={c => `Set tag color ${c}`}
+                                />
                               )}
                             </div>
                           );
@@ -3416,11 +3407,12 @@ function App(): JSX.Element {
                     <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
                     <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
                   </div>
-                  <div className="color-palette">
-                    {TAG_COLORS.map(c => (
-                      <button key={c} type="button" className={`color-swatch${newTagColor === c ? ' color-swatch--selected' : ''}`} style={{ background: c }} onClick={() => setNewTagColor(c)} title={c} aria-label={`Set new tag color ${c}`} />
-                    ))}
-                  </div>
+                  <TagColorPicker
+                    colors={TAG_COLORS}
+                    selectedColor={newTagColor}
+                    onSelectColor={setNewTagColor}
+                    getAriaLabel={c => `Set new tag color ${c}`}
+                  />
                 </div>
               )}
 
