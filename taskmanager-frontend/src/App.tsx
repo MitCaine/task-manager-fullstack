@@ -51,6 +51,8 @@ import SettingsPanel from './components/SettingsPanel';
 import TaskListControls from './components/TaskListControls';
 import type { FilterStatus, SortBy, ViewTab } from './components/TaskListControls';
 import AddTaskPreview from './components/AddTaskPreview';
+import ToastList from './components/ToastList';
+import type { ToastListItem } from './components/ToastList';
 
 declare global {
   interface Window {
@@ -256,8 +258,7 @@ function App(): JSX.Element {
   const [openCreateControl, setOpenCreateControl] = useState<CreateOpenControl>(null);
 
   // Reminder toasts are queued independently from persisted reminders.
-  type Toast = { id: number; reminderID: number; taskID: number; taskTitle: string; message: string };
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toasts, setToasts] = useState<ToastListItem[]>([]);
   const toastIdRef = useRef(0);
 
   const [mobilePage, setMobilePage] = useState<MobilePage>('tasks');
@@ -2558,24 +2559,7 @@ function App(): JSX.Element {
   };
   return (
     <div className="app">
-      {toasts.length > 0 && (
-        <div className="toasts">
-          {toasts.map(toast => (
-            <div key={toast.id} className="toast">
-              <div className="toast__header">
-                <span className="toast__title">⏰ {toast.taskTitle}</span>
-                <button className="toast__close" onClick={() => dismissToast(toast.id)} aria-label="Dismiss notification">×</button>
-              </div>
-              <p className="toast__msg">{toast.message}</p>
-              <div className="toast__actions">
-                <button className="btn btn--ghost btn--sm" onClick={() => snoozeToast(toast, 60)}>+1 hr</button>
-                <button className="btn btn--ghost btn--sm" onClick={() => snoozeToast(toast, 60 * 24)}>Tomorrow</button>
-                <button className="btn btn--sm" onClick={() => dismissToast(toast.id)}>Dismiss</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <ToastList toasts={toasts} onDismiss={dismissToast} onSnooze={snoozeToast} />
 
       {showStats && (
         <StatsModal
