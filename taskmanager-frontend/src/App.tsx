@@ -30,6 +30,7 @@ import { isTaskOverdue } from './utils/taskUtils';
 import { compactText, normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
 import type { Ampm } from './utils/taskForm';
+import { nextCopyTitle } from './utils/taskCopyTitle';
 import Calendar from './components/Calendar';
 import DateTimeRow from './components/DateTimeRow';
 import { formatRepeatFrequency } from './components/RecurrenceControl';
@@ -2097,35 +2098,10 @@ function App(): JSX.Element {
   };
 
   // Task duplication preserves metadata that belongs to the task itself.
-  const parseCopyTitle = (title: string) => {
-    const match = title.match(/^(.*)\s\(copy(?:\s+(\d+))?\)$/);
-    if (!match) return null;
-    const copyNumber = match[2] ? Number(match[2]) : 1;
-    if (!Number.isInteger(copyNumber) || copyNumber < 1) return null;
-    return { baseTitle: match[1], copyNumber };
-  };
-
-  const nextCopyTitle = (title: string) => {
-    const parsedTitle = parseCopyTitle(title);
-    const baseTitle = parsedTitle?.baseTitle ?? title;
-    const usedCopyNumbers = new Set<number>();
-
-    for (const existingTask of tasks) {
-      const parsedExisting = parseCopyTitle(existingTask.title);
-      if (parsedExisting?.baseTitle === baseTitle) {
-        usedCopyNumbers.add(parsedExisting.copyNumber);
-      }
-    }
-
-    let copyNumber = 1;
-    while (usedCopyNumbers.has(copyNumber)) copyNumber += 1;
-    return `${baseTitle} (copy${copyNumber === 1 ? '' : ` ${copyNumber}`})`;
-  };
-
   const duplicateTask = async (task: Task) => {
     try {
       const saved = await createTask({
-        title: nextCopyTitle(task.title),
+        title: nextCopyTitle(task.title, tasks.map(existingTask => existingTask.title)),
         description: task.description ?? '',
         dateTimeScheduled: task.dateTimeScheduled ?? null,
         endDateTimeScheduled: task.endDateTimeScheduled ?? null,
