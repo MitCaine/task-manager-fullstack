@@ -57,6 +57,7 @@ import ConfirmDelete from './components/ConfirmDelete';
 import DetailSectionShell from './components/DetailSectionShell';
 import TagColorPicker from './components/TagColorPicker';
 import InlineProjectForm from './components/InlineProjectForm';
+import InlineTagForm from './components/InlineTagForm';
 
 declare global {
   interface Window {
@@ -2511,32 +2512,19 @@ function App(): JSX.Element {
           />
         )}
         {showInlineEditTag && (
-          <div className="project-inline-form project-inline-form--tag">
-            <div className="tag-inline-top">
-              <input
-                ref={inlineEditTagInputRef}
-                className="input project-inline-form__input"
-                placeholder="Tag name..."
-                aria-label="Tag name"
-                value={newTagTitle}
-                onChange={e => setNewTagTitle(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') addTagInlineEdit();
-                  if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }
-                }}
-                maxLength={TAG_MAX_LENGTH}
-                autoFocus
-              />
-              <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
-              <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
-            </div>
-            <TagColorPicker
-              colors={TAG_COLORS}
-              selectedColor={newTagColor}
-              onSelectColor={setNewTagColor}
-              getAriaLabel={c => `Choose tag color ${c}`}
-            />
-          </div>
+          <InlineTagForm
+            inputRef={inlineEditTagInputRef}
+            value={newTagTitle}
+            selectedColor={newTagColor}
+            colors={TAG_COLORS}
+            maxLength={TAG_MAX_LENGTH}
+            placeholder="Tag name..."
+            onChange={setNewTagTitle}
+            onSubmit={addTagInlineEdit}
+            onCancel={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
+            onSelectColor={setNewTagColor}
+            getColorAriaLabel={c => `Choose tag color ${c}`}
+          />
         )}
         <div className="item__edit-actions">
           <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
@@ -2837,32 +2825,19 @@ function App(): JSX.Element {
             />
           )}
           {showInlineTag && (
-            <div className="project-inline-form project-inline-form--tag">
-              <div className="tag-inline-top">
-                <input
-                  ref={inlineTagInputRef}
-                  className="input project-inline-form__input"
-                  placeholder="Tag name…"
-                  aria-label="Tag name"
-                  value={newTagTitle}
-                  onChange={e => setNewTagTitle(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') addTagInline();
-                    if (e.key === 'Escape') { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }
-                  }}
-                  maxLength={TAG_MAX_LENGTH}
-                  autoFocus
-                />
-                <button className="btn btn--sm" onClick={addTagInline} disabled={!newTagTitle.trim()}>Create</button>
-                <button type="button" className="inline-form__close" onClick={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
-              </div>
-              <TagColorPicker
-                colors={TAG_COLORS}
-                selectedColor={newTagColor}
-                onSelectColor={setNewTagColor}
-                getAriaLabel={c => `Set new tag color ${c}`}
-              />
-            </div>
+            <InlineTagForm
+              inputRef={inlineTagInputRef}
+              value={newTagTitle}
+              selectedColor={newTagColor}
+              colors={TAG_COLORS}
+              maxLength={TAG_MAX_LENGTH}
+              placeholder="Tag name…"
+              onChange={setNewTagTitle}
+              onSubmit={addTagInline}
+              onCancel={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
+              onSelectColor={setNewTagColor}
+              getColorAriaLabel={c => `Set new tag color ${c}`}
+            />
           )}
           <AddTaskPreview
             title={input}
@@ -3388,19 +3363,19 @@ function App(): JSX.Element {
               )}
 
               {showInlineEditTag && (
-                <div className="project-inline-form project-inline-form--tag">
-                  <div className="tag-inline-top">
-                    <input ref={inlineEditTagInputRef} className="input project-inline-form__input" placeholder="Tag name…" aria-label="Tag name" value={newTagTitle} onChange={e => setNewTagTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addTagInlineEdit(); if (e.key === 'Escape') { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); } }} maxLength={TAG_MAX_LENGTH} autoFocus />
-                    <button className="btn btn--sm" onClick={addTagInlineEdit} disabled={!newTagTitle.trim()}>Create</button>
-                    <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }} title="Close" aria-label="Close tag form">×</button>
-                  </div>
-                  <TagColorPicker
-                    colors={TAG_COLORS}
-                    selectedColor={newTagColor}
-                    onSelectColor={setNewTagColor}
-                    getAriaLabel={c => `Set new tag color ${c}`}
-                  />
-                </div>
+                <InlineTagForm
+                  inputRef={inlineEditTagInputRef}
+                  value={newTagTitle}
+                  selectedColor={newTagColor}
+                  colors={TAG_COLORS}
+                  maxLength={TAG_MAX_LENGTH}
+                  placeholder="Tag name…"
+                  onChange={setNewTagTitle}
+                  onSubmit={addTagInlineEdit}
+                  onCancel={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
+                  onSelectColor={setNewTagColor}
+                  getColorAriaLabel={c => `Set new tag color ${c}`}
+                />
               )}
 
               <div className="detail__repeat-row">
