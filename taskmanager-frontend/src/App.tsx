@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import type { CSSProperties, RefObject, TouchEvent } from 'react';
+import type { RefObject, TouchEvent } from 'react';
 import './App.css';
 import type { Attachment, Note, Project, RecurrenceRule, Reminder, Subtask, Tag, Task } from './types/task';
 import {
@@ -34,6 +34,7 @@ import Calendar from './components/Calendar';
 import DateTimeRow from './components/DateTimeRow';
 import RecurrenceControl, { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
+import { ProjectBadge, SelectedTagChips, TagChip, TagMore } from './components/TagProjectChips';
 
 declare global {
   interface Window {
@@ -47,10 +48,6 @@ type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'mediu
 type MobilePage = 'add' | 'tasks' | 'calendar';
 type ViewTab = 'all' | 'today' | 'week' | 'month';
 type CreateOpenControl = string | null;
-
-function tagAccentStyle(color?: string | null): CSSProperties {
-  return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
-}
 
 function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
   if (control === 'start') return current === 'start' || current === 'start-hour' || current === 'start-minute' || current === 'start-ampm';
@@ -2263,19 +2260,16 @@ function App(): JSX.Element {
     return (
       <div className={`item__chips${extraClass ? ` ${extraClass}` : ''}`}>
         {visibleTags.map(tag => (
-          <span key={tag.tagID} className="item__tag-chip" style={tagAccentStyle(tag.color)}>
-            {tag.title}
-          </span>
+          <TagChip key={tag.tagID} tag={tag} />
         ))}
         {taskTags.length > VISIBLE_TASK_TAGS && (
-          <button
-            type="button"
-            className="item__tag-more"
+          <TagMore
+            button
             onClick={e => { e.stopPropagation(); toggleTaskTags(task.taskID); }}
-            aria-expanded={expanded}
+            ariaExpanded={expanded}
           >
             {expanded ? 'Show less ▲' : `+${hiddenCount} ▼`}
-          </button>
+          </TagMore>
         )}
       </div>
     );
@@ -2592,26 +2586,12 @@ function App(): JSX.Element {
             )}
           </div>
         </div>
-        {editTaskTagIDs.length > 0 && (
-          <div className="selected-tags item__edit-selected-tags">
-            {editTaskTagIDs.map(id => {
-              const tag = tags.find(t => t.tagID === id);
-              if (!tag) return null;
-              return (
-                <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
-                  <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                  {tag.title}
-                  <button
-                    type="button"
-                    className="selected-tag-chip__remove"
-                    onClick={() => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
-                    aria-label={`Remove tag ${tag.title}`}
-                  >×</button>
-                </span>
-              );
-            })}
-          </div>
-        )}
+        <SelectedTagChips
+          tagIds={editTaskTagIDs}
+          tags={tags}
+          className="item__edit-selected-tags"
+          onRemove={id => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
+        />
         {showInlineEditProject && (
           <div className="project-inline-form">
             <input
@@ -2984,31 +2964,16 @@ function App(): JSX.Element {
             const proj = projects.find(p => p.projectID === newProjectID);
             return proj ? (
               <div className="form-selected-chip">
-                <span className="item__badge item__project-chip">{proj.title}</span>
+                <ProjectBadge title={proj.title} />
                 <button type="button" className="form-chip-clear" onClick={() => setNewProjectID('')} aria-label={`Remove project ${proj.title}`}>×</button>
               </div>
             ) : null;
           })()}
-          {newTaskTagIDs.length > 0 && (
-            <div className="selected-tags">
-              {newTaskTagIDs.map(id => {
-                const tag = tags.find(t => t.tagID === id);
-                if (!tag) return null;
-                return (
-                  <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
-                    <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                    {tag.title}
-                    <button
-                      type="button"
-                      className="selected-tag-chip__remove"
-                      onClick={() => setNewTaskTagIDs(prev => prev.filter(i => i !== id))}
-                      aria-label={`Remove tag ${tag.title}`}
-                    >×</button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
+          <SelectedTagChips
+            tagIds={newTaskTagIDs}
+            tags={tags}
+            onRemove={id => setNewTaskTagIDs(prev => prev.filter(i => i !== id))}
+          />
           {showInlineProject && (
             <div className="project-inline-form">
               <input
@@ -3075,7 +3040,7 @@ function App(): JSX.Element {
               {description.trim() && <p className="add-preview__desc">{description.trim()}</p>}
               {(newPriority || draftProject || draftTags.length > 0 || newRepeatFrequency) && (
                 <div className="add-preview__chips">
-                  {draftProject && <span className="item__badge item__project-chip">{draftProject.title}</span>}
+                  {draftProject && <ProjectBadge title={draftProject.title} />}
                   {newRepeatFrequency && <span className="item__badge item__badge--repeat">{formatRepeatFrequency(newRepeatFrequency)}</span>}
                   {newPriority && (
                     <span className={`item__badge item__badge--priority item__badge--priority-${newPriority.toLowerCase()}`}>
@@ -3083,12 +3048,9 @@ function App(): JSX.Element {
                     </span>
                   )}
                   {draftTags.slice(0, 3).map(tag => (
-                    <span key={tag.tagID} className="item__tag-chip" style={tagAccentStyle(tag.color)}>
-                      <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                      {tag.title}
-                    </span>
+                    <TagChip key={tag.tagID} tag={tag} showDot />
                   ))}
-                  {draftTags.length > 3 && <span className="item__tag-more">+{draftTags.length - 3}</span>}
+                  {draftTags.length > 3 && <TagMore>+{draftTags.length - 3}</TagMore>}
                 </div>
               )}
             </div>
@@ -3404,7 +3366,7 @@ function App(): JSX.Element {
                                     <div className="item__badges">
                                       {task.projectID && (() => {
                                         const proj = projects.find(p => p.projectID === Number(task.projectID));
-                                        return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
+                                        return proj ? <ProjectBadge title={proj.title} /> : null;
                                       })()}
                                       {task.priority && (
                                         <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
@@ -3550,7 +3512,7 @@ function App(): JSX.Element {
                 {panelOverdue && <span className="item__badge">Overdue</span>}
                 {panelTask.projectID && (() => {
                   const proj = projects.find(p => p.projectID === Number(panelTask.projectID));
-                  return proj ? <span className="item__badge item__project-chip">{proj.title}</span> : null;
+                  return proj ? <ProjectBadge title={proj.title} /> : null;
                 })()}
               </div>
             )}
@@ -3710,21 +3672,11 @@ function App(): JSX.Element {
                 </div>
               </div>
 
-              {editTaskTagIDs.length > 0 && (
-                <div className="selected-tags">
-                  {editTaskTagIDs.map(id => {
-                    const tag = tags.find(t => t.tagID === id);
-                    if (!tag) return null;
-                    return (
-                      <span key={id} className="selected-tag-chip" style={tagAccentStyle(tag.color)}>
-                        <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                        {tag.title}
-                        <button type="button" className="selected-tag-chip__remove" onClick={() => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }} aria-label={`Remove tag ${tag.title}`}>×</button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+              <SelectedTagChips
+                tagIds={editTaskTagIDs}
+                tags={tags}
+                onRemove={id => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }}
+              />
 
               {showInlineEditProject && (
                 <div className="project-inline-form">
