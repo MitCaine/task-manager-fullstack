@@ -56,6 +56,7 @@ import type { ToastListItem } from './components/ToastList';
 import ConfirmDelete from './components/ConfirmDelete';
 import DetailSectionShell from './components/DetailSectionShell';
 import TagColorPicker from './components/TagColorPicker';
+import InlineProjectForm from './components/InlineProjectForm';
 
 declare global {
   interface Window {
@@ -2499,24 +2500,15 @@ function App(): JSX.Element {
           onRemove={id => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
         />
         {showInlineEditProject && (
-          <div className="project-inline-form">
-            <input
-              ref={inlineEditProjectInputRef}
-              className="input project-inline-form__input"
-              placeholder="Project name..."
-              aria-label="Project name"
-              value={newProjectTitle}
-              maxLength={PROJECT_MAX_LENGTH}
-              onChange={e => setNewProjectTitle(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') addProjectInlineEdit();
-                if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); }
-              }}
-              autoFocus
-            />
-            <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
-            <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
-          </div>
+          <InlineProjectForm
+            inputRef={inlineEditProjectInputRef}
+            value={newProjectTitle}
+            maxLength={PROJECT_MAX_LENGTH}
+            placeholder="Project name..."
+            onChange={setNewProjectTitle}
+            onSubmit={addProjectInlineEdit}
+            onCancel={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }}
+          />
         )}
         {showInlineEditTag && (
           <div className="project-inline-form project-inline-form--tag">
@@ -2834,24 +2826,15 @@ function App(): JSX.Element {
             onRemove={id => setNewTaskTagIDs(prev => prev.filter(i => i !== id))}
           />
           {showInlineProject && (
-            <div className="project-inline-form">
-              <input
-                ref={inlineProjectInputRef}
-                className="input project-inline-form__input"
-                placeholder="Project name…"
-                aria-label="Project name"
-                value={newProjectTitle}
-                maxLength={PROJECT_MAX_LENGTH}
-                onChange={e => setNewProjectTitle(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') addProject();
-                  if (e.key === 'Escape') { setShowInlineProject(false); setNewProjectTitle(''); }
-                }}
-                autoFocus
-              />
-              <button className="btn btn--sm" onClick={addProject} disabled={!newProjectTitle.trim()}>Create</button>
-              <button type="button" className="inline-form__close" onClick={() => { setShowInlineProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
-            </div>
+            <InlineProjectForm
+              inputRef={inlineProjectInputRef}
+              value={newProjectTitle}
+              maxLength={PROJECT_MAX_LENGTH}
+              placeholder="Project name…"
+              onChange={setNewProjectTitle}
+              onSubmit={addProject}
+              onCancel={() => { setShowInlineProject(false); setNewProjectTitle(''); }}
+            />
           )}
           {showInlineTag && (
             <div className="project-inline-form project-inline-form--tag">
@@ -3393,11 +3376,15 @@ function App(): JSX.Element {
               />
 
               {showInlineEditProject && (
-                <div className="project-inline-form">
-                  <input ref={inlineEditProjectInputRef} className="input project-inline-form__input" placeholder="Project name…" aria-label="Project name" value={newProjectTitle} maxLength={PROJECT_MAX_LENGTH} onChange={e => setNewProjectTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addProjectInlineEdit(); if (e.key === 'Escape') { setShowInlineEditProject(false); setNewProjectTitle(''); } }} autoFocus />
-                  <button className="btn btn--sm" onClick={addProjectInlineEdit} disabled={!newProjectTitle.trim()}>Create</button>
-                  <button type="button" className="inline-form__close" onClick={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }} title="Close" aria-label="Close project form">×</button>
-                </div>
+                <InlineProjectForm
+                  inputRef={inlineEditProjectInputRef}
+                  value={newProjectTitle}
+                  maxLength={PROJECT_MAX_LENGTH}
+                  placeholder="Project name…"
+                  onChange={setNewProjectTitle}
+                  onSubmit={addProjectInlineEdit}
+                  onCancel={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }}
+                />
               )}
 
               {showInlineEditTag && (
