@@ -53,6 +53,7 @@ import type { FilterStatus, SortBy, ViewTab } from './components/TaskListControl
 import AddTaskPreview from './components/AddTaskPreview';
 import ToastList from './components/ToastList';
 import type { ToastListItem } from './components/ToastList';
+import ConfirmDelete from './components/ConfirmDelete';
 
 declare global {
   interface Window {
@@ -3152,11 +3153,11 @@ function App(): JSX.Element {
                           {isEditingTask && !mobileEditLayout && renderInlineEditForm(task)}
 
                           {confirmDeleteId === task.taskID && (
-                            <div className="confirm-delete">
-                              <span>Delete &quot;{task.title}&quot;?</span>
-                              <button className="btn btn--danger btn--sm" onClick={() => removeTask(task.taskID)}>Delete</button>
-                              <button className="btn btn--ghost btn--sm" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
-                            </div>
+                            <ConfirmDelete
+                              taskTitle={task.title}
+                              onConfirm={() => removeTask(task.taskID)}
+                              onCancel={() => setConfirmDeleteId(null)}
+                            />
                           )}
                         </>
                       </li>
