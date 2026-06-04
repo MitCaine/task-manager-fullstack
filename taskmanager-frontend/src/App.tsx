@@ -42,7 +42,7 @@ import Calendar from './components/Calendar';
 import DateTimeRow from './components/DateTimeRow';
 import { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
-import { ProjectBadge, SelectedTagChips, TagChip, TagMore } from './components/TagProjectChips';
+import { ProjectBadge, SelectedTagChips } from './components/TagProjectChips';
 import TaskEditorFields from './components/TaskEditorFields';
 import TaskTags from './components/TaskTags';
 import StatsModal from './components/StatsModal';
@@ -50,6 +50,7 @@ import StatusMoveDialog from './components/StatusMoveDialog';
 import SettingsPanel from './components/SettingsPanel';
 import TaskListControls from './components/TaskListControls';
 import type { FilterStatus, SortBy, ViewTab } from './components/TaskListControls';
+import AddTaskPreview from './components/AddTaskPreview';
 
 declare global {
   interface Window {
@@ -2905,32 +2906,16 @@ function App(): JSX.Element {
               </div>
             </div>
           )}
-          <div className="add-assist">
-            <div className="add-preview" aria-label="Task preview">
-              <div className="add-preview__top">
-                <span className={`add-preview__title${input.trim() ? '' : ' add-preview__title--empty'}`}>
-                  {input.trim() || 'Task title preview'}
-                </span>
-                <span className="item__meta item__meta--inline">{formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}</span>
-              </div>
-              {description.trim() && <p className="add-preview__desc">{description.trim()}</p>}
-              {(newPriority || draftProject || draftTags.length > 0 || newRepeatFrequency) && (
-                <div className="add-preview__chips">
-                  {draftProject && <ProjectBadge title={draftProject.title} />}
-                  {newRepeatFrequency && <span className="item__badge item__badge--repeat">{formatRepeatFrequency(newRepeatFrequency)}</span>}
-                  {newPriority && (
-                    <span className={`item__badge item__badge--priority item__badge--priority-${newPriority.toLowerCase()}`}>
-                      {formatPriorityLabel(newPriority)}
-                    </span>
-                  )}
-                  {draftTags.slice(0, 3).map(tag => (
-                    <TagChip key={tag.tagID} tag={tag} showDot />
-                  ))}
-                  {draftTags.length > 3 && <TagMore>+{draftTags.length - 3}</TagMore>}
-                </div>
-              )}
-            </div>
-          </div>
+          <AddTaskPreview
+            title={input}
+            description={description}
+            dateTimeLabel={formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}
+            repeatLabel={newRepeatFrequency ? formatRepeatFrequency(newRepeatFrequency) : null}
+            priority={newPriority}
+            priorityLabel={newPriority ? formatPriorityLabel(newPriority) : null}
+            project={draftProject}
+            tags={draftTags}
+          />
         </div>
 
       </div>
