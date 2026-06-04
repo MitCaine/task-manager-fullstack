@@ -32,9 +32,10 @@ import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm'
 import type { Ampm } from './utils/taskForm';
 import Calendar from './components/Calendar';
 import DateTimeRow from './components/DateTimeRow';
-import RecurrenceControl, { formatRepeatFrequency } from './components/RecurrenceControl';
+import { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
 import { ProjectBadge, SelectedTagChips, TagChip, TagMore } from './components/TagProjectChips';
+import TaskEditorFields from './components/TaskEditorFields';
 
 declare global {
   interface Window {
@@ -2434,65 +2435,65 @@ function App(): JSX.Element {
         <div className="mobile-edit-panel__header">
           <span className="mobile-edit-panel__title">Edit task</span>
         </div>
-        <input
-          className="input"
-          value={editTitle}
-          onChange={e => setEditTitle(e.target.value)}
-          placeholder="Task title"
-          aria-label="Task title"
-        />
-        <div className="desc-wrap">
-          {renderTaskDescriptionField({
-            value: editDescription,
-            onValue: setEditDescription,
-            placeholder: 'Description',
-            ariaLabel: 'Task description',
-            maxLength: 1000,
-            rows: 2,
-            titleStyleInput: variant === 'mobile',
-          })}
-          <span className="char-count">{editDescription.length}/1000</span>
-        </div>
-        <DateTimeRow
-          editorScope={scopeId}
-          openTimeEditorScope={openTimeEditorScope}
-          setOpenTimeEditorScope={setOpenTimeEditorScope}
-          closeFloatingControls={closeFloatingControls}
-          is24Hour={is24Hour}
-          hourOptions={hourOptions}
-          openControl={inlineEditOpenControl}
-          setOpenControl={setInlineEditOpenControl}
-          controlIds={{
-            date: `${scopeId}:date`,
-            start: `${scopeId}:start`,
-            end: `${scopeId}:end`,
-            startHour: `${scopeId}:start-hour`,
-            startMinute: `${scopeId}:start-minute`,
-            startAmpm: `${scopeId}:start-ampm`,
-            endHour: `${scopeId}:end-hour`,
-            endMinute: `${scopeId}:end-minute`,
-            endAmpm: `${scopeId}:end-ampm`,
+        <TaskEditorFields
+          titleValue={editTitle}
+          onTitleChange={setEditTitle}
+          descriptionValue={editDescription}
+          onDescriptionChange={setEditDescription}
+          descriptionPlaceholder="Description"
+          descriptionRows={2}
+          descriptionTitleStyleInput={variant === 'mobile'}
+          dateTimeRowProps={{
+            editorScope: scopeId,
+            openTimeEditorScope,
+            setOpenTimeEditorScope,
+            closeFloatingControls,
+            is24Hour,
+            hourOptions,
+            openControl: inlineEditOpenControl,
+            setOpenControl: setInlineEditOpenControl,
+            controlIds: {
+              date: `${scopeId}:date`,
+              start: `${scopeId}:start`,
+              end: `${scopeId}:end`,
+              startHour: `${scopeId}:start-hour`,
+              startMinute: `${scopeId}:start-minute`,
+              startAmpm: `${scopeId}:start-ampm`,
+              endHour: `${scopeId}:end-hour`,
+              endMinute: `${scopeId}:end-minute`,
+              endAmpm: `${scopeId}:end-ampm`,
+            },
+            dateVal: editDate,
+            hourVal: editHour,
+            minuteVal: editMinute,
+            ampmVal: editAmpm,
+            onDate: setEditDate,
+            onHour: setEditHour,
+            onMinute: setEditMinute,
+            onAmpm: setEditAmpm,
+            showTime: editShowTime,
+            onToggleTime: () => setEditShowTime(p => !p),
+            onRemoveStart: () => setEditShowTime(false),
+            showEndTime: editShowEndTime,
+            onToggleEndTime: toggleEditEndTime,
+            endHourVal: editEndHour,
+            endMinuteVal: editEndMinute,
+            endAmpmVal: editEndAmpm,
+            onEndHour: setEditEndHour,
+            onEndMinute: setEditEndMinute,
+            onEndAmpm: setEditEndAmpm,
           }}
-          dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
-          onDate={setEditDate} onHour={setEditHour} onMinute={setEditMinute} onAmpm={setEditAmpm}
-          showTime={editShowTime}
-          onToggleTime={() => setEditShowTime(p => !p)}
-          onRemoveStart={() => setEditShowTime(false)}
-          showEndTime={editShowEndTime}
-          onToggleEndTime={toggleEditEndTime}
-          endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
-          onEndHour={setEditEndHour} onEndMinute={setEditEndMinute} onEndAmpm={setEditEndAmpm}
+          recurrenceControlProps={{
+            value: editRepeatFrequency,
+            onChange: setEditRepeatFrequency,
+            openControl: inlineEditOpenControl,
+            onToggle: () => toggleInlineEditDropdown('repeat'),
+            onClose: () => setInlineEditOpenControl(null),
+            controlId: 'repeat',
+            menuScope: scopeId,
+          }}
+          timeRangeError={currentEditTimeRangeError}
         />
-        <RecurrenceControl
-          value={editRepeatFrequency}
-          onChange={setEditRepeatFrequency}
-          openControl={inlineEditOpenControl}
-          onToggle={() => toggleInlineEditDropdown('repeat')}
-          onClose={() => setInlineEditOpenControl(null)}
-          controlId="repeat"
-          menuScope={scopeId}
-        />
-        {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
         <div className="form-row item__edit-meta-row">
           <div className="tag-select" ref={editProjectDropdownRef}>
             <button
@@ -2732,70 +2733,72 @@ function App(): JSX.Element {
         )}
 
         <div className="controls" ref={createControlsRef}>
-          <input
-            ref={titleInputRef}
-            className={`input${titleError ? ' input--error' : ''}`}
-            type="text"
-            value={input}
-            onChange={e => { setInput(e.target.value); if (titleError) setTitleError(false); }}
-            onKeyDown={e => e.key === 'Enter' && addTask()}
-            placeholder="Task title"
-            aria-label="Task title"
-          />
-          {titleError && <p className="input-error-msg">Title is required.</p>}
-          {!titleError && input.trim() !== '' && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) && (
-            <p className="input-warn-msg">A task with this title already exists.</p>
-          )}
-          <div className="desc-wrap">
-            {renderTaskDescriptionField({
-              value: description,
-              onValue: setDescription,
-              placeholder: 'Description (optional)',
-              ariaLabel: 'Task description',
-              maxLength: 1000,
-              rows: 2,
-            })}
-            <span className="char-count">{description.length}/1000</span>
-          </div>
-          <DateTimeRow
-            editorScope="add-task"
-            openTimeEditorScope={openTimeEditorScope}
-            setOpenTimeEditorScope={setOpenTimeEditorScope}
-            closeFloatingControls={closeFloatingControls}
-            is24Hour={is24Hour}
-            hourOptions={hourOptions}
-            openControl={openCreateControl}
-            setOpenControl={setOpenCreateControl}
-            controlIds={{
-              date: 'date',
-              start: 'start',
-              end: 'end',
-              startHour: 'start-hour',
-              startMinute: 'start-minute',
-              startAmpm: 'start-ampm',
-              endHour: 'end-hour',
-              endMinute: 'end-minute',
-              endAmpm: 'end-ampm',
+          <TaskEditorFields
+            titleValue={input}
+            onTitleChange={value => { setInput(value); if (titleError) setTitleError(false); }}
+            titleInputRef={titleInputRef}
+            titleClassName={`input${titleError ? ' input--error' : ''}`}
+            titleType="text"
+            onTitleKeyDown={e => e.key === 'Enter' && addTask()}
+            titleErrorMessage={titleError ? 'Title is required.' : null}
+            titleWarningMessage={!titleError && input.trim() !== '' && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) ? 'A task with this title already exists.' : null}
+            descriptionValue={description}
+            onDescriptionChange={setDescription}
+            descriptionPlaceholder="Description (optional)"
+            descriptionRows={2}
+            dateTimeRowProps={{
+              editorScope: 'add-task',
+              openTimeEditorScope,
+              setOpenTimeEditorScope,
+              closeFloatingControls,
+              is24Hour,
+              hourOptions,
+              openControl: openCreateControl,
+              setOpenControl: setOpenCreateControl,
+              controlIds: {
+                date: 'date',
+                start: 'start',
+                end: 'end',
+                startHour: 'start-hour',
+                startMinute: 'start-minute',
+                startAmpm: 'start-ampm',
+                endHour: 'end-hour',
+                endMinute: 'end-minute',
+                endAmpm: 'end-ampm',
+              },
+              dateVal: date,
+              hourVal: hour,
+              minuteVal: minute,
+              ampmVal: ampm,
+              onDate: setDate,
+              onHour: setHour,
+              onMinute: setMinute,
+              onAmpm: setAmpm,
+              useDateDisplayProxy: true,
+              dateDisplayLabel: createDateDisplayLabel,
+              showTime: showAddTime,
+              onToggleTime: () => setShowAddTime(p => !p),
+              onRemoveStart: () => setShowAddTime(false),
+              showEndTime: showAddEndTime,
+              onToggleEndTime: toggleAddEndTime,
+              endHourVal: endHour,
+              endMinuteVal: endMinute,
+              endAmpmVal: endAmpm,
+              onEndHour: setEndHour,
+              onEndMinute: setEndMinute,
+              onEndAmpm: setEndAmpm,
             }}
-            dateVal={date} hourVal={hour} minuteVal={minute} ampmVal={ampm}
-            onDate={setDate} onHour={setHour} onMinute={setMinute} onAmpm={setAmpm}
-            useDateDisplayProxy
-            dateDisplayLabel={createDateDisplayLabel}
-            showTime={showAddTime} onToggleTime={() => setShowAddTime(p => !p)} onRemoveStart={() => setShowAddTime(false)}
-            showEndTime={showAddEndTime} onToggleEndTime={toggleAddEndTime}
-            endHourVal={endHour} endMinuteVal={endMinute} endAmpmVal={endAmpm}
-            onEndHour={setEndHour} onEndMinute={setEndMinute} onEndAmpm={setEndAmpm}
+            recurrenceControlProps={{
+              value: newRepeatFrequency,
+              onChange: setNewRepeatFrequency,
+              openControl: openCreateControl,
+              onToggle: () => toggleCreateDropdown('repeat'),
+              onClose: () => setOpenCreateControl(null),
+              controlId: 'repeat',
+              menuScope: 'create',
+            }}
+            timeRangeError={currentCreateTimeRangeError}
           />
-          <RecurrenceControl
-            value={newRepeatFrequency}
-            onChange={setNewRepeatFrequency}
-            openControl={openCreateControl}
-            onToggle={() => toggleCreateDropdown('repeat')}
-            onClose={() => setOpenCreateControl(null)}
-            controlId="repeat"
-            menuScope="create"
-          />
-          {currentCreateTimeRangeError && <p className="input-error-msg">{currentCreateTimeRangeError}</p>}
           <div className="add-actions-row">
           <div className="form-row">
             <div className="tag-select" ref={priorityDropdownRef}>

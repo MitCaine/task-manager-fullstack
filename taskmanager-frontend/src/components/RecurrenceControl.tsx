@@ -18,7 +18,7 @@ export type RecurrenceControlProps = {
   onToggle: () => void;
   onClose: () => void;
   controlId: string;
-  menuScope: 'create' | 'inline-edit';
+  menuScope: string;
 };
 
 export default function RecurrenceControl({
