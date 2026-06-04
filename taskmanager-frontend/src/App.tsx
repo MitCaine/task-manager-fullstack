@@ -16,9 +16,7 @@ import {
   buildDateTimeString,
   buildTaskDateTimeString,
   extractDateParts,
-  formatDate,
   formatDateTime as formatDateTimeDisplay,
-  formatTime,
   isInLocalMonth,
   isInLocalWeek,
   isMidnightLocalDateTime,
@@ -31,6 +29,15 @@ import { compactText, normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
+import { getTaskEmptyState } from './utils/taskEmptyState';
+import {
+  findProjectById,
+  findTagsByIds,
+  formatCreateDateDisplayLabel,
+  formatPriorityLabel,
+  formatTaskDateRange,
+  splitPriorityFilterValue,
+} from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
 import DateTimeRow from './components/DateTimeRow';
 import { formatRepeatFrequency } from './components/RecurrenceControl';
@@ -1327,33 +1334,15 @@ function App(): JSX.Element {
 
   const themeLabel: Record<Theme, string> = { system: '💻 System', light: '☀️ Light', dark: '🌙 Dark' };
 
-  // Date and time formatting helpers used by the form controls.
-  const fmtDate = (dt: string | null | undefined) => formatDate(dt, locale, is24Hour) || 'No due date';
-  const fmtTaskDateRange = (start: string | null | undefined, end: string | null | undefined) => {
-    if (!start) return 'No due date';
-    if (!end) return fmtDate(start);
-    const startDate = parseLocalDateTime(start);
-    const endDate = parseLocalDateTime(end);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return fmtDate(start);
-    const startLabel = formatDate(start, locale, is24Hour);
-    const sameDay = startDate.toDateString() === endDate.toDateString();
-    const endLabel = sameDay
-      ? formatTime(end, is24Hour)
-      : formatDate(end, locale, is24Hour);
-    return `${startLabel} - ${endLabel}`;
-  };
-
   const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
-  const createDateDisplayLabel = date
-    ? formatDate(`${date}T00:00:00`, locale, is24Hour)
-    : 'Select date';
+  const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
   const draftDateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
   const draftEndDateTimeScheduled = date && showAddEndTime
     ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
     : null;
-  const draftProject = newProjectID !== '' ? projects.find(p => p.projectID === newProjectID) : null;
-  const draftTags = tags.filter(tag => newTaskTagIDs.includes(tag.tagID));
+  const draftProject = findProjectById(projects, newProjectID);
+  const draftTags = findTagsByIds(tags, newTaskTagIDs);
   const currentCreateTimeRangeError = validateTaskTimeRange(draftDateTimeScheduled, draftEndDateTimeScheduled);
   const draftEditDateTimeScheduled = buildTaskDateTimeString(editDate, editShowTime, editHour, editMinute, editAmpm, is24Hour);
   const draftEditEndDateTimeScheduled = editDate && editShowEndTime
@@ -2294,51 +2283,9 @@ function App(): JSX.Element {
     filterTagID !== '';
   const hasModifiedListControls = hasActiveListFilters || sortBy !== 'dueAsc';
 
-  const emptyState = (() => {
-    if (search.trim() !== '') {
-      return {
-        title: 'No matching tasks',
-        body: 'Try a different search term or reset the current filters.',
-      };
-    }
-    if (filterStatus === 'completed') {
-      return {
-        title: 'No completed tasks yet',
-        body: 'Completed tasks will show here.',
-      };
-    }
-    if (filterStatus === 'overdue') {
-      return {
-        title: 'No overdue tasks',
-        body: "You're all caught up.",
-      };
-    }
-    if (hasActiveListFilters) {
-      return {
-        title: 'No tasks in this filter',
-        body: 'Reset filters to bring the rest of your tasks back into view.',
-      };
-    }
-    if (viewTab !== 'all') {
-      return {
-        title: `No tasks ${viewTab === 'today' ? 'today' : viewTab === 'week' ? 'this week' : 'this month'}`,
-        body: 'Anything scheduled for this view will show up here.',
-      };
-    }
-    return {
-      title: 'No tasks yet',
-      body: 'Swipe to Add and create your first task.',
-    };
-  })();
+  const emptyState = getTaskEmptyState({ search, filterStatus, hasActiveListFilters, viewTab });
 
-  const showFilterValue: FilterStatus =
-    filterStatus === 'high' || filterStatus === 'medium' || filterStatus === 'low'
-      ? 'all'
-      : filterStatus;
-  const priorityFilterValue: FilterStatus =
-    filterStatus === 'high' || filterStatus === 'medium' || filterStatus === 'low'
-      ? filterStatus
-      : 'all';
+  const { showFilterValue, priorityFilterValue } = splitPriorityFilterValue(filterStatus);
   const renderTaskDescriptionField = ({
     value,
     onValue,
@@ -2459,7 +2406,7 @@ function App(): JSX.Element {
             >
               {editProjectID === ''
                 ? 'Project'
-                : projects.find(p => p.projectID === Number(editProjectID))?.title ?? 'Project'}
+                : findProjectById(projects, editProjectID)?.title ?? 'Project'}
             </button>
             {inlineEditOpenControl === 'project' && (
               <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
@@ -2738,7 +2685,7 @@ function App(): JSX.Element {
               >
                 {newPriority === ''
                   ? 'Priority'
-                  : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[newPriority] }} />{newPriority[0] + newPriority.slice(1).toLowerCase()}</>}
+                  : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[newPriority] }} />{formatPriorityLabel(newPriority)}</>}
               </button>
               {openCreateControl === 'priority' && (
                 <div className="tag-select__dropdown" data-create-menu-boundary>
@@ -2757,7 +2704,7 @@ function App(): JSX.Element {
                       onClick={() => { setNewPriority(p); setOpenCreateControl(null); }}
                     >
                       <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
-                      {p[0] + p.slice(1).toLowerCase()}
+                      {formatPriorityLabel(p)}
                     </button>
                   ))}
                 </div>
@@ -2774,7 +2721,7 @@ function App(): JSX.Element {
               >
                 {newProjectID === ''
                   ? 'Project'
-                  : compactText(projects.find(p => p.projectID === newProjectID)?.title ?? 'Project', 10)}
+                  : compactText(findProjectById(projects, newProjectID)?.title ?? 'Project', 10)}
               </button>
               {openCreateControl === 'project' && (
                 <div className="tag-select__dropdown" data-create-menu-boundary>
@@ -2890,7 +2837,7 @@ function App(): JSX.Element {
           <button className="btn add-task-submit" onClick={addTask}>Add Task</button>
           </div>
           {newProjectID !== '' && (() => {
-            const proj = projects.find(p => p.projectID === newProjectID);
+            const proj = findProjectById(projects, newProjectID);
             return proj ? (
               <div className="form-selected-chip">
                 <ProjectBadge title={proj.title} />
@@ -2964,7 +2911,7 @@ function App(): JSX.Element {
                 <span className={`add-preview__title${input.trim() ? '' : ' add-preview__title--empty'}`}>
                   {input.trim() || 'Task title preview'}
                 </span>
-                <span className="item__meta item__meta--inline">{fmtTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled)}</span>
+                <span className="item__meta item__meta--inline">{formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}</span>
               </div>
               {description.trim() && <p className="add-preview__desc">{description.trim()}</p>}
               {(newPriority || draftProject || draftTags.length > 0 || newRepeatFrequency) && (
@@ -2973,7 +2920,7 @@ function App(): JSX.Element {
                   {newRepeatFrequency && <span className="item__badge item__badge--repeat">{formatRepeatFrequency(newRepeatFrequency)}</span>}
                   {newPriority && (
                     <span className={`item__badge item__badge--priority item__badge--priority-${newPriority.toLowerCase()}`}>
-                      {newPriority[0] + newPriority.slice(1).toLowerCase()}
+                      {formatPriorityLabel(newPriority)}
                     </span>
                   )}
                   {draftTags.slice(0, 3).map(tag => (
@@ -3290,16 +3237,16 @@ function App(): JSX.Element {
                                     </button>
                                     {overdue && <span className="item__badge">Overdue</span>}
                                   </div>
-                                  <span className="item__meta item__meta--inline">{fmtTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled)}</span>
+                                  <span className="item__meta item__meta--inline">{formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}</span>
                                   {(task.priority || task.projectID || completed || taskSubtasks.length > 0) && (
                                     <div className="item__badges">
                                       {task.projectID && (() => {
-                                        const proj = projects.find(p => p.projectID === Number(task.projectID));
+                                        const proj = findProjectById(projects, task.projectID);
                                         return proj ? <ProjectBadge title={proj.title} /> : null;
                                       })()}
                                       {task.priority && (
                                         <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
-                                          {task.priority[0] + task.priority.slice(1).toLowerCase()}
+                                          {formatPriorityLabel(task.priority)}
                                         </span>
                                       )}
                                       {completed && <span className="item__badge item__badge--done">Done</span>}
@@ -3429,7 +3376,7 @@ function App(): JSX.Element {
               <div className="detail__status-row">
                 {panelOverdue && <span className="item__badge">Overdue</span>}
                 {panelTask.projectID && (() => {
-                  const proj = projects.find(p => p.projectID === Number(panelTask.projectID));
+                  const proj = findProjectById(projects, panelTask.projectID);
                   return proj ? <ProjectBadge title={proj.title} /> : null;
                 })()}
               </div>
@@ -3489,7 +3436,7 @@ function App(): JSX.Element {
                   >
                     {editPriority === ''
                       ? 'Add priority'
-                      : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[editPriority] }} />{editPriority[0] + editPriority.slice(1).toLowerCase()}</>}
+                      : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[editPriority] }} />{formatPriorityLabel(editPriority)}</>}
                   </button>
                   {showEditPriorityDropdown && (
                     <div className="tag-select__dropdown">
@@ -3497,7 +3444,7 @@ function App(): JSX.Element {
                       {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
                         <button key={p} type="button" className={`tag-select__item${editPriority === p ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(p); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>
                           <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
-                          {p[0] + p.slice(1).toLowerCase()}
+                          {formatPriorityLabel(p)}
                         </button>
                       ))}
                     </div>
