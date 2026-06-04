@@ -38,6 +38,7 @@ import { ProjectBadge, SelectedTagChips, TagChip, TagMore } from './components/T
 import TaskEditorFields from './components/TaskEditorFields';
 import TaskTags from './components/TaskTags';
 import StatsModal from './components/StatsModal';
+import StatusMoveDialog from './components/StatusMoveDialog';
 
 declare global {
   interface Window {
@@ -3414,30 +3415,13 @@ function App(): JSX.Element {
         const currentStatusID = normalizeTaskStatus(currentTask.statusID);
         const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
         return (
-          <div className="status-move" onClick={() => setStatusMoveTask(null)}>
-            <div className="status-move__panel" role="dialog" aria-modal="true" aria-labelledby="status-move-title" onClick={e => e.stopPropagation()}>
-              <div className="status-move__header">
-                <div className="status-move__title-wrap" id="status-move-title">
-                  <span className="status-move__eyebrow">Move task</span>
-                  <span className="status-move__title">{currentTask.title}</span>
-                </div>
-                <button className="btn btn--ghost btn--icon" aria-label="Close move task" onClick={() => setStatusMoveTask(null)}>✕</button>
-              </div>
-              <div className="status-move__actions">
-                {moveOptions.map(option => (
-                  <button
-                    key={option.label}
-                    type="button"
-                    ref={moveOptions[0] === option ? statusFirstActionRef : undefined}
-                    className="btn status-move__btn"
-                    onClick={() => moveTaskToStatus(currentTask, option.statusID)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <StatusMoveDialog
+            taskTitle={currentTask.title}
+            options={moveOptions}
+            onClose={() => setStatusMoveTask(null)}
+            onMove={statusID => moveTaskToStatus(currentTask, statusID)}
+            firstActionRef={statusFirstActionRef}
+          />
         );
       })()}
 
