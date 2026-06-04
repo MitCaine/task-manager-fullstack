@@ -36,6 +36,7 @@ import { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
 import { ProjectBadge, SelectedTagChips, TagChip, TagMore } from './components/TagProjectChips';
 import TaskEditorFields from './components/TaskEditorFields';
+import TaskTags from './components/TaskTags';
 
 declare global {
   interface Window {
@@ -2250,32 +2251,6 @@ function App(): JSX.Element {
     });
   };
 
-  const renderTaskTags = (task: Task, extraClass = '') => {
-    const taskTags = task.tags ?? [];
-    if (taskTags.length === 0) return null;
-
-    const expanded = expandedTagTaskIds.has(task.taskID);
-    const visibleTags = expanded ? taskTags : taskTags.slice(0, VISIBLE_TASK_TAGS);
-    const hiddenCount = taskTags.length - visibleTags.length;
-
-    return (
-      <div className={`item__chips${extraClass ? ` ${extraClass}` : ''}`}>
-        {visibleTags.map(tag => (
-          <TagChip key={tag.tagID} tag={tag} />
-        ))}
-        {taskTags.length > VISIBLE_TASK_TAGS && (
-          <TagMore
-            button
-            onClick={e => { e.stopPropagation(); toggleTaskTags(task.taskID); }}
-            ariaExpanded={expanded}
-          >
-            {expanded ? 'Show less ▲' : `+${hiddenCount} ▼`}
-          </TagMore>
-        )}
-      </div>
-    );
-  };
-
   const goMobilePage = (page: MobilePage) => setMobilePage(page);
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
@@ -3388,7 +3363,13 @@ function App(): JSX.Element {
                                 {task.description && (
                                   <p className="item__desc">{task.description}</p>
                                 )}
-                                {renderTaskTags(task)}
+                                <TaskTags
+                                  taskId={task.taskID}
+                                  tags={task.tags}
+                                  expanded={expandedTagTaskIds.has(task.taskID)}
+                                  onToggle={toggleTaskTags}
+                                  visibleTagCount={VISIBLE_TASK_TAGS}
+                                />
                               </div>
                               <div className="item__actions" onClick={e => e.stopPropagation()}>
                                 <button
