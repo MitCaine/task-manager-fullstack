@@ -48,6 +48,8 @@ import TaskTags from './components/TaskTags';
 import StatsModal from './components/StatsModal';
 import StatusMoveDialog from './components/StatusMoveDialog';
 import SettingsPanel from './components/SettingsPanel';
+import TaskListControls from './components/TaskListControls';
+import type { FilterStatus, SortBy, ViewTab } from './components/TaskListControls';
 
 declare global {
   interface Window {
@@ -56,10 +58,7 @@ declare global {
 }
 
 type Theme = 'system' | 'light' | 'dark';
-type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
-type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
 type MobilePage = 'add' | 'tasks' | 'calendar';
-type ViewTab = 'all' | 'today' | 'week' | 'month';
 type CreateOpenControl = string | null;
 
 function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
@@ -2980,142 +2979,35 @@ function App(): JSX.Element {
         )}
         </div>
 
-        <div className="view-tabs">
-          {(['all', 'today', 'week', 'month'] as const).map(tab => (
-            <button
-              key={tab}
-              className={`view-tab${viewTab === tab ? ' view-tab--active' : ''}`}
-              onClick={() => setViewTab(tab)}
-            >
-              {tab === 'all' ? 'All' : tab === 'today' ? 'Today' : tab === 'week' ? 'This Week' : 'This Month'}
-            </button>
-          ))}
-        </div>
-
-        <div className="list-controls list-controls--with-reset">
-          <div className="list-controls__row list-controls__row--primary">
-            <label className="filter-field">
-              <span className="filter-field__label">Sort</span>
-              <select className="select select--sm filter-field__select" value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}>
-                <option value="dueAsc">Date ↑</option>
-                <option value="dueDesc">Date ↓</option>
-                <option value="titleAsc">A-Z</option>
-                <option value="priorityDesc">Priority</option>
-                <option value="overdueFirst">Overdue first</option>
-              </select>
-            </label>
-            <label className="filter-field">
-              <span className="filter-field__label">Show</span>
-              <select className="select select--sm filter-field__select" value={showFilterValue} onChange={e => setFilterStatus(e.target.value as FilterStatus)}>
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="completed">Done</option>
-                <option value="overdue">Overdue</option>
-              </select>
-            </label>
-            <label className="filter-field">
-              <span className="filter-field__label">Priority</span>
-              <select className="select select--sm filter-field__select" value={priorityFilterValue} onChange={e => setFilterStatus(e.target.value as FilterStatus)}>
-                <option value="all">All</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </label>
-          </div>
-          <div className="list-controls__row list-controls__row--secondary">
-            <label className="filter-field">
-              <span className="filter-field__label">Project</span>
-              <select
-                className="select select--sm filter-field__select"
-                value={filterProjectID}
-                onChange={e => setFilterProjectID(e.target.value === '' ? '' : Number(e.target.value))}
-              >
-                <option value="">All</option>
-                {projects.map(p => (
-                  <option key={p.projectID} value={p.projectID}>{p.title}</option>
-                ))}
-              </select>
-            </label>
-            <label className="filter-field">
-              <span className="filter-field__label">Tag</span>
-              <select
-                className="select select--sm filter-field__select"
-                value={filterTagID}
-                onChange={e => setFilterTagID(e.target.value === '' ? '' : Number(e.target.value))}
-              >
-                <option value="">All</option>
-                {tags.map(tag => (
-                  <option key={tag.tagID} value={tag.tagID}>{tag.title}</option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="btn btn--ghost btn--sm btn--reset-filters"
-              onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
-              disabled={!hasModifiedListControls}
-            >
-              Reset Filters
-            </button>
-          </div>
-        </div>
-
-        <input
-          ref={searchInputRef}
-          className="input search mtop"
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search tasks"
-          aria-label="Search tasks"
+        <TaskListControls
+          viewTab={viewTab}
+          onViewTabChange={setViewTab}
+          sortBy={sortBy}
+          onSortByChange={setSortBy}
+          showFilterValue={showFilterValue}
+          priorityFilterValue={priorityFilterValue}
+          filterStatus={filterStatus}
+          onFilterStatusChange={setFilterStatus}
+          filterProjectID={filterProjectID}
+          onFilterProjectChange={setFilterProjectID}
+          filterTagID={filterTagID}
+          onFilterTagChange={setFilterTagID}
+          projects={projects}
+          tags={tags}
+          hasModifiedListControls={hasModifiedListControls}
+          onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+          search={search}
+          onSearchChange={setSearch}
+          searchInputRef={searchInputRef}
+          totalTaskCount={tasks.length}
+          completedCount={completedCount}
+          overdueCount={overdueCount}
+          bulkMode={bulkMode}
+          selectedBulkCount={bulkSelectedIds.size}
+          onToggleBulkMode={() => { setBulkMode(p => !p); setBulkSelectedIds(new Set()); }}
+          onBulkMarkDone={bulkMarkDone}
+          onBulkDelete={bulkDelete}
         />
-
-        <div className="spread mtop small task-overview">
-          <div className="task-count-row">
-            <button
-              type="button"
-              className={`task-count task-count--button${filterStatus === 'all' ? ' task-count--active' : ''}`}
-              onClick={() => setFilterStatus('all')}
-              aria-pressed={filterStatus === 'all'}
-            >
-              {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-            </button>
-            {overdueCount > 0 && (
-              <button
-                type="button"
-                className={`task-count task-count--button task-count--overdue${filterStatus === 'overdue' ? ' task-count--active' : ''}`}
-                onClick={() => setFilterStatus('overdue')}
-                aria-pressed={filterStatus === 'overdue'}
-              >
-                {overdueCount} overdue
-              </button>
-            )}
-            {completedCount > 0 && (
-              <button
-                type="button"
-                className={`footer-done task-count--button${filterStatus === 'completed' ? ' task-count--active' : ''}`}
-                onClick={() => setFilterStatus('completed')}
-                aria-pressed={filterStatus === 'completed'}
-              >
-                {completedCount} done
-              </button>
-            )}
-          </div>
-          <button
-            className={`btn btn--ghost btn--sm${bulkMode ? ' btn--active' : ''}`}
-            onClick={() => { setBulkMode(p => !p); setBulkSelectedIds(new Set()); }}
-          >
-            {bulkMode ? 'Cancel' : 'Select'}
-          </button>
-        </div>
-
-        {bulkMode && bulkSelectedIds.size > 0 && (
-          <div className="bulk-bar">
-            <span className="bulk-bar__count">{bulkSelectedIds.size} selected</span>
-            <button className="btn btn--sm" onClick={bulkMarkDone}>Mark done</button>
-            <button className="btn btn--danger btn--sm" onClick={bulkDelete}>Delete</button>
-          </div>
-        )}
 
         {loading ? (
           <div className="loading">
