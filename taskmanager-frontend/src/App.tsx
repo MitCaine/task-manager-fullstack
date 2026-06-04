@@ -47,6 +47,7 @@ import TaskEditorFields from './components/TaskEditorFields';
 import TaskTags from './components/TaskTags';
 import StatsModal from './components/StatsModal';
 import StatusMoveDialog from './components/StatusMoveDialog';
+import SettingsPanel from './components/SettingsPanel';
 
 declare global {
   interface Window {
@@ -2966,22 +2967,16 @@ function App(): JSX.Element {
         </div>
 
         {showSettings && (
-          <div id="task-card-settings-panel" className="settings-panel task-card-settings" role="region" aria-label="Settings">
-            <button className="btn btn--ghost btn--sm" onClick={() => setIs24Hour(p => !p)}>
-              {is24Hour ? '12-hour' : '24-hour'}
-            </button>
-            <button className="btn btn--ghost btn--sm" onClick={() => setIsEuropeanDate(p => !p)}>
-              {isEuropeanDate ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
-            </button>
-            <div className="settings-theme">
-              <span className="settings-label">Theme</span>
-              <select className="select select--sm" value={theme} onChange={e => setTheme(e.target.value as Theme)}>
-                {(['system', 'light', 'dark'] as Theme[]).map(t => (
-                  <option key={t} value={t}>{themeLabel[t]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <SettingsPanel
+            is24Hour={is24Hour}
+            isEuropeanDate={isEuropeanDate}
+            theme={theme}
+            themeLabel={themeLabel}
+            themeOptions={['system', 'light', 'dark'] as Theme[]}
+            onToggleTimeFormat={() => setIs24Hour(p => !p)}
+            onToggleDateFormat={() => setIsEuropeanDate(p => !p)}
+            onThemeChange={setTheme}
+          />
         )}
         </div>
 
