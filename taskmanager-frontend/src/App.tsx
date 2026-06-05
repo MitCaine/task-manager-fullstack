@@ -65,6 +65,9 @@ import DetailScheduleFields from './components/DetailScheduleFields';
 import ErrorBanner from './components/ErrorBanner';
 import TaskListEmptyState from './components/TaskListEmptyState';
 import TaskListLoading from './components/TaskListLoading';
+import DoneDivider from './components/DoneDivider';
+import TaskCardBadges from './components/TaskCardBadges';
+import TaskCardDescription from './components/TaskCardDescription';
 
 declare global {
   interface Window {
@@ -2957,14 +2960,11 @@ function App(): JSX.Element {
                 const isEditingTask = editingId === task.taskID && selectedTaskId !== task.taskID;
                 const taskSubtasks = subtasks[task.taskID] ?? [];
                 const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
+                const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;
 
                 return (
                   <Fragment key={task.taskID}>
-                    {idx === firstDoneIdx && (
-                      <li className="done-divider" aria-hidden="true">
-                        <span className="done-divider__label">{doneCount} done</span>
-                      </li>
-                    )}
+                    {idx === firstDoneIdx && <DoneDivider doneCount={doneCount} />}
                     {!(isEditingTask && mobileEditLayout) && (
                       <li
                         key={`task-${task.taskID}`}
@@ -3035,29 +3035,16 @@ function App(): JSX.Element {
                                     {overdue && <span className="item__badge">Overdue</span>}
                                   </div>
                                   <span className="item__meta item__meta--inline">{formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}</span>
-                                  {(task.priority || task.projectID || completed || taskSubtasks.length > 0) && (
-                                    <div className="item__badges">
-                                      {task.projectID && (() => {
-                                        const proj = findProjectById(projects, task.projectID);
-                                        return proj ? <ProjectBadge title={proj.title} /> : null;
-                                      })()}
-                                      {task.priority && (
-                                        <span className={`item__badge item__badge--priority item__badge--priority-${task.priority.toLowerCase()}`}>
-                                          {formatPriorityLabel(task.priority)}
-                                        </span>
-                                      )}
-                                      {completed && <span className="item__badge item__badge--done">Done</span>}
-                                      {taskSubtasks.length > 0 && (
-                                        <span className={`item__badge ${subtaskDone === taskSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
-                                          {subtaskDone}/{taskSubtasks.length}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
+                                  <TaskCardBadges
+                                    projectTitle={taskProjectTitle}
+                                    priority={task.priority}
+                                    priorityLabel={task.priority ? formatPriorityLabel(task.priority) : null}
+                                    completed={completed}
+                                    subtaskDone={subtaskDone}
+                                    subtaskTotal={taskSubtasks.length}
+                                  />
                                 </div>
-                                {task.description && (
-                                  <p className="item__desc">{task.description}</p>
-                                )}
+                                <TaskCardDescription description={task.description} />
                                 <TaskTags
                                   taskId={task.taskID}
                                   tags={task.tags}
