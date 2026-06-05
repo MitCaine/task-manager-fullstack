@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import {
   createAttachment,
   createNote,
@@ -24,11 +25,66 @@ type UseTaskDetailResourcesOptions = {
   setError: (message: string) => void;
 };
 
-export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDetailResourcesOptions) {
-  const [subtasks, setSubtasks] = useState<Record<number, Subtask[]>>({});
-  const [notes, setNotes] = useState<Record<number, Note[]>>({});
-  const [reminders, setReminders] = useState<Record<number, Reminder[]>>({});
-  const [attachments, setAttachments] = useState<Record<number, Attachment[]>>({});
+type ResourceMap<T> = Record<number, T[]>;
+type StateSetter<T> = Dispatch<SetStateAction<T>>;
+
+type UseTaskDetailResourcesResult = {
+  resources: {
+    subtasks: ResourceMap<Subtask>;
+    notes: ResourceMap<Note>;
+    reminders: ResourceMap<Reminder>;
+    attachments: ResourceMap<Attachment>;
+  };
+  drafts: {
+    newSubtaskTitle: string;
+    editingSubtaskId: number | null;
+    editingSubtaskTitle: string;
+    newNoteContent: string;
+    newReminderDate: string;
+    newReminderHour: string;
+    newReminderMinute: string;
+    newReminderAmpm: Ampm;
+    newReminderMessage: string;
+    newAttachmentUrl: string;
+    newAttachmentLabel: string;
+  };
+  draftSetters: {
+    setNewSubtaskTitle: StateSetter<string>;
+    setEditingSubtaskId: StateSetter<number | null>;
+    setEditingSubtaskTitle: StateSetter<string>;
+    setNewNoteContent: StateSetter<string>;
+    setNewReminderDate: StateSetter<string>;
+    setNewReminderHour: StateSetter<string>;
+    setNewReminderMinute: StateSetter<string>;
+    setNewReminderAmpm: StateSetter<Ampm>;
+    setNewReminderMessage: StateSetter<string>;
+    setNewAttachmentUrl: StateSetter<string>;
+    setNewAttachmentLabel: StateSetter<string>;
+  };
+  actions: {
+    loadTaskSections: (taskId: number) => Promise<void>;
+    clearDeletedTaskResources: (taskId: number) => void;
+    addSubtask: (taskId: number) => Promise<void>;
+    toggleSubtask: (taskId: number, subtask: Subtask) => Promise<void>;
+    removeSubtask: (taskId: number, subTaskID: number) => Promise<void>;
+    updateSubtaskTitle: (taskId: number, subtask: Subtask) => Promise<void>;
+    addNote: (taskId: number) => Promise<void>;
+    removeNote: (taskId: number, noteId: number) => Promise<void>;
+    addReminder: (taskId: number) => Promise<void>;
+    removeReminder: (taskId: number, reminderId: number) => Promise<void>;
+    addAttachment: (taskId: number) => Promise<void>;
+    removeAttachment: (taskId: number, attachmentId: number) => Promise<void>;
+  };
+  externalSetters: {
+    setReminders: StateSetter<ResourceMap<Reminder>>;
+  };
+};
+
+export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDetailResourcesOptions): UseTaskDetailResourcesResult {
+  const [subtasks, setSubtasks] = useState<ResourceMap<Subtask>>({});
+  const [notes, setNotes] = useState<ResourceMap<Note>>({});
+  const [reminders, setReminders] = useState<ResourceMap<Reminder>>({});
+  const [attachments, setAttachments] = useState<ResourceMap<Attachment>>({});
 
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [editingSubtaskId, setEditingSubtaskId] = useState<number | null>(null);
@@ -161,13 +217,6 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     }
   };
 
-  const loadAttachments = async (taskId: number) => {
-    try {
-      const data = await getAttachments(taskId);
-      setAttachments(prev => ({ ...prev, [taskId]: data }));
-    } catch { /* non-critical */ }
-  };
-
   const addAttachment = async (taskId: number) => {
     const url = newAttachmentUrl.trim();
     if (!url) return;
@@ -191,45 +240,54 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   };
 
   return {
-    subtasks,
-    notes,
-    reminders,
-    attachments,
-    setReminders,
-    newSubtaskTitle,
-    setNewSubtaskTitle,
-    editingSubtaskId,
-    setEditingSubtaskId,
-    editingSubtaskTitle,
-    setEditingSubtaskTitle,
-    newNoteContent,
-    setNewNoteContent,
-    newReminderDate,
-    setNewReminderDate,
-    newReminderHour,
-    setNewReminderHour,
-    newReminderMinute,
-    setNewReminderMinute,
-    newReminderAmpm,
-    setNewReminderAmpm,
-    newReminderMessage,
-    setNewReminderMessage,
-    newAttachmentUrl,
-    setNewAttachmentUrl,
-    newAttachmentLabel,
-    setNewAttachmentLabel,
-    loadTaskSections,
-    clearDeletedTaskResources,
-    addSubtask,
-    toggleSubtask,
-    removeSubtask,
-    updateSubtaskTitle,
-    addNote,
-    removeNote,
-    addReminder,
-    removeReminder,
-    loadAttachments,
-    addAttachment,
-    removeAttachment,
+    resources: {
+      subtasks,
+      notes,
+      reminders,
+      attachments,
+    },
+    drafts: {
+      newSubtaskTitle,
+      editingSubtaskId,
+      editingSubtaskTitle,
+      newNoteContent,
+      newReminderDate,
+      newReminderHour,
+      newReminderMinute,
+      newReminderAmpm,
+      newReminderMessage,
+      newAttachmentUrl,
+      newAttachmentLabel,
+    },
+    draftSetters: {
+      setNewSubtaskTitle,
+      setEditingSubtaskId,
+      setEditingSubtaskTitle,
+      setNewNoteContent,
+      setNewReminderDate,
+      setNewReminderHour,
+      setNewReminderMinute,
+      setNewReminderAmpm,
+      setNewReminderMessage,
+      setNewAttachmentUrl,
+      setNewAttachmentLabel,
+    },
+    actions: {
+      loadTaskSections,
+      clearDeletedTaskResources,
+      addSubtask,
+      toggleSubtask,
+      removeSubtask,
+      updateSubtaskTitle,
+      addNote,
+      removeNote,
+      addReminder,
+      removeReminder,
+      addAttachment,
+      removeAttachment,
+    },
+    externalSetters: {
+      setReminders,
+    },
   };
 }
