@@ -60,6 +60,7 @@ import InlineProjectForm from './components/InlineProjectForm';
 import InlineTagForm from './components/InlineTagForm';
 import RemindersSection from './components/RemindersSection';
 import DetailRepeatRow from './components/DetailRepeatRow';
+import DetailTimeShiftRow from './components/DetailTimeShiftRow';
 
 declare global {
   interface Window {
@@ -3225,10 +3226,10 @@ function App(): JSX.Element {
                 onEndAmpm={v => { setEditEndAmpm(v); scheduleAutoSave(0); }}
               />
               {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
-              <div className="time-shift-row">
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => shiftTime('hour')}>+1 hr</button>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => shiftTime('day')}>+1 day</button>
-              </div>
+              <DetailTimeShiftRow
+                onShiftHour={() => shiftTime('hour')}
+                onShiftDay={() => shiftTime('day')}
+              />
 
               <div className="form-row">
                 <div className="tag-select" ref={editPriorityDropdownRef}>
