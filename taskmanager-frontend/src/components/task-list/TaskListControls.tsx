@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { Project, Tag } from '../types/task';
+import type { Project, Tag } from '../../types/task';
 
 export type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 export type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';

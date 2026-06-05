@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react';
-import type { Reminder } from '../types/task';
-import DateTimeRow from './DateTimeRow';
-import type { DateTimeRowProps } from './DateTimeRow';
+import type { Reminder } from '../../types/task';
+import DateTimeRow from '../shared/DateTimeRow';
+import type { DateTimeRowProps } from '../shared/DateTimeRow';
 
 type RemindersSectionProps = {
   reminders: Reminder[];

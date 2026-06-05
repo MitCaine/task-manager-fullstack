@@ -1,4 +1,4 @@
-import { ProjectBadge } from './TagProjectChips';
+import { ProjectBadge } from '../create-task/TagProjectChips';
 
 type DetailStatusBadgesProps = {
   overdue: boolean;

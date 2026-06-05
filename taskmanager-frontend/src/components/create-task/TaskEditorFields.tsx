@@ -1,6 +1,6 @@
 import type { KeyboardEventHandler, Ref } from 'react';
-import DateTimeRow from './DateTimeRow';
-import type { DateTimeRowProps } from './DateTimeRow';
+import DateTimeRow from '../shared/DateTimeRow';
+import type { DateTimeRowProps } from '../shared/DateTimeRow';
 import RecurrenceControl from './RecurrenceControl';
 import type { RecurrenceControlProps } from './RecurrenceControl';
 

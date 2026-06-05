@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import type { Attachment, Note, Subtask } from '../types/task';
-import DetailSectionShell from './DetailSectionShell';
+import type { Attachment, Note, Subtask } from '../../types/task';
+import DetailSectionShell from '../shared/DetailSectionShell';
 
 type SubtasksSectionProps = {
   subtasks: Subtask[];

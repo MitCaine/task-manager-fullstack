@@ -1,4 +1,4 @@
-import type { Project } from '../types/task';
+import type { Project } from '../../types/task';
 import { ProjectBadge } from './TagProjectChips';
 
 type SelectedProjectChipProps = {

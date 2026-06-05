@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
-import type { Tag } from '../types/task';
+import type { Tag } from '../../types/task';
 
 function tagAccentStyle(color?: string | null): CSSProperties {
   return { '--tag-color': color ?? '#6366f1' } as CSSProperties;

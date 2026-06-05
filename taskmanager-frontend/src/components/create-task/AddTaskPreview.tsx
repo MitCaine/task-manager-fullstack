@@ -1,4 +1,4 @@
-import type { Project, Tag, Task } from '../types/task';
+import type { Project, Tag, Task } from '../../types/task';
 import { ProjectBadge, TagChip, TagMore } from './TagProjectChips';
 
 type AddTaskPreviewProps = {

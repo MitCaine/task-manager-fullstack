@@ -1,6 +1,6 @@
-import type { Task } from '../types/task';
-import { ProjectBadge } from './TagProjectChips';
-import TaskTags from './TaskTags';
+import type { Task } from '../../types/task';
+import { ProjectBadge } from '../create-task/TagProjectChips';
+import TaskTags from '../create-task/TaskTags';
 
 type TaskCardBadgesProps = {
   projectTitle: string | null;

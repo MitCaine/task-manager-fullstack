@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { RepeatFrequency } from './RecurrenceControl';
+import type { RepeatFrequency } from '../create-task/RecurrenceControl';
 
 type DetailRepeatRowProps = {
   value: RepeatFrequency;

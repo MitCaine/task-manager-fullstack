@@ -1,5 +1,5 @@
-import DateTimeRow from './DateTimeRow';
-import type { DateTimeRowProps } from './DateTimeRow';
+import DateTimeRow from '../shared/DateTimeRow';
+import type { DateTimeRowProps } from '../shared/DateTimeRow';
 
 type DetailScheduleFieldsProps = {
   dateTimeRowProps: DateTimeRowProps;

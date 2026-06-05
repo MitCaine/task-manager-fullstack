@@ -1,4 +1,4 @@
-import type { Tag } from '../types/task';
+import type { Tag } from '../../types/task';
 import { TagChip, TagMore } from './TagProjectChips';
 
 export type TaskTagsProps = {
