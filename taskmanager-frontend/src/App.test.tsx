@@ -1092,7 +1092,8 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toMatch(/\.app__add \.datetime-row__time-summary--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
   expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
   expect(css).toMatch(/\.form-row \.tag-select--create-tags \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
-  expect(css).toMatch(/\.recurrence-select__dropdown--value-aligned\s*\{[^}]*right:\s*0;[^}]*width:\s*max-content;/);
+  expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*max-content;/);
+  expect(css).toMatch(/\.tag-select--create-tags \.tag-select__dropdown--create-tags\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*100%;/);
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
 
@@ -1105,6 +1106,17 @@ test('repeat dropdown uses a value-aligned dropdown hook', async () => {
 
   const dropdown = document.querySelector('.recurrence-select__dropdown');
   expect(dropdown).toHaveClass('recurrence-select__dropdown--value-aligned');
+});
+
+test('create tags dropdown uses its own alignment hook', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
+  });
+
+  const dropdown = document.querySelector('.tag-select--create-tags .tag-select__dropdown');
+  expect(dropdown).toHaveClass('tag-select__dropdown--create-tags');
 });
 
 test('create date selection updates the preview immediately', async () => {
@@ -2349,7 +2361,7 @@ test('desktop edit remains inline in the task list flow', async () => {
   }
 });
 
-test('desktop task selection opens detail without rendering legacy inline or mobile edit cards', async () => {
+test('desktop task selection highlights the task without opening competing edit panels', async () => {
   const restoreMedia = mockDesktopMediaEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
@@ -2361,11 +2373,10 @@ test('desktop task selection opens detail without rendering legacy inline or mob
       userEvent.click(screen.getByText('Buy milk'));
     });
 
-    await waitFor(() => expect(document.querySelector('.app__detail')).toBeInTheDocument());
-    const detail = document.querySelector<HTMLElement>('.app__detail');
+    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
     const pager = document.querySelector<HTMLElement>('.mobile-pager');
-    expect(pager).toHaveClass('mobile-pager--detail-open');
-    expect(pager).toContainElement(detail);
+    expect(pager).not.toHaveClass('mobile-pager--detail-open');
+    expect(document.querySelector('.app__detail')).not.toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
@@ -3449,26 +3460,31 @@ test('opening the task move menu shows alternate statuses', async () => {
 });
 
 test('Escape closes settings without closing the task detail panel', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
   await screen.findByText('Buy milk');
 
-  await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
-  });
-  expect(await screen.findByRole('button', { name: /close task details/i })).toBeInTheDocument();
+  try {
+    await act(async () => {
+      userEvent.click(screen.getByText('Buy milk'));
+    });
+    expect(await screen.findByRole('button', { name: /close task details/i })).toBeInTheDocument();
 
-  await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /settings/i }));
-  });
-  expect(screen.getByRole('region', { name: /settings/i })).toBeInTheDocument();
+    await act(async () => {
+      userEvent.click(screen.getByRole('button', { name: /settings/i }));
+    });
+    expect(screen.getByRole('region', { name: /settings/i })).toBeInTheDocument();
 
-  await act(async () => {
-    userEvent.keyboard('{Escape}');
-  });
+    await act(async () => {
+      userEvent.keyboard('{Escape}');
+    });
 
-  expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /close task details/i })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /close task details/i })).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
 });
 
 test('task move menu updates status', async () => {

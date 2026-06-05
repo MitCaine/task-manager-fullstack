@@ -1583,7 +1583,18 @@ function App() {
       taskLongPressTriggered.current = false;
       return;
     }
-    bulkMode ? toggleBulkSelect(task.taskID) : openPanel(task);
+    if (bulkMode) {
+      toggleBulkSelect(task.taskID);
+      return;
+    }
+    if (mobileEditLayout) {
+      openPanel(task);
+      return;
+    }
+    closeFloatingControls();
+    setOpenActionTaskId(null);
+    setDetailEditingTaskId(null);
+    setSelectedTaskId(current => current === task.taskID ? null : task.taskID);
   };
 
   const handleEditTaskAction = (task: Task) => {
@@ -1791,7 +1802,15 @@ function App() {
     focusTaskById(taskId);
     if (selectedTaskId === taskId) return;
     const task = tasks.find(t => t.taskID === taskId);
-    if (task) await openPanel(task);
+    if (!task) return;
+    if (mobileEditLayout) {
+      await openPanel(task);
+      return;
+    }
+    closeFloatingControls();
+    setOpenActionTaskId(null);
+    setDetailEditingTaskId(null);
+    setSelectedTaskId(taskId);
   };
 
   const togglePanelSection = (name: string) =>
@@ -2269,7 +2288,7 @@ function App() {
       </div>
 
       <div
-        className={`mobile-pager mobile-pager--${mobilePage}${selectedTaskId !== null ? ' mobile-pager--detail-open' : ''}`}
+        className={`mobile-pager mobile-pager--${mobilePage}`}
         onTouchStart={handleSwipeStart}
         onTouchEnd={handleSwipeEnd}
       >
@@ -2449,7 +2468,7 @@ function App() {
                   : `${newTaskTagIDs.length} Tag${newTaskTagIDs.length === 1 ? '' : 's'}`}
               </button>
               {openCreateControl === 'tags' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
+                <div className="tag-select__dropdown tag-select__dropdown--create-tags" data-create-menu-boundary>
                   <button
                     type="button"
                     className="tag-select__new-btn tag-select__new-btn--top"
@@ -2563,7 +2582,7 @@ function App() {
       </section>
 
       <section className="mobile-page mobile-page--tasks" data-active={mobilePage === 'tasks'}>
-      <div className={`card app__list${selectedTaskId !== null ? ' app__list--narrow' : ''}`}>
+      <div className={`card app__list${selectedTaskId !== null && detailEditingTaskId === selectedTaskId ? ' app__list--narrow' : ''}`}>
 
         <div ref={settingsRef}>
         <div className="task-card-toolbar">
@@ -2756,7 +2775,7 @@ function App() {
       />
       </section>
 
-      {selectedTaskId !== null && (() => {
+      {selectedTaskId !== null && detailEditingTaskId === selectedTaskId && (() => {
         const panelTask = tasks.find(t => t.taskID === selectedTaskId);
         if (!panelTask) return null;
         const panelOverdue = isTaskOverdue(panelTask);
