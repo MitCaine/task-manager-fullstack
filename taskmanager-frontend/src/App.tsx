@@ -61,6 +61,7 @@ import InlineTagForm from './components/InlineTagForm';
 import RemindersSection from './components/RemindersSection';
 import DetailRepeatRow from './components/DetailRepeatRow';
 import DetailTimeShiftRow from './components/DetailTimeShiftRow';
+import DetailDescriptionField from './components/DetailDescriptionField';
 
 declare global {
   interface Window {
@@ -3191,17 +3192,10 @@ function App(): JSX.Element {
             )}
 
             <div className="detail__fields">
-              <div className="desc-wrap">
-                {renderTaskDescriptionField({
-                  value: editDescription,
-                  onValue: value => { setEditDescription(value); scheduleAutoSave(); },
-                  placeholder: 'Description',
-                  ariaLabel: 'Task description',
-                  maxLength: 1000,
-                  rows: 3,
-                })}
-                <span className="char-count">{editDescription.length}/1000</span>
-              </div>
+              <DetailDescriptionField
+                value={editDescription}
+                onValue={value => { setEditDescription(value); scheduleAutoSave(); }}
+              />
 
               <DateTimeRow
                 editorScope={`detail-edit-${selectedTaskId}`}
