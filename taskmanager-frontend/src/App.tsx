@@ -2657,7 +2657,10 @@ function App() {
                 const statusID = normalizeTaskStatus(task.statusID);
                 const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
                 const isSelected = selectedTaskId === task.taskID;
-                const isEditingTask = editingId === task.taskID && detailEditingTaskId !== task.taskID;
+                const isEditingTask =
+                  editingId === task.taskID &&
+                  selectedTaskId === null &&
+                  detailEditingTaskId === null;
                 const taskSubtasks = subtasks[task.taskID] ?? [];
                 const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
                 const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;

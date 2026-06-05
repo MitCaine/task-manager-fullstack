@@ -1088,9 +1088,11 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toContain('.datetime-row__date--active');
   expect(css).toContain('.datetime-row__date-display--active');
   expect(css).toContain('.app__add .datetime-row__date-display');
+  expect(css).toMatch(/\.app__add \.datetime-row__date--proxy:focus-visible \+ \.datetime-row__date-display,[\s\S]*?\.app__add \.datetime-row__date-display--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
+  expect(css).toMatch(/\.app__add \.datetime-row__time-summary--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
   expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
   expect(css).toMatch(/\.form-row \.tag-select--create-tags \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
-  expect(css).toMatch(/\.recurrence-select__dropdown\s*\{[^}]*right:\s*0;[^}]*width:\s*max-content;/);
+  expect(css).toMatch(/\.recurrence-select__dropdown--value-aligned\s*\{[^}]*right:\s*0;[^}]*width:\s*max-content;/);
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
 
