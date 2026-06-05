@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import type { RefObject, TouchEvent } from 'react';
 import './App.css';
-import type { Project, RecurrenceRule, Tag, Task } from './types/task';
+import type { RecurrenceRule, Task } from './types/task';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
   patchReminderDate,
-  getProjects, createProject, deleteProject as deleteProjectAPI,
-  getTags, createTag, updateTag as updateTagAPI, deleteTag as deleteTagAPI, addTagToTask, removeTagFromTask,
+  addTagToTask, removeTagFromTask,
   getRecurrence, setRepeat,
 } from './api/tasks';
 import {
@@ -64,6 +63,7 @@ import SelectedProjectChip from './components/create-task/SelectedProjectChip';
 import TaskCardMain from './components/task-list/TaskCardMain';
 import { DoneDivider, TaskListDateLabel, TaskListEmptyState, TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
+import useProjectTagCatalog from './hooks/useProjectTagCatalog';
 
 declare global {
   interface Window {
@@ -335,20 +335,39 @@ function App(): JSX.Element {
   const [originalRepeatFrequency, setOriginalRepeatFrequency] = useState<string>('');
 
   // Project lists and selectors shared by create and edit flows.
-  const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectID, setNewProjectID] = useState<number | ''>('');
   const [editProjectID, setEditProjectID] = useState<number | ''>('');
   const [filterProjectID, setFilterProjectID] = useState<number | ''>('');
   const [showInlineProject, setShowInlineProject] = useState(false);
-  const [newProjectTitle, setNewProjectTitle] = useState('');
 
   // Tag lists, filters, and inline color editing state.
-  const [tags, setTags] = useState<Tag[]>([]);
   const [expandedTagTaskIds, setExpandedTagTaskIds] = useState<Set<number>>(new Set());
   const [filterTagID, setFilterTagID] = useState<number | ''>('');
-  const [newTagTitle, setNewTagTitle] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [colorPickerTagId, setColorPickerTagId] = useState<number | null>(null);
+  const {
+    catalog: {
+      projects,
+      tags,
+    },
+    drafts: {
+      newProjectTitle,
+      newTagTitle,
+      newTagColor,
+    },
+    draftSetters: {
+      setNewProjectTitle,
+      setNewTagTitle,
+      setNewTagColor,
+    },
+    actions: {
+      loadProjectTagCatalog,
+      createProjectFromDraft,
+      createTagFromDraft,
+      updateTagColor,
+      deleteProjectFromCatalog,
+      deleteTagFromCatalog,
+    },
+  } = useProjectTagCatalog({ setError });
 
   // Element refs used for shortcuts, dropdown positioning, and focus return.
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -395,8 +414,7 @@ function App(): JSX.Element {
     getTasks()
       .then(data => { setTasks(data); setLoading(false); })
       .catch(() => { setError('Failed to load tasks. Is the backend running?'); setLoading(false); });
-    getProjects().then(setProjects).catch(() => {});
-    getTags().then(setTags).catch(() => {});
+    loadProjectTagCatalog();
   }, []);
 
   useEffect(() => {
@@ -1784,113 +1802,72 @@ function App(): JSX.Element {
 
   // Project creation, deletion, and task detachment handlers.
   const addProject = async () => {
-    if (!newProjectTitle.trim()) return;
-    try {
-      const saved = await createProject({ title: newProjectTitle.trim() });
-      setProjects(prev => [...prev, saved]);
-      setNewProjectTitle('');
-      setShowInlineProject(false);
-    } catch {
-      setError('Failed to create project.');
-    }
+    const saved = await createProjectFromDraft();
+    if (saved) setShowInlineProject(false);
   };
 
   const changeTagColor = async (tagID: number, color: string) => {
-    try {
-      await updateTagAPI(tagID, color);
-      setTags(prev => prev.map(t => t.tagID === tagID ? { ...t, color } : t));
-      setTasks(prev => prev.map(t => ({ ...t, tags: (t.tags ?? []).map(tg => tg.tagID === tagID ? { ...tg, color } : tg) })));
-      setColorPickerTagId(null);
-    } catch {
-      setError('Failed to update tag color.');
-    }
+    const updated = await updateTagColor(tagID, color);
+    if (!updated) return;
+    setTasks(prev => prev.map(t => ({ ...t, tags: (t.tags ?? []).map(tg => tg.tagID === tagID ? { ...tg, color } : tg) })));
+    setColorPickerTagId(null);
   };
 
   const removeTag = async (tagID: number) => {
-    try {
-      await deleteTagAPI(tagID);
-      setTags(prev => prev.filter(t => t.tagID !== tagID));
-      setTasks(prev => prev.map(t => ({ ...t, tags: (t.tags ?? []).filter(tg => tg.tagID !== tagID) })));
-      setNewTaskTagIDs(prev => prev.filter(id => id !== tagID));
-      setEditTaskTagIDs(prev => prev.filter(id => id !== tagID));
-      if (Number(filterTagID) === tagID) setFilterTagID('');
-    } catch {
-      setError('Failed to delete tag.');
-    }
+    const deleted = await deleteTagFromCatalog(tagID);
+    if (!deleted) return;
+    setTasks(prev => prev.map(t => ({ ...t, tags: (t.tags ?? []).filter(tg => tg.tagID !== tagID) })));
+    setNewTaskTagIDs(prev => prev.filter(id => id !== tagID));
+    setEditTaskTagIDs(prev => prev.filter(id => id !== tagID));
+    if (Number(filterTagID) === tagID) setFilterTagID('');
   };
 
   const removeProject = async (projectID: number) => {
-    try {
-      await deleteProjectAPI(projectID);
-      setProjects(prev => prev.filter(p => p.projectID !== projectID));
-      setTasks(prev => prev.map(t => t.projectID === projectID ? { ...t, projectID: null } : t));
-      if (Number(filterProjectID) === projectID) setFilterProjectID('');
-      if (Number(newProjectID) === projectID) setNewProjectID('');
-      if (Number(editProjectID) === projectID) setEditProjectID('');
-    } catch {
-      setError('Failed to delete project.');
-    }
+    const deleted = await deleteProjectFromCatalog(projectID);
+    if (!deleted) return;
+    setTasks(prev => prev.map(t => t.projectID === projectID ? { ...t, projectID: null } : t));
+    if (Number(filterProjectID) === projectID) setFilterProjectID('');
+    if (Number(newProjectID) === projectID) setNewProjectID('');
+    if (Number(editProjectID) === projectID) setEditProjectID('');
   };
 
   // Tag creation, color changes, deletion, and task assignment handlers.
   const addTag = async (applyToTaskId?: number) => {
-    if (!newTagTitle.trim()) return;
+    const saved = await createTagFromDraft({ resetColor: false });
+    if (!saved || applyToTaskId == null) return;
     try {
-      const saved = await createTag({ title: newTagTitle.trim(), color: newTagColor });
-      setTags(prev => [...prev, saved]);
-      setNewTagTitle('');
-      if (applyToTaskId != null) {
-        await addTagToTask(applyToTaskId, saved.tagID);
-        setTasks(prev => prev.map(t => {
-          if (t.taskID !== applyToTaskId) return t;
-          if (t.tags?.some(tg => tg.tagID === saved.tagID)) return t;
-          return { ...t, tags: [...(t.tags ?? []), saved] };
-        }));
-      }
+      await addTagToTask(applyToTaskId, saved.tagID);
+      setTasks(prev => prev.map(t => {
+        if (t.taskID !== applyToTaskId) return t;
+        if (t.tags?.some(tg => tg.tagID === saved.tagID)) return t;
+        return { ...t, tags: [...(t.tags ?? []), saved] };
+      }));
     } catch {
       setError('Failed to create tag.');
     }
   };
 
   const addTagInline = async () => {
-    if (!newTagTitle.trim()) return;
-    try {
-      const saved = await createTag({ title: newTagTitle.trim(), color: newTagColor });
-      setTags(prev => [...prev, saved]);
-      setNewTaskTagIDs(prev => [...prev, saved.tagID]);
-      setNewTagTitle(''); setNewTagColor('#6366f1');
-      setShowInlineTag(false);
-    } catch {
-      setError('Failed to create tag.');
-    }
+    const saved = await createTagFromDraft();
+    if (!saved) return;
+    setNewTaskTagIDs(prev => [...prev, saved.tagID]);
+    setShowInlineTag(false);
   };
 
   const addProjectInlineEdit = async () => {
-    if (!newProjectTitle.trim()) return;
-    try {
-      const saved = await createProject({ title: newProjectTitle.trim() });
-      setProjects(prev => [...prev, saved]);
-      setEditProjectID(saved.projectID);
-      setNewProjectTitle('');
-      setShowInlineEditProject(false);
-      scheduleAutoSave(0);
-    } catch {
-      setError('Failed to create project.');
-    }
+    const saved = await createProjectFromDraft();
+    if (!saved) return;
+    setEditProjectID(saved.projectID);
+    setShowInlineEditProject(false);
+    scheduleAutoSave(0);
   };
 
   const addTagInlineEdit = async () => {
-    if (!newTagTitle.trim()) return;
-    try {
-      const saved = await createTag({ title: newTagTitle.trim(), color: newTagColor });
-      setTags(prev => [...prev, saved]);
-      setEditTaskTagIDs(prev => [...prev, saved.tagID]);
-      setNewTagTitle(''); setNewTagColor('#6366f1');
-      setShowInlineEditTag(false);
-      scheduleAutoSave(0);
-    } catch {
-      setError('Failed to create tag.');
-    }
+    const saved = await createTagFromDraft();
+    if (!saved) return;
+    setEditTaskTagIDs(prev => [...prev, saved.tagID]);
+    setShowInlineEditTag(false);
+    scheduleAutoSave(0);
   };
 
   const addTagToTaskHandler = async (taskId: number, tagId: number) => {
