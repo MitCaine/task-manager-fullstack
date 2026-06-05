@@ -64,12 +64,9 @@ import DetailDescriptionField from './components/DetailDescriptionField';
 import DetailScheduleFields from './components/DetailScheduleFields';
 import { DetailLinksPanel, DetailNotesPanel, DetailSubtasksPanel } from './components/DetailAuxiliaryPanels';
 import ErrorBanner from './components/ErrorBanner';
-import TaskListEmptyState from './components/TaskListEmptyState';
-import TaskListLoading from './components/TaskListLoading';
-import DoneDivider from './components/DoneDivider';
 import SelectedProjectChip from './components/SelectedProjectChip';
-import TaskListDateLabel from './components/TaskListDateLabel';
 import TaskCardMain from './components/TaskCardMain';
+import { DoneDivider, TaskListDateLabel, TaskListEmptyState, TaskListLoading } from './components/TaskListPresentation';
 
 declare global {
   interface Window {

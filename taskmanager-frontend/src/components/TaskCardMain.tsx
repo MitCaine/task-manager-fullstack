@@ -1,8 +1,88 @@
 import type { Task } from '../types/task';
-import TaskCardBadges from './TaskCardBadges';
-import TaskCardDescription from './TaskCardDescription';
-import TaskCardToolbar from './TaskCardToolbar';
+import { ProjectBadge } from './TagProjectChips';
 import TaskTags from './TaskTags';
+
+type TaskCardBadgesProps = {
+  projectTitle: string | null;
+  priority: Task['priority'];
+  priorityLabel: string | null;
+  completed: boolean;
+  subtaskDone: number;
+  subtaskTotal: number;
+};
+
+function TaskCardBadges({
+  projectTitle,
+  priority,
+  priorityLabel,
+  completed,
+  subtaskDone,
+  subtaskTotal,
+}: TaskCardBadgesProps) {
+  if (!projectTitle && !priority && !completed && subtaskTotal === 0) return null;
+
+  return (
+    <div className="item__badges">
+      {projectTitle && <ProjectBadge title={projectTitle} />}
+      {priority && (
+        <span className={`item__badge item__badge--priority item__badge--priority-${priority.toLowerCase()}`}>
+          {priorityLabel}
+        </span>
+      )}
+      {completed && <span className="item__badge item__badge--done">Done</span>}
+      {subtaskTotal > 0 && (
+        <span className={`item__badge ${subtaskDone === subtaskTotal ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
+          {subtaskDone}/{subtaskTotal}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type TaskCardDescriptionProps = {
+  description?: string | null;
+};
+
+function TaskCardDescription({ description }: TaskCardDescriptionProps) {
+  if (!description) return null;
+  return <p className="item__desc">{description}</p>;
+}
+
+type TaskCardToolbarProps = {
+  isOpen: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+};
+
+function TaskCardToolbar({
+  isOpen,
+  onToggle,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: TaskCardToolbarProps) {
+  return (
+    <div className="item__actions" onClick={e => e.stopPropagation()}>
+      <button
+        className={`btn btn--ghost btn--icon item__action-toggle${isOpen ? ' item__action-toggle--open' : ''}`}
+        aria-label="Open task actions"
+        aria-expanded={isOpen}
+        onClick={onToggle}
+      >
+        ⋯
+      </button>
+      {isOpen && (
+        <div className="item__action-menu" role="menu">
+          <button type="button" role="menuitem" onClick={onEdit}>Edit</button>
+          <button type="button" role="menuitem" onClick={onDuplicate}>Copy</button>
+          <button type="button" role="menuitem" className="item__action-menu-danger" onClick={onDelete}>Delete</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type TaskCardMainProps = {
   task: Task;
