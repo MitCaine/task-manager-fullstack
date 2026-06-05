@@ -56,15 +56,13 @@ import DetailSectionShell from './components/DetailSectionShell';
 import TagColorPicker from './components/TagColorPicker';
 import InlineProjectForm from './components/InlineProjectForm';
 import InlineTagForm from './components/InlineTagForm';
-import LinksSection from './components/LinksSection';
-import NotesSection from './components/NotesSection';
 import RemindersSection from './components/RemindersSection';
-import SubtasksSection from './components/SubtasksSection';
 import DetailStatusBadges from './components/DetailStatusBadges';
 import DetailHeader from './components/DetailHeader';
 import DetailRepeatRow from './components/DetailRepeatRow';
 import DetailDescriptionField from './components/DetailDescriptionField';
 import DetailScheduleFields from './components/DetailScheduleFields';
+import { DetailLinksPanel, DetailNotesPanel, DetailSubtasksPanel } from './components/DetailAuxiliaryPanels';
 import ErrorBanner from './components/ErrorBanner';
 import TaskListEmptyState from './components/TaskListEmptyState';
 import TaskListLoading from './components/TaskListLoading';
@@ -3140,44 +3138,34 @@ function App(): JSX.Element {
 
             </div>
 
-            <DetailSectionShell
-              title="Subtasks"
+            <DetailSubtasksPanel
               isOpen={openSections.has('subtasks')}
               onToggle={() => togglePanelSection('subtasks')}
-              badgeContent={panelSubtasks.length > 0 ? `${panelDone}/${panelSubtasks.length}` : null}
-              badgeClassName={`item__badge ${panelDone === panelSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}
-            >
-              <SubtasksSection
-                subtasks={panelSubtasks}
-                newSubtaskTitle={newSubtaskTitle}
-                editingSubtaskId={editingSubtaskId}
-                editingSubtaskTitle={editingSubtaskTitle}
-                onNewSubtaskTitleChange={setNewSubtaskTitle}
-                onAddSubtask={() => addSubtask(selectedTaskId)}
-                onToggleSubtask={subtask => toggleSubtask(selectedTaskId, subtask)}
-                onRemoveSubtask={subtaskId => removeSubtask(selectedTaskId, subtaskId)}
-                onStartEditSubtask={subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); }}
-                onEditingSubtaskTitleChange={setEditingSubtaskTitle}
-                onSaveSubtaskTitle={subtask => updateSubtaskTitle(selectedTaskId, subtask)}
-                onCancelEditSubtask={() => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); }}
-              />
-            </DetailSectionShell>
+              subtasks={panelSubtasks}
+              doneCount={panelDone}
+              newSubtaskTitle={newSubtaskTitle}
+              editingSubtaskId={editingSubtaskId}
+              editingSubtaskTitle={editingSubtaskTitle}
+              onNewSubtaskTitleChange={setNewSubtaskTitle}
+              onAddSubtask={() => addSubtask(selectedTaskId)}
+              onToggleSubtask={subtask => toggleSubtask(selectedTaskId, subtask)}
+              onRemoveSubtask={subtaskId => removeSubtask(selectedTaskId, subtaskId)}
+              onStartEditSubtask={subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); }}
+              onEditingSubtaskTitleChange={setEditingSubtaskTitle}
+              onSaveSubtaskTitle={subtask => updateSubtaskTitle(selectedTaskId, subtask)}
+              onCancelEditSubtask={() => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); }}
+            />
 
-            <DetailSectionShell
-              title="Notes"
+            <DetailNotesPanel
               isOpen={openSections.has('notes')}
               onToggle={() => togglePanelSection('notes')}
-              badgeContent={panelNotes.length > 0 ? panelNotes.length : null}
-            >
-              <NotesSection
-                notes={panelNotes}
-                newNoteContent={newNoteContent}
-                onNoteContentChange={setNewNoteContent}
-                onAddNote={() => addNote(selectedTaskId)}
-                onRemoveNote={noteId => removeNote(selectedTaskId, noteId)}
-                formatDateTime={formatDateTime}
-              />
-            </DetailSectionShell>
+              notes={panelNotes}
+              newNoteContent={newNoteContent}
+              onNoteContentChange={setNewNoteContent}
+              onAddNote={() => addNote(selectedTaskId)}
+              onRemoveNote={noteId => removeNote(selectedTaskId, noteId)}
+              formatDateTime={formatDateTime}
+            />
 
             <DetailSectionShell
               title="Reminders"
@@ -3211,22 +3199,17 @@ function App(): JSX.Element {
               />
             </DetailSectionShell>
 
-            <DetailSectionShell
-              title="Links"
+            <DetailLinksPanel
               isOpen={openSections.has('attachments')}
               onToggle={() => togglePanelSection('attachments')}
-              badgeContent={(attachments[selectedTaskId] ?? []).length > 0 ? (attachments[selectedTaskId] ?? []).length : null}
-            >
-              <LinksSection
-                attachments={attachments[selectedTaskId] ?? []}
-                newAttachmentUrl={newAttachmentUrl}
-                newAttachmentLabel={newAttachmentLabel}
-                onAttachmentUrlChange={setNewAttachmentUrl}
-                onAttachmentLabelChange={setNewAttachmentLabel}
-                onAddAttachment={() => addAttachment(selectedTaskId)}
-                onRemoveAttachment={attachmentId => removeAttachment(selectedTaskId, attachmentId)}
-              />
-            </DetailSectionShell>
+              attachments={attachments[selectedTaskId] ?? []}
+              newAttachmentUrl={newAttachmentUrl}
+              newAttachmentLabel={newAttachmentLabel}
+              onAttachmentUrlChange={setNewAttachmentUrl}
+              onAttachmentLabelChange={setNewAttachmentLabel}
+              onAddAttachment={() => addAttachment(selectedTaskId)}
+              onRemoveAttachment={attachmentId => removeAttachment(selectedTaskId, attachmentId)}
+            />
 
           </div>
         );
