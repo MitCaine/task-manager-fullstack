@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 export type ToastListItem = {
   id: number;
   reminderID?: number;
@@ -5,6 +7,7 @@ export type ToastListItem = {
   taskTitle: string;
   message: string;
   kind?: 'reminder' | 'confirmation';
+  autoDismissMs?: number;
 };
 
 type ReminderToastListItem = ToastListItem & {
@@ -23,6 +26,13 @@ function isReminderToast(toast: ToastListItem): toast is ReminderToastListItem {
 }
 
 function ToastList({ toasts, onDismiss, onSnooze }: ToastListProps) {
+  useEffect(() => {
+    const timers = toasts
+      .filter(toast => toast.kind === 'confirmation')
+      .map(toast => window.setTimeout(() => onDismiss(toast.id), toast.autoDismissMs ?? 3500));
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [toasts, onDismiss]);
+
   if (toasts.length === 0) return null;
 
   return (

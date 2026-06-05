@@ -1470,6 +1470,7 @@ function App() {
         taskTitle: taskForState.title,
         message: 'Task added.',
         kind: 'confirmation',
+        autoDismissMs: 3500,
       }]);
     } catch {
       setError('Failed to create task.');

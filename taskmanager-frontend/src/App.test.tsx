@@ -630,6 +630,30 @@ test('clicking Add shows a non-disruptive task-created toast', async () => {
   expect(within(toast).getAllByRole('button', { name: /dismiss/i }).length).toBeGreaterThan(0);
 });
 
+test('task-created confirmation toast auto-dismisses', async () => {
+  mockCreateTask.mockResolvedValue({ ...sampleTask, title: 'Auto toast task' });
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  jest.useFakeTimers();
+  try {
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText(/task title/i), { target: { value: 'Auto toast task' } });
+      fireEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+    });
+
+    expect(screen.getByText('Task added.')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(3500);
+    });
+
+    expect(screen.queryByText('Task added.')).not.toBeInTheDocument();
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
 test('pressing Enter in title input calls createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
@@ -1054,6 +1078,7 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toContain('.datetime-row__date--active');
   expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
   expect(css).toMatch(/\.recurrence-select__dropdown\s*\{[^}]*right:\s*0;/);
+  expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
 
 test('create date selection updates the preview immediately', async () => {
