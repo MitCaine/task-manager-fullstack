@@ -41,9 +41,8 @@ import {
 import Calendar from './components/Calendar';
 import { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
-import { ProjectBadge, SelectedTagChips } from './components/TagProjectChips';
+import { SelectedTagChips } from './components/TagProjectChips';
 import TaskEditorFields from './components/TaskEditorFields';
-import TaskTags from './components/TaskTags';
 import StatsModal from './components/StatsModal';
 import StatusMoveDialog from './components/StatusMoveDialog';
 import SettingsPanel from './components/SettingsPanel';
@@ -60,7 +59,6 @@ import InlineTagForm from './components/InlineTagForm';
 import LinksSection from './components/LinksSection';
 import NotesSection from './components/NotesSection';
 import RemindersSection from './components/RemindersSection';
-import TaskCardToolbar from './components/TaskCardToolbar';
 import SubtasksSection from './components/SubtasksSection';
 import DetailStatusBadges from './components/DetailStatusBadges';
 import DetailHeader from './components/DetailHeader';
@@ -71,8 +69,9 @@ import ErrorBanner from './components/ErrorBanner';
 import TaskListEmptyState from './components/TaskListEmptyState';
 import TaskListLoading from './components/TaskListLoading';
 import DoneDivider from './components/DoneDivider';
-import TaskCardBadges from './components/TaskCardBadges';
-import TaskCardDescription from './components/TaskCardDescription';
+import SelectedProjectChip from './components/SelectedProjectChip';
+import TaskListDateLabel from './components/TaskListDateLabel';
+import TaskCardMain from './components/TaskCardMain';
 
 declare global {
   interface Window {
@@ -2666,15 +2665,10 @@ function App(): JSX.Element {
           </div>
           <button className="btn add-task-submit" onClick={addTask}>Add Task</button>
           </div>
-          {newProjectID !== '' && (() => {
-            const proj = findProjectById(projects, newProjectID);
-            return proj ? (
-              <div className="form-selected-chip">
-                <ProjectBadge title={proj.title} />
-                <button type="button" className="form-chip-clear" onClick={() => setNewProjectID('')} aria-label={`Remove project ${proj.title}`}>×</button>
-              </div>
-            ) : null;
-          })()}
+          <SelectedProjectChip
+            project={newProjectID !== '' ? findProjectById(projects, newProjectID) ?? null : null}
+            onRemove={() => setNewProjectID('')}
+          />
           <SelectedTagChips
             tagIds={newTaskTagIDs}
             tags={tags}
@@ -2727,9 +2721,7 @@ function App(): JSX.Element {
 
         <div ref={settingsRef}>
         <div className="task-card-toolbar">
-          <span className="task-card-toolbar__date">
-            {new Date().toLocaleDateString(isEuropeanDate ? 'en-GB' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </span>
+          <TaskListDateLabel isEuropeanDate={isEuropeanDate} />
           <div className="header-actions">
             <button
               ref={statsTriggerRef}
@@ -2842,91 +2834,38 @@ function App(): JSX.Element {
                       >
                         <>
                           {!isEditingTask && (
-                            <div
-                              className="item__main"
-                              onClick={() => handleTaskCardClick(task)}
-                              onTouchStart={() => beginTaskLongPress(task)}
-                              onTouchMove={cancelTaskLongPress}
-                              onTouchEnd={cancelTaskLongPress}
-                              onMouseDown={() => beginTaskLongPress(task)}
-                              onMouseLeave={cancelTaskLongPress}
-                              onMouseUp={cancelTaskLongPress}
-                              onContextMenu={e => { e.preventDefault(); if (!bulkMode) openStatusMoveDialog(task); }}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              {bulkMode && (
-                                <input
-                                  type="checkbox"
-                                  className="item__checkbox item__bulk-checkbox"
-                                  checked={bulkSelectedIds.has(task.taskID)}
-                                  onChange={() => toggleBulkSelect(task.taskID)}
-                                  onClick={e => e.stopPropagation()}
-                                  aria-label={`Select task ${task.title}`}
-                                />
-                              )}
-                              {!bulkMode && (
-                                <input
-                                  type="checkbox"
-                                  className="item__checkbox"
-                                  checked={completed}
-                                  onChange={e => { e.stopPropagation(); toggleComplete(task); }}
-                                  onClick={e => e.stopPropagation()}
-                                  title={completed ? 'Mark as active' : 'Mark as done'}
-                                  aria-label={completed ? `Mark ${task.title} as active` : `Mark ${task.title} as done`}
-                                />
-                              )}
-                              <div className="item__body">
-                                <div className="item__title-row">
-                                  <div className="item__title-line">
-                                    <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
-                                    <button
-                                      type="button"
-                                      className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
-                                      aria-label={`Change status from ${statusLabel}`}
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        if (!bulkMode) {
-                                          openStatusMoveDialog(task);
-                                        }
-                                      }}
-                                      onMouseDown={e => e.stopPropagation()}
-                                      onTouchStart={e => e.stopPropagation()}
-                                    >
-                                      {statusLabel}
-                                    </button>
-                                    {overdue && <span className="item__badge">Overdue</span>}
-                                  </div>
-                                  <span className="item__meta item__meta--inline">{formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}</span>
-                                  <TaskCardBadges
-                                    projectTitle={taskProjectTitle}
-                                    priority={task.priority}
-                                    priorityLabel={task.priority ? formatPriorityLabel(task.priority) : null}
-                                    completed={completed}
-                                    subtaskDone={subtaskDone}
-                                    subtaskTotal={taskSubtasks.length}
-                                  />
-                                </div>
-                                <TaskCardDescription description={task.description} />
-                                <TaskTags
-                                  taskId={task.taskID}
-                                  tags={task.tags}
-                                  expanded={expandedTagTaskIds.has(task.taskID)}
-                                  onToggle={toggleTaskTags}
-                                  visibleTagCount={VISIBLE_TASK_TAGS}
-                                />
-                              </div>
-                              <TaskCardToolbar
-                                isOpen={openActionTaskId === task.taskID}
-                                onToggle={() => {
-                                  const next = openActionTaskId === task.taskID ? null : task.taskID;
-                                  closeFloatingControls();
-                                  setOpenActionTaskId(next);
-                                }}
-                                onEdit={() => handleEditTaskAction(task)}
-                                onDuplicate={() => handleDuplicateTaskAction(task)}
-                                onDelete={() => handleDeleteTaskAction(task.taskID)}
-                              />
-                            </div>
+                            <TaskCardMain
+                              task={task}
+                              completed={completed}
+                              overdue={overdue}
+                              statusID={statusID}
+                              statusLabel={statusLabel}
+                              dateTimeLabel={formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}
+                              projectTitle={taskProjectTitle}
+                              priorityLabel={task.priority ? formatPriorityLabel(task.priority) : null}
+                              subtaskDone={subtaskDone}
+                              subtaskTotal={taskSubtasks.length}
+                              bulkMode={bulkMode}
+                              bulkSelected={bulkSelectedIds.has(task.taskID)}
+                              tagsExpanded={expandedTagTaskIds.has(task.taskID)}
+                              visibleTagCount={VISIBLE_TASK_TAGS}
+                              actionMenuOpen={openActionTaskId === task.taskID}
+                              onOpenTask={() => handleTaskCardClick(task)}
+                              onLongPressStart={() => beginTaskLongPress(task)}
+                              onLongPressCancel={cancelTaskLongPress}
+                              onOpenStatusMove={() => openStatusMoveDialog(task)}
+                              onToggleBulkSelect={() => toggleBulkSelect(task.taskID)}
+                              onToggleComplete={() => toggleComplete(task)}
+                              onToggleTags={toggleTaskTags}
+                              onToggleActions={() => {
+                                const next = openActionTaskId === task.taskID ? null : task.taskID;
+                                closeFloatingControls();
+                                setOpenActionTaskId(next);
+                              }}
+                              onEdit={() => handleEditTaskAction(task)}
+                              onDuplicate={() => handleDuplicateTaskAction(task)}
+                              onDelete={() => handleDeleteTaskAction(task.taskID)}
+                            />
                           )}
 
                           {isEditingTask && !mobileEditLayout && renderInlineEditForm(task)}
