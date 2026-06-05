@@ -2,8 +2,8 @@ import { findProjectById, findTagsByIds, formatCreateDateDisplayLabel, formatPri
 import type { Project, Tag } from '../types/task';
 
 const projects: Project[] = [
-  { projectID: 1, title: 'Home', createdAt: '', updatedAt: '' },
-  { projectID: 2, title: 'Work', createdAt: '', updatedAt: '' },
+  { projectID: 1, title: 'Home'},
+  { projectID: 2, title: 'Work'},
 ];
 const tags: Tag[] = [
   { tagID: 1, title: 'Urgent', color: '#f00' },

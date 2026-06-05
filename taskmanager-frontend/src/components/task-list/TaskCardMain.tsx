@@ -88,7 +88,7 @@ type TaskCardMainProps = {
   task: Task;
   completed: boolean;
   overdue: boolean;
-  statusID: number;
+  statusID: number | null;
   statusLabel: string;
   dateTimeLabel: string;
   projectTitle: string | null;

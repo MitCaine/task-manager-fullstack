@@ -154,7 +154,7 @@ function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
   };
 }
 
-function App(): JSX.Element {
+function App() {
   // Tasks loaded from the API and top-level request state.
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -314,7 +314,7 @@ function App(): JSX.Element {
   );
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
-  const taskLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taskLongPressTimer = useRef<number | null>(null);
   const taskLongPressTriggered = useRef(false);
   const previousIs24HourRef = useRef(is24Hour);
 
@@ -386,7 +386,7 @@ function App(): JSX.Element {
   const inlineEditTagInputRef = useRef<HTMLInputElement>(null);
 
   // Refs keep the debounced auto-save callback pointed at current state.
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<number>();
   const saveEditRef  = useRef<(task: Task) => Promise<void>>(async () => {});
   const tasksRef     = useRef<Task[]>([]);
 
@@ -592,10 +592,10 @@ function App(): JSX.Element {
     let focusSequence = 0;
     let transitionId = 0;
     let currentTransition: { transitionId: number; from: string; scopeFrom: string; to: string; scopeTo: string } | undefined;
-    let pendingNonTextTransition: { transitionId: number; from: string; scopeFrom: string; timer: ReturnType<typeof setTimeout> } | undefined;
+    let pendingNonTextTransition: { transitionId: number; from: string; scopeFrom: string; timer: number; } | undefined;
     const scheduledTransitionSummaries = new Set<string>();
-    const transitionSummaryTimers: ReturnType<typeof setTimeout>[] = [];
-    let blurCleanupTimer: ReturnType<typeof setTimeout> | undefined;
+    const transitionSummaryTimers: number[] = [];
+    let blurCleanupTimer: number | undefined;
 
     const clearPendingNonTextTransition = () => {
       if (!pendingNonTextTransition) return;
@@ -981,7 +981,7 @@ function App(): JSX.Element {
       logTextFocusLayout('scroll');
       resetDocumentScrollBurst('scroll', undefined, source);
     };
-    const textareaCanScrollInTouchDirection = (textarea: HTMLTextAreaElement, event: TouchEvent) => {
+    const textareaCanScrollInTouchDirection = (textarea: HTMLTextAreaElement, event: globalThis.TouchEvent) => {
       const maxScrollTop = textarea.scrollHeight - textarea.clientHeight;
       if (maxScrollTop <= 0) return false;
       const currentTouchY = event.touches?.[0]?.clientY ?? null;
@@ -991,12 +991,10 @@ function App(): JSX.Element {
       if (scrollDelta > 0 && textarea.scrollTop >= maxScrollTop) return false;
       return true;
     };
-    const handleTextFocusTouchStart = (event: TouchEvent) => {
-      if (!isMobileTouchEnvironment()) return;
+    const handleTextFocusTouchStart = (event: globalThis.TouchEvent) => {      if (!isMobileTouchEnvironment()) return;
       lastTextFocusTouchY = event.touches?.[0]?.clientY ?? null;
     };
-    const handleTextFocusTouchMove = (event: TouchEvent) => {
-      if (!isMobileTouchEnvironment()) return;
+    const handleTextFocusTouchMove = (event: globalThis.TouchEvent) => {      if (!isMobileTouchEnvironment()) return;
       const activeElement = getActiveTextElement();
       if (!activeElement && !keyboardTextMode && !syncTextModeFromActiveElement()) return;
       const target = event.target instanceof Element ? event.target : null;
@@ -1081,7 +1079,7 @@ function App(): JSX.Element {
     return () => {
       clearBlurCleanupTimer();
       clearPendingNonTextTransition();
-      transitionSummaryTimers.forEach(timer => window.clearTimeout(timer));
+      transitionSummaryTimers.forEach(window.clearTimeout);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
       window.removeEventListener('scroll', handleScroll);
@@ -1498,12 +1496,12 @@ function App(): JSX.Element {
     ]);
     if (selectedTaskId === task.taskID) setSelectedTaskId(null);
     // Highlight the next occurrence after it becomes visible in the list.
-    setTimeout(() => {
+    window.setTimeout(() => {
       const el = document.getElementById(`task-${nextTask.taskID}`);
       if (!el) return;
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('item--highlight');
-      setTimeout(() => el.classList.remove('item--highlight'), 1200);
+      window.setTimeout(() => el.classList.remove('item--highlight'), 1200);
     }, 50);
     return replacementTask;
   };
@@ -1559,16 +1557,16 @@ function App(): JSX.Element {
 
   const beginTaskLongPress = (task: Task) => {
     if (bulkMode) return;
-    if (taskLongPressTimer.current) clearTimeout(taskLongPressTimer.current);
+    if (taskLongPressTimer.current) window.clearTimeout(taskLongPressTimer.current);
     taskLongPressTriggered.current = false;
-    taskLongPressTimer.current = setTimeout(() => {
+    taskLongPressTimer.current = window.setTimeout(() => {
       taskLongPressTriggered.current = true;
       openStatusMoveDialog(task);
     }, 450);
   };
 
   const cancelTaskLongPress = () => {
-    if (taskLongPressTimer.current) clearTimeout(taskLongPressTimer.current);
+    if (taskLongPressTimer.current) window.clearTimeout(taskLongPressTimer.current);
     taskLongPressTimer.current = null;
   };
 
@@ -1598,7 +1596,7 @@ function App(): JSX.Element {
   };
 
   const startEdit = async (task: Task) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const draft = deriveTaskEditDraft(task, is24Hour);
     setEditingId(task.taskID);
     setEditTitle(draft.title);
@@ -1650,12 +1648,12 @@ function App(): JSX.Element {
     setFilterProjectID('');
     setFilterTagID('');
     // Wait for React to render the task before scrolling to it.
-    setTimeout(() => {
+    window.setTimeout(() => {
       const el = document.getElementById(`task-${taskId}`);
       if (!el) return;
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('item--highlight');
-      setTimeout(() => el.classList.remove('item--highlight'), 1200);
+      window.setTimeout(() => el.classList.remove('item--highlight'), 1200);
     }, 50);
   };
 
@@ -1743,9 +1741,9 @@ function App(): JSX.Element {
   };
 
   const scheduleAutoSave = (delay = 600) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const taskId = selectedTaskId;
-    saveTimerRef.current = setTimeout(() => {
+    saveTimerRef.current = window.setTimeout(() => {
       const task = tasksRef.current.find(t => t.taskID === taskId);
       if (task) saveEditRef.current(task);
     }, delay);
@@ -1766,7 +1764,7 @@ function App(): JSX.Element {
   // Detail panel open and close helpers.
   const openPanel = async (task: Task) => {
     if (selectedTaskId === task.taskID) { closePanel(); return; }
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     if (selectedTaskId !== null) {
       const current = tasks.find(t => t.taskID === selectedTaskId);
       if (current) await saveEdit(current);
@@ -1793,7 +1791,7 @@ function App(): JSX.Element {
     });
 
   const closePanel = async () => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const task = tasks.find(t => t.taskID === selectedTaskId);
     if (task) await saveEdit(task);
     setSelectedTaskId(null);
@@ -2541,7 +2539,7 @@ function App(): JSX.Element {
             description={description}
             dateTimeLabel={formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}
             repeatLabel={newRepeatFrequency ? formatRepeatFrequency(newRepeatFrequency) : null}
-            priority={newPriority}
+            priority={newPriority || null}
             priorityLabel={newPriority ? formatPriorityLabel(newPriority) : null}
             project={draftProject}
             tags={draftTags}

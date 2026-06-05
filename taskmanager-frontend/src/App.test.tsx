@@ -311,8 +311,10 @@ function mockInlineEditRects(fieldTop = 459) {
     height: bottom - top,
     toJSON: () => ({}),
   });
-  const spy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getMockRect() {
-    if (this.classList.contains('app__list')) return rect(67, 900);
+  const spy = jest
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function getMockRect(this: HTMLElement): DOMRect {
+        if (this.classList.contains('app__list')) return rect(67, 900);
     if (
       this instanceof HTMLInputElement &&
       this.getAttribute('aria-label') === 'Task title' &&
