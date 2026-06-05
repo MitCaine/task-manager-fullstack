@@ -1832,21 +1832,6 @@ function App(): JSX.Element {
   };
 
   // Tag creation, color changes, deletion, and task assignment handlers.
-  const addTag = async (applyToTaskId?: number) => {
-    const saved = await createTagFromDraft({ resetColor: false });
-    if (!saved || applyToTaskId == null) return;
-    try {
-      await addTagToTask(applyToTaskId, saved.tagID);
-      setTasks(prev => prev.map(t => {
-        if (t.taskID !== applyToTaskId) return t;
-        if (t.tags?.some(tg => tg.tagID === saved.tagID)) return t;
-        return { ...t, tags: [...(t.tags ?? []), saved] };
-      }));
-    } catch {
-      setError('Failed to create tag.');
-    }
-  };
-
   const addTagInline = async () => {
     const saved = await createTagFromDraft();
     if (!saved) return;

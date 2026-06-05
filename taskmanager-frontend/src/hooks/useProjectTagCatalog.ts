@@ -53,9 +53,8 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
   const [newTagColor, setNewTagColor] = useState('#6366f1');
 
   const loadProjectTagCatalog = async () => {
-    const [projectResult, tagResult] = await Promise.allSettled([getProjects(), getTags()]);
-    if (projectResult.status === 'fulfilled') setProjects(projectResult.value);
-    if (tagResult.status === 'fulfilled') setTags(tagResult.value);
+    getProjects().then(setProjects).catch(() => {});
+    getTags().then(setTags).catch(() => {});
   };
 
   const createProjectFromDraft = async () => {
