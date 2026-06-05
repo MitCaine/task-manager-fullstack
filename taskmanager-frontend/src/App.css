@@ -2279,14 +2279,6 @@ input[type="datetime-local"] {
   max-width: 100%;
 }
 
-.tag-select--create-tags .tag-select__dropdown--create-tags {
-  left: 0;
-  right: auto;
-  width: min(18rem, calc(100vw - 2rem));
-  min-width: min(14rem, calc(100vw - 2rem));
-  max-width: min(24rem, calc(100vw - 2rem));
-}
-
 .tag-select__item {
   display: flex;
   align-items: center;

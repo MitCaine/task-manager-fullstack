@@ -2468,7 +2468,7 @@ function App() {
                   : `${newTaskTagIDs.length} Tag${newTaskTagIDs.length === 1 ? '' : 's'}`}
               </button>
               {openCreateControl === 'tags' && (
-                <div className="tag-select__dropdown tag-select__dropdown--create-tags" data-create-menu-boundary>
+                <div className="tag-select__dropdown" data-create-menu-boundary>
                   <button
                     type="button"
                     className="tag-select__new-btn tag-select__new-btn--top"
