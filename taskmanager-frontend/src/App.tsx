@@ -58,6 +58,7 @@ import DetailSectionShell from './components/DetailSectionShell';
 import TagColorPicker from './components/TagColorPicker';
 import InlineProjectForm from './components/InlineProjectForm';
 import InlineTagForm from './components/InlineTagForm';
+import RemindersSection from './components/RemindersSection';
 
 declare global {
   interface Window {
@@ -3480,34 +3481,30 @@ function App(): JSX.Element {
               onToggle={() => togglePanelSection('reminders')}
               badgeContent={panelReminders.length > 0 ? panelReminders.length : null}
             >
-                <>
-                  <div className="sec-panel__add sec-panel__add--col">
-                    <DateTimeRow
-                      editorScope={`reminder-${selectedTaskId}`}
-                      openTimeEditorScope={openTimeEditorScope}
-                      setOpenTimeEditorScope={setOpenTimeEditorScope}
-                      closeFloatingControls={closeFloatingControls}
-                      is24Hour={is24Hour}
-                      hourOptions={hourOptions}
-                      dateVal={newReminderDate} hourVal={newReminderHour} minuteVal={newReminderMinute} ampmVal={newReminderAmpm}
-                      onDate={setNewReminderDate} onHour={setNewReminderHour} onMinute={setNewReminderMinute} onAmpm={setNewReminderAmpm}
-                    />
-                    <input className="input" placeholder="Reminder message (optional)…" aria-label="Reminder message" value={newReminderMessage} onChange={e => setNewReminderMessage(e.target.value)} />
-                    <button className="btn btn--sm" onClick={() => addReminder(selectedTaskId)}>Add Reminder</button>
-                  </div>
-                  {panelReminders.length === 0
-                    ? <p className="sec-panel__empty">No reminders yet.</p>
-                    : panelReminders.map(r => (
-                      <div key={r.reminderID} className="sec-row">
-                        <div className="sec-row__body">
-                          <span className="sec-row__title">{formatDateTime(r.dueDate)}</span>
-                          {r.message && <span className="sec-row__sub">{r.message}</span>}
-                        </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeReminder(selectedTaskId, r.reminderID)} aria-label="Delete reminder">✕</button>
-                      </div>
-                    ))
-                  }
-                </>
+              <RemindersSection
+                reminders={panelReminders}
+                dateTimeRowProps={{
+                  editorScope: `reminder-${selectedTaskId}`,
+                  openTimeEditorScope,
+                  setOpenTimeEditorScope,
+                  closeFloatingControls,
+                  is24Hour,
+                  hourOptions,
+                  dateVal: newReminderDate,
+                  hourVal: newReminderHour,
+                  minuteVal: newReminderMinute,
+                  ampmVal: newReminderAmpm,
+                  onDate: setNewReminderDate,
+                  onHour: setNewReminderHour,
+                  onMinute: setNewReminderMinute,
+                  onAmpm: setNewReminderAmpm,
+                }}
+                newReminderMessage={newReminderMessage}
+                onReminderMessageChange={setNewReminderMessage}
+                onAddReminder={() => addReminder(selectedTaskId)}
+                onRemoveReminder={reminderId => removeReminder(selectedTaskId, reminderId)}
+                formatDateTime={formatDateTime}
+              />
             </DetailSectionShell>
 
             <DetailSectionShell
