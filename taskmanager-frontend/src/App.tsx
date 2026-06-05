@@ -62,6 +62,9 @@ import DetailRepeatRow from './components/DetailRepeatRow';
 import DetailTimeShiftRow from './components/DetailTimeShiftRow';
 import DetailDescriptionField from './components/DetailDescriptionField';
 import DetailScheduleFields from './components/DetailScheduleFields';
+import ErrorBanner from './components/ErrorBanner';
+import TaskListEmptyState from './components/TaskListEmptyState';
+import TaskListLoading from './components/TaskListLoading';
 
 declare global {
   interface Window {
@@ -2563,12 +2566,7 @@ function App(): JSX.Element {
       <section className="mobile-page mobile-page--add" data-active={mobilePage === 'add'}>
       <div className="card app__add" data-text-focus-scope="create-task">
 
-        {error && (
-          <div className="error-banner">
-            <span>{error}</span>
-            <button className="error-banner__close" onClick={() => setError(null)} aria-label="Dismiss error">✕</button>
-          </div>
-        )}
+        {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
         <div className="controls" ref={createControlsRef}>
           <TaskEditorFields
@@ -2932,26 +2930,16 @@ function App(): JSX.Element {
         />
 
         {loading ? (
-          <div className="loading">
-            <span className="loading__spinner" />
-            Loading tasks…
-          </div>
+          <TaskListLoading />
         ) : (
           <ul className="list" aria-label="Task list">
             {tabTasks.length === 0 && (
-              <li className="empty">
-                <span className="empty__title">{emptyState.title}</span>
-                <span className="empty__body">{emptyState.body}</span>
-                {hasActiveListFilters && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    onClick={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
-                  >
-                    Reset filters
-                  </button>
-                )}
-              </li>
+              <TaskListEmptyState
+                title={emptyState.title}
+                body={emptyState.body}
+                showReset={hasActiveListFilters}
+                onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+              />
             )}
 
             {(() => {
