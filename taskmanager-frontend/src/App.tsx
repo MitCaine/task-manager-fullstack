@@ -1465,6 +1465,12 @@ function App() {
       setShowAddEndTime(false);
       const n = getNow();
       setDate(n.date); setHour(n.hour); setMinute(n.minute); setAmpm(n.ampm);
+      setToasts(prev => [...prev, {
+        id: ++toastIdRef.current,
+        taskTitle: taskForState.title,
+        message: 'Task added.',
+        kind: 'confirmation',
+      }]);
     } catch {
       setError('Failed to create task.');
     }
@@ -2423,7 +2429,7 @@ function App() {
                 </div>
               )}
             </div>
-            <div className="tag-select" ref={tagDropdownRef}>
+            <div className="tag-select tag-select--create-tags" ref={tagDropdownRef}>
               <button
                 type="button"
                 className={`select tag-select__btn${newTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
@@ -2645,7 +2651,7 @@ function App() {
                 const statusID = normalizeTaskStatus(task.statusID);
                 const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
                 const isSelected = selectedTaskId === task.taskID;
-                const isEditingTask = editingId === task.taskID && selectedTaskId !== task.taskID;
+                const isEditingTask = editingId === task.taskID && selectedTaskId === null;
                 const taskSubtasks = subtasks[task.taskID] ?? [];
                 const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
                 const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;

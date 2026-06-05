@@ -612,6 +612,24 @@ test('clicking Add calls createTask and appends task to list', async () => {
   expect(mockCreateTask).toHaveBeenCalledTimes(1);
 });
 
+test('clicking Add shows a non-disruptive task-created toast', async () => {
+  mockCreateTask.mockResolvedValue({ ...sampleTask, title: 'Toast task' });
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Toast task');
+  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+
+  const toastMessage = await screen.findByText('Task added.');
+  const toast = toastMessage.closest('.toast');
+  if (!(toast instanceof HTMLElement)) throw new Error('Toast not found');
+
+  expect(within(toast).getByText(/toast task/i)).toBeInTheDocument();
+  expect(within(toast).queryByRole('button', { name: /\+1 hr/i })).not.toBeInTheDocument();
+  expect(within(toast).queryByRole('button', { name: /tomorrow/i })).not.toBeInTheDocument();
+  expect(within(toast).getAllByRole('button', { name: /dismiss/i }).length).toBeGreaterThan(0);
+});
+
 test('pressing Enter in title input calls createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
@@ -1027,6 +1045,15 @@ test('create task date control renders the desktop-visible date display proxy', 
   expect(dateDisplay).toHaveClass('btn', 'btn--ghost', 'btn--sm');
   expect(dateDisplay).toHaveAttribute('aria-hidden', 'true');
   expect(dateDisplay).not.toBeEmptyDOMElement();
+});
+
+test('date, repeat, and create tags controls have aligned active/dropdown styling hooks', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+
+  expect(css).toContain('.datetime-row__date:focus-visible');
+  expect(css).toContain('.datetime-row__date--active');
+  expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
+  expect(css).toMatch(/\.recurrence-select__dropdown\s*\{[^}]*right:\s*0;/);
 });
 
 test('create date selection updates the preview immediately', async () => {
@@ -2266,6 +2293,27 @@ test('desktop edit remains inline in the task list flow', async () => {
     expect(editCard).toBeInTheDocument();
     expect(editCard.closest('li.item')).toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('desktop task selection opens detail without rendering legacy inline or mobile edit cards', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  mockGetTask.mockResolvedValue(sampleTask);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  try {
+    await act(async () => {
+      userEvent.click(screen.getByText('Buy milk'));
+    });
+
+    await waitFor(() => expect(document.querySelector('.app__detail')).toBeInTheDocument());
+    expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
+    expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
+    expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
   } finally {
     restoreMedia();
   }

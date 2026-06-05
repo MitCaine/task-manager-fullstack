@@ -268,8 +268,10 @@ select {
 
   .app__add .datetime-row__date--proxy:focus-visible + .datetime-row__date-display,
   .app__add .datetime-row__date--proxy.datetime-row__date--active + .datetime-row__date-display {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--accent);
   }
 
   .app__add .datetime-row__summary-wrap {
@@ -858,6 +860,7 @@ input[type="datetime-local"] {
 .datetime-row__date {
   flex: 0 0 160px;
   width: 160px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .datetime-row__date-shell {
@@ -866,6 +869,14 @@ input[type="datetime-local"] {
 
 .datetime-row__date-shell .datetime-row__date-display {
   display: none;
+}
+
+.datetime-row__date:focus-visible,
+.datetime-row__date--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 0 0 2px var(--accent-ring);
 }
 
 @media (min-width: 1261px) and (pointer: fine) {
@@ -2142,6 +2153,11 @@ input[type="datetime-local"] {
   right: 0;
 }
 
+.form-row .tag-select--create-tags .tag-select__dropdown {
+  left: auto;
+  right: 0;
+}
+
 .form-row .tag-select .tag-select__btn {
   width: 100%;
   text-align: center;
@@ -2228,7 +2244,9 @@ input[type="datetime-local"] {
 }
 
 .recurrence-select__dropdown {
-  width: 100%;
+  left: auto;
+  right: 0;
+  width: min(12rem, 100%);
   max-width: 100%;
 }
 
