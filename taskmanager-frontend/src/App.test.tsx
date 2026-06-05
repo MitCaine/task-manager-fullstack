@@ -1093,7 +1093,7 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
   expect(css).toMatch(/\.form-row \.tag-select--create-tags \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
   expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*max-content;/);
-  expect(css).toMatch(/\.tag-select--create-tags \.tag-select__dropdown--create-tags\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*100%;/);
+  expect(css).toMatch(/\.tag-select--create-tags \.tag-select__dropdown--create-tags\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*min\(18rem,\s*calc\(100vw - 2rem\)\);/);
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
 

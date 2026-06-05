@@ -2282,9 +2282,9 @@ input[type="datetime-local"] {
 .tag-select--create-tags .tag-select__dropdown--create-tags {
   left: 0;
   right: auto;
-  width: 100%;
-  min-width: 100%;
-  max-width: none;
+  width: min(18rem, calc(100vw - 2rem));
+  min-width: min(14rem, calc(100vw - 2rem));
+  max-width: min(24rem, calc(100vw - 2rem));
 }
 
 .tag-select__item {
