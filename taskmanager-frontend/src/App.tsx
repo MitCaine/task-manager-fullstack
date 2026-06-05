@@ -14,13 +14,7 @@ import {
 } from './api/tasks';
 import {
   buildDateTimeString,
-  buildTaskDateTimeString,
-  extractDateParts,
   formatDateTime as formatDateTimeDisplay,
-  isInLocalMonth,
-  isInLocalWeek,
-  isMidnightLocalDateTime,
-  isSameLocalDate,
   parseLocalDateTime,
   toLocalDateTimeString,
 } from './utils/dateTime';
@@ -29,7 +23,13 @@ import { compactText, normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
+import { deriveTaskEditDraft } from './utils/taskEditDraft';
 import { getTaskEmptyState } from './utils/taskEmptyState';
+import { deriveVisibleTasks } from './utils/taskFiltering';
+import { buildRecurringTaskSchedule } from './utils/taskRecurrence';
+import { buildTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
+import { deriveTaskStatistics } from './utils/taskStatistics';
+import { calculateTaskTimeShift } from './utils/taskTimeShift';
 import {
   findProjectById,
   findTagsByIds,
@@ -100,7 +100,6 @@ const TAG_MAX_LENGTH = 18;
 const PROJECT_MAX_LENGTH = 24;
 const VISIBLE_TASK_TAGS = 2;
 
-const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 const PRIORITY_COLOR: Record<string, string> = { LOW: '#4ade80', MEDIUM: '#fbbf24', HIGH: '#f87171' };
 const MOBILE_PAGES: MobilePage[] = ['add', 'tasks', 'calendar'];
 const SWIPE_IGNORE_SELECTOR = [
@@ -1266,39 +1265,6 @@ function App(): JSX.Element {
 
   const locale = isEuropeanDate ? 'en-GB' : 'en-US';
 
-  const filteredTasks = useMemo(() => {
-    let list = tasks;
-    if (filterStatus === 'active')         list = list.filter(t => t.statusID !== 2);
-    else if (filterStatus === 'completed') list = list.filter(t => t.statusID === 2);
-    else if (filterStatus === 'overdue')   list = list.filter(t => isTaskOverdue(t));
-    else if (filterStatus === 'high')      list = list.filter(t => t.priority === 'HIGH');
-    else if (filterStatus === 'medium')    list = list.filter(t => t.priority === 'MEDIUM');
-    else if (filterStatus === 'low')       list = list.filter(t => t.priority === 'LOW');
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(t =>
-        t.title.toLowerCase().includes(q) ||
-        (t.description ?? '').toLowerCase().includes(q)
-      );
-    }
-    const doneToBottom = (sorted: typeof list) => {
-      if (filterStatus === 'completed') return sorted; // already filtered to done-only
-      return sorted.sort((a, b) => (a.statusID === 2 ? 1 : 0) - (b.statusID === 2 ? 1 : 0));
-    };
-    if (sortBy === 'dueDesc')       return doneToBottom([...list].sort((a, b) => (b.dateTimeScheduled ?? '').localeCompare(a.dateTimeScheduled ?? '')));
-    if (sortBy === 'titleAsc')      return doneToBottom([...list].sort((a, b) => a.title.localeCompare(b.title)));
-    if (sortBy === 'priorityDesc')  return doneToBottom([...list].sort((a, b) =>
-      (PRIORITY_ORDER[a.priority ?? ''] ?? 3) - (PRIORITY_ORDER[b.priority ?? ''] ?? 3)
-    ));
-    if (sortBy === 'overdueFirst')  return doneToBottom([...list].sort((a, b) => {
-      const aO = isTaskOverdue(a) ? 0 : 1;
-      const bO = isTaskOverdue(b) ? 0 : 1;
-      return aO - bO || (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '');
-    }));
-    // dueAsc keeps unscheduled tasks behind scheduled work while preserving the done-to-bottom rule.
-    return doneToBottom([...list].sort((a, b) => (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '')));
-  }, [tasks, search, filterStatus, sortBy]);
-
   const { completedCount, overdueCount } = useMemo(() => {
     let completedCount = 0;
     let overdueCount = 0;
@@ -1309,40 +1275,15 @@ function App(): JSX.Element {
     return { completedCount, overdueCount };
   }, [tasks]);
 
-  const displayedTasks = useMemo(() => {
-    let list = filteredTasks;
-    if (filterProjectID !== '') list = list.filter(t => Number(t.projectID) === Number(filterProjectID));
-    if (filterTagID !== '')     list = list.filter(t => t.tags?.some(tag => Number(tag.tagID) === Number(filterTagID)));
-    return list;
-  }, [filteredTasks, filterProjectID, filterTagID]);
-
-  const tabTasks = useMemo(() => {
-    const now = new Date();
-    if (viewTab === 'today') {
-      return displayedTasks.filter(t => {
-        if (!t.dateTimeScheduled) return false;
-        return isSameLocalDate(t.dateTimeScheduled, now);
-      });
-    }
-    if (viewTab === 'week') {
-      const mon = new Date(now);
-      mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-      mon.setHours(0, 0, 0, 0);
-      const sun = new Date(mon);
-      sun.setDate(mon.getDate() + 7);
-      return displayedTasks.filter(t => {
-        if (!t.dateTimeScheduled) return false;
-        return isInLocalWeek(t.dateTimeScheduled, mon, sun);
-      });
-    }
-    if (viewTab === 'month') {
-      return displayedTasks.filter(t => {
-        if (!t.dateTimeScheduled) return false;
-        return isInLocalMonth(t.dateTimeScheduled, now);
-      });
-    }
-    return displayedTasks;
-  }, [displayedTasks, viewTab]);
+  const tabTasks = useMemo(() => deriveVisibleTasks({
+    tasks,
+    search,
+    viewTab,
+    filterStatus,
+    filterProjectID,
+    filterTagID,
+    sortBy,
+  }), [tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy]);
 
   const calTasks = useMemo(
     () => calHideCompleted ? tasks.filter(t => t.statusID !== 2) : tasks,
@@ -1354,17 +1295,33 @@ function App(): JSX.Element {
   const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
   const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
-  const draftDateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
-  const draftEndDateTimeScheduled = date && showAddEndTime
-    ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
-    : null;
+  const { dateTimeScheduled: draftDateTimeScheduled, endDateTimeScheduled: draftEndDateTimeScheduled } = buildTaskSchedule({
+    date,
+    showTime: showAddTime,
+    hour,
+    minute,
+    ampm,
+    showEndTime: showAddEndTime,
+    endHour,
+    endMinute,
+    endAmpm,
+    is24Hour,
+  });
   const draftProject = findProjectById(projects, newProjectID);
   const draftTags = findTagsByIds(tags, newTaskTagIDs);
   const currentCreateTimeRangeError = validateTaskTimeRange(draftDateTimeScheduled, draftEndDateTimeScheduled);
-  const draftEditDateTimeScheduled = buildTaskDateTimeString(editDate, editShowTime, editHour, editMinute, editAmpm, is24Hour);
-  const draftEditEndDateTimeScheduled = editDate && editShowEndTime
-    ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
-    : null;
+  const { dateTimeScheduled: draftEditDateTimeScheduled, endDateTimeScheduled: draftEditEndDateTimeScheduled } = buildTaskSchedule({
+    date: editDate,
+    showTime: editShowTime,
+    hour: editHour,
+    minute: editMinute,
+    ampm: editAmpm,
+    showEndTime: editShowEndTime,
+    endHour: editEndHour,
+    endMinute: editEndMinute,
+    endAmpm: editEndAmpm,
+    is24Hour,
+  });
   const currentEditTimeRangeError = validateTaskTimeRange(draftEditDateTimeScheduled, draftEditEndDateTimeScheduled);
 
   const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean } = {}) => {
@@ -1414,16 +1371,10 @@ function App(): JSX.Element {
   // Task create, update, completion, and focus handlers.
   const toggleAddEndTime = () => {
     if (showAddEndTime) { setShowAddEndTime(false); return; }
-    if (is24Hour) {
-      const h = (parseInt(hour, 10) + 1) % 24;
-      setEndHour(String(h).padStart(2, '0'));
-    } else {
-      let h24 = ampm === 'PM' ? (parseInt(hour, 10) % 12) + 12 : parseInt(hour, 10) % 12;
-      h24 = (h24 + 1) % 24;
-      setEndAmpm(h24 >= 12 ? 'PM' : 'AM');
-      setEndHour(String(h24 % 12 || 12).padStart(2, '0'));
-    }
-    setEndMinute(minute);
+    const nextEnd = getDefaultEndTime({ hour, minute, ampm, is24Hour });
+    setEndHour(nextEnd.endHour);
+    setEndMinute(nextEnd.endMinute);
+    setEndAmpm(nextEnd.endAmpm);
     setShowAddEndTime(true);
   };
 
@@ -1433,10 +1384,18 @@ function App(): JSX.Element {
       requestAnimationFrame(() => requestAnimationFrame(() => setTitleError(true)));
       return;
     }
-    const dateTimeScheduled = buildTaskDateTimeString(date, showAddTime, hour, minute, ampm, is24Hour);
-    const endDateTimeScheduled = date && showAddEndTime
-      ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
-      : null;
+    const { dateTimeScheduled, endDateTimeScheduled } = buildTaskSchedule({
+      date,
+      showTime: showAddTime,
+      hour,
+      minute,
+      ampm,
+      showEndTime: showAddEndTime,
+      endHour,
+      endMinute,
+      endAmpm,
+      is24Hour,
+    });
     const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
     if (rangeError) {
       return;
@@ -1470,28 +1429,15 @@ function App(): JSX.Element {
   };
 
   const completeRecurringTask = async (task: Task, rule: RecurrenceRule) => {
-    const base = task.dateTimeScheduled ? parseLocalDateTime(task.dateTimeScheduled) : new Date();
-    const next = new Date(base);
-    const advance = () => {
-      if (rule.frequency === 'daily')   next.setDate(next.getDate() + 1);
-      if (rule.frequency === 'weekly')  next.setDate(next.getDate() + 7);
-      if (rule.frequency === 'monthly') next.setMonth(next.getMonth() + 1);
-    };
-    advance();
-    const now = new Date();
-    while (next < now) advance();
-    const nextDt = toLocalDateTimeString(next);
-    const nextEndDateTimeScheduled = (() => {
-      if (!task.endDateTimeScheduled || !task.dateTimeScheduled) return null;
-      const durationMs = parseLocalDateTime(task.endDateTimeScheduled).getTime() - parseLocalDateTime(task.dateTimeScheduled).getTime();
-      if (!Number.isFinite(durationMs)) return null;
-      const nextEnd = new Date(next.getTime() + durationMs);
-      return toLocalDateTimeString(nextEnd);
-    })();
+    const nextSchedule = buildRecurringTaskSchedule({
+      dateTimeScheduled: task.dateTimeScheduled,
+      endDateTimeScheduled: task.endDateTimeScheduled,
+      frequency: rule.frequency,
+    });
     const nextTask = await createTask({
       title: task.title, description: task.description ?? '',
-      endDateTimeScheduled: nextEndDateTimeScheduled,
-      dateTimeScheduled: nextDt, userID: task.userID, statusID: null,
+      endDateTimeScheduled: nextSchedule.endDateTimeScheduled,
+      dateTimeScheduled: nextSchedule.dateTimeScheduled, userID: task.userID, statusID: null,
       priority: task.priority ?? null, projectID: task.projectID ?? null,
     });
     if (task.tags?.length) {
@@ -1609,40 +1555,27 @@ function App(): JSX.Element {
 
   const startEdit = async (task: Task) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const draft = deriveTaskEditDraft(task, is24Hour);
     setEditingId(task.taskID);
-    setEditTitle(task.title);
-    setEditDescription(task.description ?? '');
-    setEditPriority(task.priority ?? '');
-    setEditProjectID(task.projectID ?? '');
-    setEditShowEndTime(false);
+    setEditTitle(draft.title);
+    setEditDescription(draft.description);
+    setEditPriority(draft.priority);
+    setEditProjectID(draft.projectID);
+    setEditShowTime(draft.showTime);
+    setEditDate(draft.date);
+    setEditHour(draft.hour);
+    setEditMinute(draft.minute);
+    setEditAmpm(draft.ampm);
+    setEditShowEndTime(draft.showEndTime);
+    setEditEndHour(draft.endHour);
+    setEditEndMinute(draft.endMinute);
+    setEditEndAmpm(draft.endAmpm);
     setShowEditPriorityDropdown(false);
     setShowEditProjectDropdown(false);
     setShowEditTagDropdown(false);
     setShowInlineEditProject(false);
     setShowInlineEditTag(false);
     setInlineEditOpenControl(null);
-    if (task.dateTimeScheduled) {
-      const parts = extractDateParts(task.dateTimeScheduled, is24Hour);
-      const isMidnight = isMidnightLocalDateTime(task.dateTimeScheduled);
-      setEditShowTime(!isMidnight);
-      setEditDate(parts.date);
-      setEditHour(parts.hour);
-      setEditMinute(parts.minute);
-      setEditAmpm(parts.ampm);
-    } else {
-      setEditShowTime(false);
-      setEditDate(''); setEditHour('12'); setEditMinute('00'); setEditAmpm('AM');
-    }
-    if (task.endDateTimeScheduled) {
-      const endParts = extractDateParts(task.endDateTimeScheduled, is24Hour);
-      setEditShowEndTime(true);
-      setEditEndHour(endParts.hour);
-      setEditEndMinute(endParts.minute);
-      setEditEndAmpm(endParts.ampm);
-    } else {
-      setEditShowEndTime(false);
-      setEditEndHour('12'); setEditEndMinute('00'); setEditEndAmpm('AM');
-    }
     // Reload the task so the panel starts with the backend's tag ordering.
     try {
       const fresh = await getTask(task.taskID);
@@ -1684,73 +1617,47 @@ function App(): JSX.Element {
 
   const toggleEditEndTime = () => {
     if (editShowEndTime) { setEditShowEndTime(false); return; }
-    if (is24Hour) {
-      const h = (parseInt(editHour, 10) + 1) % 24;
-      setEditEndHour(String(h).padStart(2, '0'));
-    } else {
-      let h24 = editAmpm === 'PM' ? (parseInt(editHour, 10) % 12) + 12 : parseInt(editHour, 10) % 12;
-      h24 = (h24 + 1) % 24;
-      setEditEndAmpm(h24 >= 12 ? 'PM' : 'AM');
-      setEditEndHour(String(h24 % 12 || 12).padStart(2, '0'));
-    }
-    setEditEndMinute(editMinute);
+    const nextEnd = getDefaultEndTime({ hour: editHour, minute: editMinute, ampm: editAmpm, is24Hour });
+    setEditEndHour(nextEnd.endHour);
+    setEditEndMinute(nextEnd.endMinute);
+    setEditEndAmpm(nextEnd.endAmpm);
     setEditShowEndTime(true);
   };
 
   const shiftTime = (unit: 'hour' | 'day') => {
-    // Use the edit form as the base date; fall back to the current clock when empty.
-    let base: Date;
-    if (editDate) {
-      const [ey, em, ed] = editDate.split('-').map(Number);
-      if (editShowTime) {
-        let hr = parseInt(editHour, 10);
-        if (!is24Hour) {
-          if (editAmpm === 'PM' && hr !== 12) hr += 12;
-          if (editAmpm === 'AM' && hr === 12) hr = 0;
-        }
-        base = new Date(ey, em - 1, ed, hr, parseInt(editMinute, 10));
-      } else {
-        // Date-only tasks preserve midnight unless the hour shortcut needs a wall-clock time.
-        const now = new Date();
-        base = new Date(ey, em - 1, ed, unit === 'hour' ? now.getHours() : 0, unit === 'hour' ? now.getMinutes() : 0);
-      }
-    } else {
-      base = new Date();
-    }
-
+    const shifted = calculateTaskTimeShift({
+      unit,
+      date: editDate,
+      showTime: editShowTime,
+      hour: editHour,
+      minute: editMinute,
+      ampm: editAmpm,
+      is24Hour,
+    });
+    setEditDate(shifted.date);
     if (unit === 'hour') {
-      base = new Date(base.getTime() + 60 * 60 * 1000);
-    } else {
-      base = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+      if (shifted.hour) setEditHour(shifted.hour);
+      if (shifted.minute) setEditMinute(shifted.minute);
+      if (shifted.ampm) setEditAmpm(shifted.ampm);
+      if (shifted.showTime) setEditShowTime(true);
     }
-
-    const newY = base.getFullYear();
-    const newMo = base.getMonth() + 1;
-    const newD = base.getDate();
-    setEditDate(`${newY}-${String(newMo).padStart(2, '0')}-${String(newD).padStart(2, '0')}`);
-
-    if (unit === 'hour') {
-      const h24 = base.getHours();
-      const mins = String(base.getMinutes()).padStart(2, '0');
-      if (is24Hour) {
-        setEditHour(String(h24).padStart(2, '0'));
-      } else {
-        setEditAmpm(h24 >= 12 ? 'PM' : 'AM');
-        setEditHour(String(h24 % 12 || 12).padStart(2, '0'));
-      }
-      setEditMinute(mins);
-      setEditShowTime(true);
-    }
-    // The day shortcut keeps the task's current time selection.
 
     scheduleAutoSave(0);
   };
 
   const saveEdit = async (task: Task) => {
-    const dateTimeScheduled = buildTaskDateTimeString(editDate, editShowTime, editHour, editMinute, editAmpm, is24Hour);
-    const endDateTimeScheduled = editDate && editShowEndTime
-      ? buildDateTimeString(editDate, editEndHour, editEndMinute, editEndAmpm, is24Hour)
-      : null;
+    const { dateTimeScheduled, endDateTimeScheduled } = buildTaskSchedule({
+      date: editDate,
+      showTime: editShowTime,
+      hour: editHour,
+      minute: editMinute,
+      ampm: editAmpm,
+      showEndTime: editShowEndTime,
+      endHour: editEndHour,
+      endMinute: editEndMinute,
+      endAmpm: editEndAmpm,
+      is24Hour,
+    });
     const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
     if (rangeError) {
       return;
@@ -2278,20 +2185,7 @@ function App(): JSX.Element {
   tasksRef.current    = tasks;
 
   // Stats are derived from the loaded task list.
-  const statsData = useMemo(() => {
-    const total = tasks.length;
-    const done = tasks.filter(t => t.statusID === 2).length;
-    const active = tasks.filter(t => t.statusID !== 2).length;
-    const overdue = tasks.filter(t => isTaskOverdue(t)).length;
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-    const doneThisWeek = tasks.filter(t => t.statusID === 2 && t.createdAt && parseLocalDateTime(t.createdAt) >= weekAgo).length;
-    const high = tasks.filter(t => t.priority === 'HIGH').length;
-    const medium = tasks.filter(t => t.priority === 'MEDIUM').length;
-    const low = tasks.filter(t => t.priority === 'LOW').length;
-    const noPriority = tasks.filter(t => !t.priority).length;
-    const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
-    return { total, done, active, overdue, doneThisWeek, high, medium, low, noPriority, completionRate };
-  }, [tasks]);
+  const statsData = useMemo(() => deriveTaskStatistics(tasks), [tasks]);
 
   const hasActiveListFilters =
     search.trim() !== '' ||

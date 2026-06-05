@@ -1,0 +1,32 @@
+import type { Task } from '../types/task';
+import { parseLocalDateTime } from './dateTime';
+import { isTaskOverdue } from './taskUtils';
+
+export type TaskStatistics = {
+  total: number;
+  done: number;
+  active: number;
+  overdue: number;
+  doneThisWeek: number;
+  high: number;
+  medium: number;
+  low: number;
+  noPriority: number;
+  completionRate: number;
+};
+
+export function deriveTaskStatistics(tasks: Task[], now = new Date()): TaskStatistics {
+  const total = tasks.length;
+  const done = tasks.filter(t => t.statusID === 2).length;
+  const active = tasks.filter(t => t.statusID !== 2).length;
+  const overdue = tasks.filter(t => isTaskOverdue(t)).length;
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const doneThisWeek = tasks.filter(t => t.statusID === 2 && t.createdAt && parseLocalDateTime(t.createdAt) >= weekAgo).length;
+  const high = tasks.filter(t => t.priority === 'HIGH').length;
+  const medium = tasks.filter(t => t.priority === 'MEDIUM').length;
+  const low = tasks.filter(t => t.priority === 'LOW').length;
+  const noPriority = tasks.filter(t => !t.priority).length;
+  const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+  return { total, done, active, overdue, doneThisWeek, high, medium, low, noPriority, completionRate };
+}
