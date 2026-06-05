@@ -228,7 +228,7 @@ export default function DateTimeRow({
               onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
               onChange={e => handleDateChange(e.target.value)}
             />
-            <span className="btn btn--ghost btn--sm datetime-row__date-display" aria-hidden="true">
+            <span className={`btn btn--ghost btn--sm datetime-row__date-display${openControl === dateControl ? ' datetime-row__date-display--active' : ''}`} aria-hidden="true">
               {dateLabel}
             </span>
           </div>

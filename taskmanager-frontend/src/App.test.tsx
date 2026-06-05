@@ -1071,14 +1071,38 @@ test('create task date control renders the desktop-visible date display proxy', 
   expect(dateDisplay).not.toBeEmptyDOMElement();
 });
 
+test('create task date display receives the active styling hook when date control is open', async () => {
+  render(<App />);
+
+  await openCreateDateInput();
+
+  const dateDisplay = document.querySelector('.datetime-row__date-display');
+  if (!(dateDisplay instanceof HTMLElement)) throw new Error('Create date display not found');
+  expect(dateDisplay).toHaveClass('datetime-row__date-display--active');
+});
+
 test('date, repeat, and create tags controls have aligned active/dropdown styling hooks', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
 
   expect(css).toContain('.datetime-row__date:focus-visible');
   expect(css).toContain('.datetime-row__date--active');
+  expect(css).toContain('.datetime-row__date-display--active');
+  expect(css).toContain('.app__add .datetime-row__date-display');
   expect(css).toContain('.form-row .tag-select--create-tags .tag-select__dropdown');
-  expect(css).toMatch(/\.recurrence-select__dropdown\s*\{[^}]*right:\s*0;/);
+  expect(css).toMatch(/\.form-row \.tag-select--create-tags \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
+  expect(css).toMatch(/\.recurrence-select__dropdown\s*\{[^}]*right:\s*0;[^}]*width:\s*max-content;/);
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
+});
+
+test('repeat dropdown uses a value-aligned dropdown hook', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+  });
+
+  const dropdown = document.querySelector('.recurrence-select__dropdown');
+  expect(dropdown).toHaveClass('recurrence-select__dropdown--value-aligned');
 });
 
 test('create date selection updates the preview immediately', async () => {

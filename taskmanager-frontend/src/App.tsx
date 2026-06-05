@@ -203,6 +203,7 @@ function App() {
 
   // Draft values for the selected task editor.
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [detailEditingTaskId, setDetailEditingTaskId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState('');
@@ -1589,6 +1590,7 @@ function App() {
     prepareInlineEditViewport();
     setOpenActionTaskId(null);
     setSelectedTaskId(null);
+    setDetailEditingTaskId(null);
     startEdit(task);
   };
 
@@ -1762,6 +1764,7 @@ function App() {
       setTasks(prev => prev.filter(t => t.taskID !== id));
       clearDeletedTaskResources(id);
       if (selectedTaskId === id) setSelectedTaskId(null);
+      if (detailEditingTaskId === id) setDetailEditingTaskId(null);
     } catch {
       setError('Failed to delete task.');
     }
@@ -1777,6 +1780,7 @@ function App() {
       if (current) await saveEdit(current);
     }
     setSelectedTaskId(task.taskID);
+    setDetailEditingTaskId(task.taskID);
     setOpenSections(new Set());
     startEdit(task);
     loadTaskSections(task.taskID);
@@ -1802,6 +1806,7 @@ function App() {
     const task = tasks.find(t => t.taskID === selectedTaskId);
     if (task) await saveEdit(task);
     setSelectedTaskId(null);
+    setDetailEditingTaskId(null);
     setEditingId(null);
   };
 
@@ -2652,7 +2657,7 @@ function App() {
                 const statusID = normalizeTaskStatus(task.statusID);
                 const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
                 const isSelected = selectedTaskId === task.taskID;
-                const isEditingTask = editingId === task.taskID && selectedTaskId === null;
+                const isEditingTask = editingId === task.taskID && detailEditingTaskId !== task.taskID;
                 const taskSubtasks = subtasks[task.taskID] ?? [];
                 const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
                 const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;

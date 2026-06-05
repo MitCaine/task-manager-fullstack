@@ -52,7 +52,7 @@ export default function RecurrenceControl({
         <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{formatRepeatFrequency(value)}</span>
       </button>
       {open && (
-        <div className="tag-select__dropdown recurrence-select__dropdown" role="menu" {...boundaryAttrs}>
+        <div className="tag-select__dropdown recurrence-select__dropdown recurrence-select__dropdown--value-aligned" role="menu" {...boundaryAttrs}>
           {REPEAT_OPTIONS.map(option => (
             <button
               key={option.value || 'none'}
