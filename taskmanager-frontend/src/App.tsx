@@ -59,6 +59,7 @@ import TagColorPicker from './components/TagColorPicker';
 import InlineProjectForm from './components/InlineProjectForm';
 import InlineTagForm from './components/InlineTagForm';
 import RemindersSection from './components/RemindersSection';
+import DetailRepeatRow from './components/DetailRepeatRow';
 
 declare global {
   interface Window {
@@ -3379,19 +3380,10 @@ function App(): JSX.Element {
                 />
               )}
 
-              <div className="detail__repeat-row">
-                <span className="detail__field-label">Repeat</span>
-                <select
-                  className="select select--sm"
-                  value={editRepeatFrequency}
-                  onChange={e => { setEditRepeatFrequency(e.target.value as RepeatFrequency); scheduleAutoSave(0); }}
-                >
-                  <option value="">None</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
+              <DetailRepeatRow
+                value={editRepeatFrequency}
+                onChange={value => { setEditRepeatFrequency(value); scheduleAutoSave(0); }}
+              />
 
             </div>
 
