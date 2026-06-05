@@ -2158,7 +2158,7 @@ input[type="datetime-local"] {
   right: 0;
 }
 
-.form-row .tag-select--create-tags .tag-select__dropdown {
+.form-row .tag-select.tag-select--create-tags:last-child .tag-select__dropdown {
   left: 0;
   right: auto;
 }
