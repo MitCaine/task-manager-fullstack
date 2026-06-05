@@ -168,6 +168,8 @@
 }
 
 .cal-hide-completed {
+  min-width: 6.4rem;
+  justify-content: center;
   white-space: nowrap;
 }
 

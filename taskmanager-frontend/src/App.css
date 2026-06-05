@@ -312,7 +312,7 @@ select {
 
   .app__add .datetime-row__time {
     display: grid;
-    grid-template-columns: max-content auto max-content auto auto 1fr max-content max-content;
+    grid-template-columns: 2.8rem auto max-content auto auto 1fr max-content max-content;
     align-items: center;
     column-gap: 0.35rem;
     row-gap: 0;
@@ -321,12 +321,14 @@ select {
 
   .app__add .datetime-row__end-label {
     flex: initial;
-    min-width: 0;
+    width: 2.8rem;
+    min-width: 2.8rem;
     margin-right: 0;
     overflow: hidden;
     font-size: 0.66rem;
     line-height: 1;
     padding-right: 0.08rem;
+    text-align: left;
   }
 
   .app__add .datetime-row__time .time-select {
@@ -866,6 +868,40 @@ input[type="datetime-local"] {
   display: none;
 }
 
+@media (min-width: 1261px) and (pointer: fine) {
+  .app__add .datetime-row__date-shell {
+    position: relative;
+    display: block;
+    width: 7.75rem;
+    min-width: 7.75rem;
+    max-width: 7.75rem;
+  }
+
+  .app__add .datetime-row__date--proxy {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .app__add .datetime-row__date-shell .datetime-row__date-display {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.38rem 0.35rem;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
 .datetime-row__time-toggle,
 .datetime-row__end-toggle {
   white-space: nowrap;
@@ -947,8 +983,11 @@ input[type="datetime-local"] {
 }
 
 .datetime-row__summary-label {
+  display: inline-block;
+  min-width: 2.65rem;
   color: inherit;
   font-weight: 600;
+  text-align: left;
   transition: color 0.15s, font-weight 0.15s;
 }
 
@@ -1052,7 +1091,10 @@ input[type="datetime-local"] {
 }
 
 .datetime-row__end-label--fixed {
+  display: inline-block;
+  width: 2.8rem;
   min-width: 2.8rem;
+  text-align: left;
 }
 
 .time-sep {

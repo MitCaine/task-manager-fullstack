@@ -1,16 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'fs';
 import Calendar from './Calendar';
 import type { Task } from '../types/task';
 
-const renderCalendar = (tasks: Task[] = []) => render(
+const renderCalendar = (tasks: Task[] = [], hideCompleted = false) => render(
   <Calendar
     tasks={tasks}
     projects={[]}
     is24Hour={false}
     isEuropeanDate={false}
     onEditTask={jest.fn()}
-    hideCompleted={false}
+    hideCompleted={hideCompleted}
     onToggleHideCompleted={jest.fn()}
   />
 );
@@ -81,4 +82,21 @@ test('calendar overview uses three-month ranges in desktop shell', async () => {
 
   expect(container.querySelectorAll('.cal-mini')).toHaveLength(3);
   expect(screen.getByRole('button', { name: /Jan-Mar|Apr-Jun|Jul-Sep|Oct-Dec/ })).toBeInTheDocument();
+});
+
+test('show and hide done controls keep the stable width styling hook', () => {
+  mockDesktopCalendarQuery(false);
+
+  const hiddenState = renderCalendar([], false);
+  const hideButton = screen.getByRole('button', { name: /hide done/i });
+  expect(hideButton).toHaveClass('cal-hide-completed');
+  hiddenState.unmount();
+
+  renderCalendar([], true);
+  const showButton = screen.getByRole('button', { name: /show done/i });
+  expect(showButton).toHaveClass('cal-hide-completed');
+
+  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const toggleRule = css.match(/\.cal-hide-completed\s*\{[^}]*\}/)?.[0] ?? '';
+  expect(toggleRule).toContain('min-width: 6.4rem');
 });

@@ -110,6 +110,12 @@ function getCreateDateInput(): HTMLInputElement {
   return input;
 }
 
+function getExpandedEditorLabel(label: 'Start' | 'End', container: ParentNode = document): HTMLElement {
+  const element = within(getOpenTimeEditor(container)).getByText(`${label}:`);
+  if (!(element instanceof HTMLElement)) throw new Error(`${label} editor label not found`);
+  return element;
+}
+
 async function chooseTimeSegment(editor: HTMLElement, segmentIndex: number, value: string) {
   const segment = editor.querySelectorAll('.time-select')[segmentIndex];
   if (!(segment instanceof HTMLElement)) throw new Error(`Time segment ${segmentIndex} not found`);
@@ -727,6 +733,20 @@ test('end time editor opens in one tap when start time editor is open', async ()
   expect(within(activeEndSummary).getByText(/^End:$/)).toHaveClass('datetime-row__summary-label--active');
 });
 
+test('expanded start and end time editor labels keep the fixed-width label hook', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(await screen.findByText(/\+ Start time/i));
+  });
+  expect(getExpandedEditorLabel('Start')).toHaveClass('datetime-row__end-label', 'datetime-row__end-label--fixed');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+  });
+  expect(getExpandedEditorLabel('End')).toHaveClass('datetime-row__end-label', 'datetime-row__end-label--fixed');
+});
+
 test('start time editor opens in one tap when end time editor is open', async () => {
   render(<App />);
 
@@ -989,6 +1009,22 @@ test('date input remains usable after create control switching', async () => {
 
   expect(getCreateDateInput().value).toBe('2026-06-20');
   expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
+});
+
+test('create task date control renders the desktop-visible date display proxy', () => {
+  render(<App />);
+
+  const dateInput = getCreateDateInput();
+  expect(dateInput).toHaveClass('datetime-row__date--proxy');
+
+  const dateShell = dateInput.closest('.datetime-row__date-shell');
+  if (!(dateShell instanceof HTMLElement)) throw new Error('Create date shell not found');
+
+  const dateDisplay = dateShell.querySelector('.datetime-row__date-display');
+  expect(dateDisplay).toBeInTheDocument();
+  expect(dateDisplay).toHaveClass('btn', 'btn--ghost', 'btn--sm');
+  expect(dateDisplay).toHaveAttribute('aria-hidden', 'true');
+  expect(dateDisplay).not.toBeEmptyDOMElement();
 });
 
 test('create date selection updates the preview immediately', async () => {
