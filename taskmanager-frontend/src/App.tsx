@@ -57,9 +57,14 @@ import DetailSectionShell from './components/DetailSectionShell';
 import TagColorPicker from './components/TagColorPicker';
 import InlineProjectForm from './components/InlineProjectForm';
 import InlineTagForm from './components/InlineTagForm';
+import LinksSection from './components/LinksSection';
+import NotesSection from './components/NotesSection';
 import RemindersSection from './components/RemindersSection';
+import TaskCardToolbar from './components/TaskCardToolbar';
+import SubtasksSection from './components/SubtasksSection';
+import DetailStatusBadges from './components/DetailStatusBadges';
+import DetailHeader from './components/DetailHeader';
 import DetailRepeatRow from './components/DetailRepeatRow';
-import DetailTimeShiftRow from './components/DetailTimeShiftRow';
 import DetailDescriptionField from './components/DetailDescriptionField';
 import DetailScheduleFields from './components/DetailScheduleFields';
 import ErrorBanner from './components/ErrorBanner';
@@ -2197,43 +2202,6 @@ function App(): JSX.Element {
   const emptyState = getTaskEmptyState({ search, filterStatus, hasActiveListFilters, viewTab });
 
   const { showFilterValue, priorityFilterValue } = splitPriorityFilterValue(filterStatus);
-  const renderTaskDescriptionField = ({
-    value,
-    onValue,
-    placeholder,
-    ariaLabel,
-    rows,
-    maxLength,
-    titleStyleInput = false,
-  }: {
-    value: string;
-    onValue: (value: string) => void;
-    placeholder: string;
-    ariaLabel: string;
-    rows: number;
-    maxLength: number;
-    titleStyleInput?: boolean;
-  }) => titleStyleInput ? (
-    <input
-      className="input"
-      type="text"
-      value={value}
-      onChange={e => onValue(e.currentTarget.value)}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      maxLength={maxLength}
-    />
-  ) : (
-    <textarea
-      className="input controls__description"
-      value={value}
-      onChange={e => onValue(e.currentTarget.value)}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      maxLength={maxLength}
-      rows={rows}
-    />
-  );
   const renderInlineEditForm = (task: Task, variant: 'inline' | 'mobile' = 'inline') => {
     const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
     return (
@@ -2947,27 +2915,17 @@ function App(): JSX.Element {
                                   visibleTagCount={VISIBLE_TASK_TAGS}
                                 />
                               </div>
-                              <div className="item__actions" onClick={e => e.stopPropagation()}>
-                                <button
-                                  className={`btn btn--ghost btn--icon item__action-toggle${openActionTaskId === task.taskID ? ' item__action-toggle--open' : ''}`}
-                                  aria-label="Open task actions"
-                                  aria-expanded={openActionTaskId === task.taskID}
-                                  onClick={() => {
-                                    const next = openActionTaskId === task.taskID ? null : task.taskID;
-                                    closeFloatingControls();
-                                    setOpenActionTaskId(next);
-                                  }}
-                                >
-                                  ⋯
-                                </button>
-                                {openActionTaskId === task.taskID && (
-                                  <div className="item__action-menu" role="menu">
-                                    <button type="button" role="menuitem" onClick={() => handleEditTaskAction(task)}>Edit</button>
-                                    <button type="button" role="menuitem" onClick={() => handleDuplicateTaskAction(task)}>Copy</button>
-                                    <button type="button" role="menuitem" className="item__action-menu-danger" onClick={() => handleDeleteTaskAction(task.taskID)}>Delete</button>
-                                  </div>
-                                )}
-                              </div>
+                              <TaskCardToolbar
+                                isOpen={openActionTaskId === task.taskID}
+                                onToggle={() => {
+                                  const next = openActionTaskId === task.taskID ? null : task.taskID;
+                                  closeFloatingControls();
+                                  setOpenActionTaskId(next);
+                                }}
+                                onEdit={() => handleEditTaskAction(task)}
+                                onDuplicate={() => handleDuplicateTaskAction(task)}
+                                onDelete={() => handleDeleteTaskAction(task.taskID)}
+                              />
                             </div>
                           )}
 
@@ -3034,31 +2992,18 @@ function App(): JSX.Element {
         const panelNotes    = notes[selectedTaskId]    ?? [];
         const panelReminders = reminders[selectedTaskId] ?? [];
         const panelDone = panelSubtasks.filter(s => s.statusID === 2).length;
+        const panelProjectTitle = panelTask.projectID ? findProjectById(projects, panelTask.projectID)?.title ?? null : null;
+        const showDuplicateTitleWarning = editTitle.trim() !== '' && tasks.some(t => t.taskID !== panelTask.taskID && t.title.toLowerCase() === editTitle.trim().toLowerCase());
 
         return (
           <div className="card app__detail" data-text-focus-scope={`detail-edit-${selectedTaskId}`}>
-            <div className="detail__header">
-              <input
-                className="input detail__title-input"
-                value={editTitle}
-                onChange={e => { setEditTitle(e.target.value); scheduleAutoSave(); }}
-                placeholder="Task title"
-                aria-label="Task title"
-              />
-              {editTitle.trim() !== '' && tasks.some(t => t.taskID !== panelTask.taskID && t.title.toLowerCase() === editTitle.trim().toLowerCase()) && (
-                <p className="input-warn-msg">A task with this title already exists.</p>
-              )}
-              <button className="btn btn--ghost btn--icon detail__close" onClick={closePanel} title="Close" aria-label="Close task details">×</button>
-            </div>
-            {(panelOverdue || panelTask.projectID) && (
-              <div className="detail__status-row">
-                {panelOverdue && <span className="item__badge">Overdue</span>}
-                {panelTask.projectID && (() => {
-                  const proj = findProjectById(projects, panelTask.projectID);
-                  return proj ? <ProjectBadge title={proj.title} /> : null;
-                })()}
-              </div>
-            )}
+            <DetailHeader
+              title={editTitle}
+              onTitleChange={value => { setEditTitle(value); scheduleAutoSave(); }}
+              showDuplicateWarning={showDuplicateTitleWarning}
+              onClose={closePanel}
+            />
+            <DetailStatusBadges overdue={panelOverdue} projectTitle={panelProjectTitle} />
 
             <div className="detail__fields">
               <DetailDescriptionField
@@ -3263,51 +3208,20 @@ function App(): JSX.Element {
               badgeContent={panelSubtasks.length > 0 ? `${panelDone}/${panelSubtasks.length}` : null}
               badgeClassName={`item__badge ${panelDone === panelSubtasks.length ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}
             >
-                <>
-                  <div className="sec-panel__add">
-                    <input
-                      className="input"
-                      placeholder="New subtask…"
-                      aria-label="New subtask"
-                      value={newSubtaskTitle}
-                      onChange={e => setNewSubtaskTitle(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addSubtask(selectedTaskId); }}
-                      autoFocus
-                    />
-                    <button className="btn btn--sm" onClick={() => addSubtask(selectedTaskId)}>Add</button>
-                  </div>
-                  {panelSubtasks.length === 0
-                    ? <p className="sec-panel__empty">No subtasks yet.</p>
-                    : panelSubtasks.map(s => (
-                      <div key={s.subTaskID} className="sec-row">
-                        <input type="checkbox" className="item__checkbox" checked={s.statusID === 2} onChange={() => toggleSubtask(selectedTaskId, s)} aria-label={`Toggle subtask ${s.title}`} />
-                        {editingSubtaskId === s.subTaskID ? (
-                          <input
-                            className="input sec-row__edit-input"
-                            aria-label="Subtask title"
-                            autoFocus
-                            value={editingSubtaskTitle}
-                            onChange={e => setEditingSubtaskTitle(e.target.value)}
-                            onBlur={() => updateSubtaskTitle(selectedTaskId, s)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') updateSubtaskTitle(selectedTaskId, s);
-                              if (e.key === 'Escape') { setEditingSubtaskId(null); setEditingSubtaskTitle(''); }
-                            }}
-                          />
-                        ) : (
-                          <span
-                            className={`sec-row__title${s.statusID === 2 ? ' sec-row__title--done' : ''}`}
-                            onClick={() => { setEditingSubtaskId(s.subTaskID); setEditingSubtaskTitle(s.title); }}
-                            title="Click to edit"
-                          >
-                            {s.title}
-                          </span>
-                        )}
-                        <button className="btn btn--danger btn--icon" onClick={() => removeSubtask(selectedTaskId, s.subTaskID)} aria-label={`Delete subtask ${s.title}`}>✕</button>
-                      </div>
-                    ))
-                  }
-                </>
+              <SubtasksSection
+                subtasks={panelSubtasks}
+                newSubtaskTitle={newSubtaskTitle}
+                editingSubtaskId={editingSubtaskId}
+                editingSubtaskTitle={editingSubtaskTitle}
+                onNewSubtaskTitleChange={setNewSubtaskTitle}
+                onAddSubtask={() => addSubtask(selectedTaskId)}
+                onToggleSubtask={subtask => toggleSubtask(selectedTaskId, subtask)}
+                onRemoveSubtask={subtaskId => removeSubtask(selectedTaskId, subtaskId)}
+                onStartEditSubtask={subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); }}
+                onEditingSubtaskTitleChange={setEditingSubtaskTitle}
+                onSaveSubtaskTitle={subtask => updateSubtaskTitle(selectedTaskId, subtask)}
+                onCancelEditSubtask={() => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); }}
+              />
             </DetailSectionShell>
 
             <DetailSectionShell
@@ -3316,24 +3230,14 @@ function App(): JSX.Element {
               onToggle={() => togglePanelSection('notes')}
               badgeContent={panelNotes.length > 0 ? panelNotes.length : null}
             >
-                <>
-                  <div className="sec-panel__add sec-panel__add--col">
-                    <textarea className="input controls__description" placeholder="Note content…" aria-label="Note text" value={newNoteContent} onChange={e => setNewNoteContent(e.target.value)} rows={2} autoFocus />
-                    <button className="btn btn--sm" onClick={() => addNote(selectedTaskId)}>Add Note</button>
-                  </div>
-                  {panelNotes.length === 0
-                    ? <p className="sec-panel__empty">No notes yet.</p>
-                    : panelNotes.map(n => (
-                      <div key={n.noteID} className="note-row">
-                        <div className="note-row__body">
-                          <p className="note-row__content">{n.context}</p>
-                          <span className="note-row__time">{formatDateTime(n.timestamp)}</span>
-                        </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeNote(selectedTaskId, n.noteID)} aria-label="Delete note">✕</button>
-                      </div>
-                    ))
-                  }
-                </>
+              <NotesSection
+                notes={panelNotes}
+                newNoteContent={newNoteContent}
+                onNoteContentChange={setNewNoteContent}
+                onAddNote={() => addNote(selectedTaskId)}
+                onRemoveNote={noteId => removeNote(selectedTaskId, noteId)}
+                formatDateTime={formatDateTime}
+              />
             </DetailSectionShell>
 
             <DetailSectionShell
@@ -3374,41 +3278,15 @@ function App(): JSX.Element {
               onToggle={() => togglePanelSection('attachments')}
               badgeContent={(attachments[selectedTaskId] ?? []).length > 0 ? (attachments[selectedTaskId] ?? []).length : null}
             >
-                <>
-                  <div className="sec-panel__add sec-panel__add--col">
-                    <input
-                      className="input"
-                      placeholder="URL…"
-                      aria-label="Attachment URL"
-                      value={newAttachmentUrl}
-                      onChange={e => setNewAttachmentUrl(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addAttachment(selectedTaskId); }}
-                      autoFocus
-                    />
-                    <input
-                      className="input"
-                      placeholder="Label (optional)…"
-                      aria-label="Attachment label"
-                      value={newAttachmentLabel}
-                      onChange={e => setNewAttachmentLabel(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') addAttachment(selectedTaskId); }}
-                    />
-                    <button className="btn btn--sm" onClick={() => addAttachment(selectedTaskId)}>Add Link</button>
-                  </div>
-                  {(attachments[selectedTaskId] ?? []).length === 0
-                    ? <p className="sec-panel__empty">No links yet.</p>
-                    : (attachments[selectedTaskId] ?? []).map(a => (
-                      <div key={a.attachmentID} className="sec-row">
-                        <div className="sec-row__body">
-                          <a href={a.fileORLink} target="_blank" rel="noopener noreferrer" className="attachment-link">
-                            {a.metadata || a.fileORLink}
-                          </a>
-                        </div>
-                        <button className="btn btn--danger btn--icon" onClick={() => removeAttachment(selectedTaskId, a.attachmentID)} aria-label="Delete attachment">✕</button>
-                      </div>
-                    ))
-                  }
-                </>
+              <LinksSection
+                attachments={attachments[selectedTaskId] ?? []}
+                newAttachmentUrl={newAttachmentUrl}
+                newAttachmentLabel={newAttachmentLabel}
+                onAttachmentUrlChange={setNewAttachmentUrl}
+                onAttachmentLabelChange={setNewAttachmentLabel}
+                onAddAttachment={() => addAttachment(selectedTaskId)}
+                onRemoveAttachment={attachmentId => removeAttachment(selectedTaskId, attachmentId)}
+              />
             </DetailSectionShell>
 
           </div>
