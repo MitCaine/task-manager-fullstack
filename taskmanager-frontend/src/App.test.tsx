@@ -2362,6 +2362,10 @@ test('desktop task selection opens detail without rendering legacy inline or mob
     });
 
     await waitFor(() => expect(document.querySelector('.app__detail')).toBeInTheDocument());
+    const detail = document.querySelector<HTMLElement>('.app__detail');
+    const pager = document.querySelector<HTMLElement>('.mobile-pager');
+    expect(pager).toHaveClass('mobile-pager--detail-open');
+    expect(pager).toContainElement(detail);
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();

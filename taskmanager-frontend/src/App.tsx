@@ -2269,7 +2269,7 @@ function App() {
       </div>
 
       <div
-        className={`mobile-pager mobile-pager--${mobilePage}`}
+        className={`mobile-pager mobile-pager--${mobilePage}${selectedTaskId !== null ? ' mobile-pager--detail-open' : ''}`}
         onTouchStart={handleSwipeStart}
         onTouchEnd={handleSwipeEnd}
       >
@@ -2755,22 +2755,6 @@ function App() {
         onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
       />
       </section>
-      </div>
-
-      {statusMoveTask && (() => {
-        const currentTask = tasks.find(t => t.taskID === statusMoveTask.taskID) ?? statusMoveTask;
-        const currentStatusID = normalizeTaskStatus(currentTask.statusID);
-        const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
-        return (
-          <StatusMoveDialog
-            taskTitle={currentTask.title}
-            options={moveOptions}
-            onClose={() => setStatusMoveTask(null)}
-            onMove={statusID => moveTaskToStatus(currentTask, statusID)}
-            firstActionRef={statusFirstActionRef}
-          />
-        );
-      })()}
 
       {selectedTaskId !== null && (() => {
         const panelTask = tasks.find(t => t.taskID === selectedTaskId);
@@ -3063,6 +3047,23 @@ function App() {
             />
 
           </div>
+        );
+      })()}
+
+      </div>
+
+      {statusMoveTask && (() => {
+        const currentTask = tasks.find(t => t.taskID === statusMoveTask.taskID) ?? statusMoveTask;
+        const currentStatusID = normalizeTaskStatus(currentTask.statusID);
+        const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
+        return (
+          <StatusMoveDialog
+            taskTitle={currentTask.title}
+            options={moveOptions}
+            onClose={() => setStatusMoveTask(null)}
+            onMove={statusID => moveTaskToStatus(currentTask, statusID)}
+            firstActionRef={statusFirstActionRef}
+          />
         );
       })()}
 
