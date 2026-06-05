@@ -271,6 +271,7 @@ select {
   .app__add .datetime-row__date--proxy:focus-visible + .datetime-row__date-display,
   .app__add .datetime-row__date--proxy.datetime-row__date--active + .datetime-row__date-display,
   .app__add .datetime-row__date-display--active {
+    border-width: 0.25px;
     border-color: var(--accent);
     background: var(--input-bg);
     color: var(--accent);
