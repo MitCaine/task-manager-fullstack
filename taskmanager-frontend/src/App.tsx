@@ -39,7 +39,6 @@ import {
   splitPriorityFilterValue,
 } from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
-import DateTimeRow from './components/DateTimeRow';
 import { formatRepeatFrequency } from './components/RecurrenceControl';
 import type { RepeatFrequency } from './components/RecurrenceControl';
 import { ProjectBadge, SelectedTagChips } from './components/TagProjectChips';
@@ -62,6 +61,7 @@ import RemindersSection from './components/RemindersSection';
 import DetailRepeatRow from './components/DetailRepeatRow';
 import DetailTimeShiftRow from './components/DetailTimeShiftRow';
 import DetailDescriptionField from './components/DetailDescriptionField';
+import DetailScheduleFields from './components/DetailScheduleFields';
 
 declare global {
   interface Window {
@@ -3197,30 +3197,35 @@ function App(): JSX.Element {
                 onValue={value => { setEditDescription(value); scheduleAutoSave(); }}
               />
 
-              <DateTimeRow
-                editorScope={`detail-edit-${selectedTaskId}`}
-                openTimeEditorScope={openTimeEditorScope}
-                setOpenTimeEditorScope={setOpenTimeEditorScope}
-                closeFloatingControls={closeFloatingControls}
-                is24Hour={is24Hour}
-                hourOptions={hourOptions}
-                dateVal={editDate} hourVal={editHour} minuteVal={editMinute} ampmVal={editAmpm}
-                onDate={v => { setEditDate(v); scheduleAutoSave(0); }}
-                onHour={v => { setEditHour(v); scheduleAutoSave(0); }}
-                onMinute={v => { setEditMinute(v); scheduleAutoSave(0); }}
-                onAmpm={v => { setEditAmpm(v); scheduleAutoSave(0); }}
-                showTime={editShowTime}
-                onToggleTime={() => { setEditShowTime(p => !p); scheduleAutoSave(0); }}
-                onRemoveStart={() => { setEditShowTime(false); scheduleAutoSave(0); }}
-                showEndTime={editShowEndTime}
-                onToggleEndTime={() => { toggleEditEndTime(); scheduleAutoSave(0); }}
-                endHourVal={editEndHour} endMinuteVal={editEndMinute} endAmpmVal={editEndAmpm}
-                onEndHour={v => { setEditEndHour(v); scheduleAutoSave(0); }}
-                onEndMinute={v => { setEditEndMinute(v); scheduleAutoSave(0); }}
-                onEndAmpm={v => { setEditEndAmpm(v); scheduleAutoSave(0); }}
-              />
-              {currentEditTimeRangeError && <p className="input-error-msg">{currentEditTimeRangeError}</p>}
-              <DetailTimeShiftRow
+              <DetailScheduleFields
+                dateTimeRowProps={{
+                  editorScope: `detail-edit-${selectedTaskId}`,
+                  openTimeEditorScope,
+                  setOpenTimeEditorScope,
+                  closeFloatingControls,
+                  is24Hour,
+                  hourOptions,
+                  dateVal: editDate,
+                  hourVal: editHour,
+                  minuteVal: editMinute,
+                  ampmVal: editAmpm,
+                  onDate: v => { setEditDate(v); scheduleAutoSave(0); },
+                  onHour: v => { setEditHour(v); scheduleAutoSave(0); },
+                  onMinute: v => { setEditMinute(v); scheduleAutoSave(0); },
+                  onAmpm: v => { setEditAmpm(v); scheduleAutoSave(0); },
+                  showTime: editShowTime,
+                  onToggleTime: () => { setEditShowTime(p => !p); scheduleAutoSave(0); },
+                  onRemoveStart: () => { setEditShowTime(false); scheduleAutoSave(0); },
+                  showEndTime: editShowEndTime,
+                  onToggleEndTime: () => { toggleEditEndTime(); scheduleAutoSave(0); },
+                  endHourVal: editEndHour,
+                  endMinuteVal: editEndMinute,
+                  endAmpmVal: editEndAmpm,
+                  onEndHour: v => { setEditEndHour(v); scheduleAutoSave(0); },
+                  onEndMinute: v => { setEditEndMinute(v); scheduleAutoSave(0); },
+                  onEndAmpm: v => { setEditEndAmpm(v); scheduleAutoSave(0); },
+                }}
+                timeRangeError={currentEditTimeRangeError}
                 onShiftHour={() => shiftTime('hour')}
                 onShiftDay={() => shiftTime('day')}
               />
