@@ -61,6 +61,7 @@ import { DoneDivider, TaskListDateLabel, TaskListEmptyState, TaskListLoading } f
 import useTaskDetailResources from './hooks/useTaskDetailResources';
 import useProjectTagCatalog from './hooks/useProjectTagCatalog';
 import useTaskListViewModel from './hooks/useTaskListViewModel';
+import useBulkSelection from './hooks/useBulkSelection';
 
 declare global {
   interface Window {
@@ -283,8 +284,15 @@ function App() {
   const [calHideCompleted, setCalHideCompleted] = useState(false);
 
   // Bulk selection state for list actions.
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<number>>(new Set());
+  const {
+    bulkMode,
+    bulkSelectedIds,
+    setBulkMode,
+    setBulkSelectedIds,
+    clearBulkSelection,
+    toggleBulkMode,
+    toggleBulkSelection,
+  } = useBulkSelection();
   const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
   const statusFirstActionRef = useRef<HTMLButtonElement>(null);
   const statusRestoreFocusRef = useRef<HTMLElement | null>(null);
@@ -1563,7 +1571,7 @@ function App() {
       return;
     }
     if (bulkMode) {
-      toggleBulkSelect(task.taskID);
+      toggleBulkSelection(task.taskID);
       return;
     }
     if (mobileEditLayout) {
@@ -1918,14 +1926,6 @@ function App() {
   };
 
   // Bulk actions operate on the current selected task IDs.
-  const toggleBulkSelect = (taskId: number) => {
-    setBulkSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
-      return next;
-    });
-  };
-
   const bulkMarkDone = async () => {
     const ids = Array.from(bulkSelectedIds);
     try {
@@ -1944,8 +1944,7 @@ function App() {
       }
       const refreshedTasks = await getTasks();
       setTasks(refreshedTasks);
-      setBulkSelectedIds(new Set());
-      setBulkMode(false);
+      clearBulkSelection();
     } catch {
       setError('Failed to update tasks.');
     }
@@ -1956,8 +1955,7 @@ function App() {
     try {
       await Promise.all(ids.map(id => deleteTask(id)));
       setTasks(prev => prev.filter(t => !ids.includes(t.taskID)));
-      setBulkSelectedIds(new Set());
-      setBulkMode(false);
+      clearBulkSelection();
     } catch {
       setError('Failed to delete tasks.');
     }
@@ -2612,7 +2610,7 @@ function App() {
           overdueCount={overdueCount}
           bulkMode={bulkMode}
           selectedBulkCount={bulkSelectedIds.size}
-          onToggleBulkMode={() => { setBulkMode(p => !p); setBulkSelectedIds(new Set()); }}
+          onToggleBulkMode={toggleBulkMode}
           onBulkMarkDone={bulkMarkDone}
           onBulkDelete={bulkDelete}
         />
@@ -2688,7 +2686,7 @@ function App() {
                               onLongPressStart={() => beginTaskLongPress(task)}
                               onLongPressCancel={cancelTaskLongPress}
                               onOpenStatusMove={() => openStatusMoveDialog(task)}
-                              onToggleBulkSelect={() => toggleBulkSelect(task.taskID)}
+                              onToggleBulkSelect={() => toggleBulkSelection(task.taskID)}
                               onToggleComplete={() => toggleComplete(task)}
                               onToggleTags={toggleTaskTags}
                               onToggleActions={() => {
