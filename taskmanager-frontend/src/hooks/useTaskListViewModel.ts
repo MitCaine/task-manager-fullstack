@@ -1,0 +1,82 @@
+import { useMemo } from 'react';
+import type { Task } from '../types/task';
+import { getTaskEmptyState } from '../utils/taskEmptyState';
+import {
+  deriveVisibleTasks,
+  type TaskFilterStatus,
+  type TaskSortBy,
+  type TaskViewTab,
+} from '../utils/taskFiltering';
+import { splitPriorityFilterValue } from '../utils/taskDisplayHelpers';
+import { deriveTaskStatistics } from '../utils/taskStatistics';
+import { isTaskOverdue } from '../utils/taskUtils';
+
+type UseTaskListViewModelOptions = {
+  tasks: Task[];
+  search: string;
+  viewTab: TaskViewTab;
+  filterStatus: TaskFilterStatus;
+  filterProjectID: number | '';
+  filterTagID: number | '';
+  sortBy: TaskSortBy;
+  calHideCompleted: boolean;
+};
+
+export default function useTaskListViewModel({
+  tasks,
+  search,
+  viewTab,
+  filterStatus,
+  filterProjectID,
+  filterTagID,
+  sortBy,
+  calHideCompleted,
+}: UseTaskListViewModelOptions) {
+  const { completedCount, overdueCount } = useMemo(() => {
+    let completedCount = 0;
+    let overdueCount = 0;
+    for (const task of tasks) {
+      if (task.statusID === 2) completedCount += 1;
+      if (isTaskOverdue(task)) overdueCount += 1;
+    }
+    return { completedCount, overdueCount };
+  }, [tasks]);
+
+  const tabTasks = useMemo(() => deriveVisibleTasks({
+    tasks,
+    search,
+    viewTab,
+    filterStatus,
+    filterProjectID,
+    filterTagID,
+    sortBy,
+  }), [tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy]);
+
+  const calTasks = useMemo(
+    () => calHideCompleted ? tasks.filter(task => task.statusID !== 2) : tasks,
+    [tasks, calHideCompleted]
+  );
+
+  const statsData = useMemo(() => deriveTaskStatistics(tasks), [tasks]);
+  const hasActiveListFilters =
+    search.trim() !== '' ||
+    filterStatus !== 'all' ||
+    filterProjectID !== '' ||
+    filterTagID !== '';
+  const hasModifiedListControls = hasActiveListFilters || sortBy !== 'dueAsc';
+  const emptyState = getTaskEmptyState({ search, filterStatus, hasActiveListFilters, viewTab });
+  const { showFilterValue, priorityFilterValue } = splitPriorityFilterValue(filterStatus);
+
+  return {
+    completedCount,
+    overdueCount,
+    tabTasks,
+    calTasks,
+    statsData,
+    hasActiveListFilters,
+    hasModifiedListControls,
+    emptyState,
+    showFilterValue,
+    priorityFilterValue,
+  };
+}

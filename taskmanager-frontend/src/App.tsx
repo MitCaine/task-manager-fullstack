@@ -19,11 +19,8 @@ import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm'
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
 import { deriveTaskEditDraft } from './utils/taskEditDraft';
-import { getTaskEmptyState } from './utils/taskEmptyState';
-import { deriveVisibleTasks } from './utils/taskFiltering';
 import { buildRecurringTaskSchedule } from './utils/taskRecurrence';
 import { buildTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
-import { deriveTaskStatistics } from './utils/taskStatistics';
 import { calculateTaskTimeShift } from './utils/taskTimeShift';
 import {
   findProjectById,
@@ -31,7 +28,6 @@ import {
   formatCreateDateDisplayLabel,
   formatPriorityLabel,
   formatTaskDateRange,
-  splitPriorityFilterValue,
 } from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
 import { formatRepeatFrequency } from './components/create-task/RecurrenceControl';
@@ -64,6 +60,7 @@ import TaskCardMain from './components/task-list/TaskCardMain';
 import { DoneDivider, TaskListDateLabel, TaskListEmptyState, TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
 import useProjectTagCatalog from './hooks/useProjectTagCatalog';
+import useTaskListViewModel from './hooks/useTaskListViewModel';
 
 declare global {
   interface Window {
@@ -1308,30 +1305,12 @@ function App() {
 
   const locale = isEuropeanDate ? 'en-GB' : 'en-US';
 
-  const { completedCount, overdueCount } = useMemo(() => {
-    let completedCount = 0;
-    let overdueCount = 0;
-    for (const task of tasks) {
-      if (task.statusID === 2) completedCount += 1;
-      if (isTaskOverdue(task)) overdueCount += 1;
-    }
-    return { completedCount, overdueCount };
-  }, [tasks]);
-
-  const tabTasks = useMemo(() => deriveVisibleTasks({
-    tasks,
-    search,
-    viewTab,
-    filterStatus,
-    filterProjectID,
-    filterTagID,
-    sortBy,
-  }), [tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy]);
-
-  const calTasks = useMemo(
-    () => calHideCompleted ? tasks.filter(t => t.statusID !== 2) : tasks,
-    [tasks, calHideCompleted]
-  );
+  const {
+    completedCount, overdueCount, tabTasks, calTasks, statsData,
+    hasActiveListFilters, hasModifiedListControls, emptyState, showFilterValue, priorityFilterValue,
+  } = useTaskListViewModel({
+    tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy, calHideCompleted,
+  });
 
   const themeLabel: Record<Theme, string> = { system: '💻 System', light: '☀️ Light', dark: '🌙 Dark' };
 
@@ -2053,19 +2032,6 @@ function App() {
   saveEditRef.current = saveEdit;
   tasksRef.current    = tasks;
 
-  // Stats are derived from the loaded task list.
-  const statsData = useMemo(() => deriveTaskStatistics(tasks), [tasks]);
-
-  const hasActiveListFilters =
-    search.trim() !== '' ||
-    filterStatus !== 'all' ||
-    filterProjectID !== '' ||
-    filterTagID !== '';
-  const hasModifiedListControls = hasActiveListFilters || sortBy !== 'dueAsc';
-
-  const emptyState = getTaskEmptyState({ search, filterStatus, hasActiveListFilters, viewTab });
-
-  const { showFilterValue, priorityFilterValue } = splitPriorityFilterValue(filterStatus);
   const renderInlineEditForm = (task: Task, variant: 'inline' | 'mobile' = 'inline') => {
     const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
     return (
