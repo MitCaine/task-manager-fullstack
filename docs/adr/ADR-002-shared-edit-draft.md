@@ -80,6 +80,5 @@ Creating separate drafts could:
 - [Architecture](../architecture.md)
 - [Ownership Map](../ownership-map.md)
 - [Mobile Focus System](../mobile-focus-system.md)
-- [Lessons Learned](../Lessons%20Learned.md)
-- [Architectural Assumptions and Refactoring](../Architectural%20Assumptions%20and%20Refactoring.md)
-
+- [Lessons Learned](../guides/Lessons%20Learned.md)
+- [Architectural Assumptions and Refactoring](../reviews/Architectural%20Assumptions%20and%20Refactoring.md)

@@ -91,6 +91,5 @@ appropriate service or transaction owner could:
 
 - [Architecture](../architecture.md)
 - [Ownership Map](../ownership-map.md)
-- [Lessons Learned](../Lessons%20Learned.md)
-- [Future Architecture Pressure Points](../Future%20Architecture%20Pressure%20Points.md)
-
+- [Lessons Learned](../guides/Lessons%20Learned.md)
+- [Future Architecture Pressure Points](../reviews/Future%20Architecture%20Pressure%20Points.md)

@@ -588,4 +588,4 @@ Use the following rules when adding or changing state:
 - [ADR-003: Autosave Ownership](adr/ADR-003-autosave-ownership.md)
 - [ADR-005: iOS Focus Guard](adr/ADR-005-ios-focus-guard.md)
 - [ADR-006: Reminder Ownership Split](adr/ADR-006-reminder-ownership-split.md)
-- [Lessons Learned](Lessons%20Learned.md)
+- [Lessons Learned](guides/Lessons%20Learned.md)

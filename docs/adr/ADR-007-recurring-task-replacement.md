@@ -93,7 +93,6 @@ refactor, the current recurrence identity and lifecycle model.
 
 - [Architecture](../architecture.md)
 - [Ownership Map](../ownership-map.md)
-- [Lessons Learned](../Lessons%20Learned.md)
-- [Future Architecture Pressure Points](../Future%20Architecture%20Pressure%20Points.md)
-- [Architectural Assumptions and Refactoring](../Architectural%20Assumptions%20and%20Refactoring.md)
-
+- [Lessons Learned](../guides/Lessons%20Learned.md)
+- [Future Architecture Pressure Points](../reviews/Future%20Architecture%20Pressure%20Points.md)
+- [Architectural Assumptions and Refactoring](../reviews/Architectural%20Assumptions%20and%20Refactoring.md)
