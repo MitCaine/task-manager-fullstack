@@ -463,6 +463,10 @@ the proposed move is not yet understood well enough.
 - Which tests should protect the behavior?
 - Are existing behavioral tests expected to pass unchanged?
 - Is a new ownership unit independently testable?
+- What direct, indirect, integration, frontend, and backend protection is
+  recorded in the [Test Coverage Map](test-coverage-map.md)?
+- Does [What Would Break](what-would-break.md) identify an affected assumption
+  that is not directly covered by tests?
 - Does the change affect mobile/WKWebView behavior that requires simulator or
   physical-device validation?
 - Can a future maintainer identify the new owner from file and symbol names?
@@ -487,6 +491,8 @@ transaction boundary.
 - [Ownership Map](ownership-map.md)
 - [State Taxonomy](state-taxonomy.md)
 - [Sequence Diagrams](sequence-diagrams.md)
+- [What Would Break](what-would-break.md)
+- [Test Coverage Map](test-coverage-map.md)
 - [Mobile Focus System](mobile-focus-system.md)
 - [ADR-001: App.tsx Orchestration Owner](adr/ADR-001-app-tsx-orchestration-owner.md)
 - [ADR-002: Shared Edit Draft](adr/ADR-002-shared-edit-draft.md)

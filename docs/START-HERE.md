@@ -42,14 +42,17 @@ When modifying an existing feature, read:
 
 1. [Feature Atlas](feature-atlas.md)
 2. [Ownership Map](ownership-map.md)
-3. The relevant [ADR](adr/)
-4. [Sequence Diagrams](sequence-diagrams.md)
+3. [Test Coverage Map](test-coverage-map.md)
+4. The relevant [ADR](adr/)
+5. [Sequence Diagrams](sequence-diagrams.md)
 
 The Feature Atlas identifies the feature's frontend, backend, state, API,
 utility, test, and mobile dependencies. The Ownership Map shows which owner is
-authoritative and which responsibilities must remain elsewhere. The relevant
-ADR explains why the current boundary exists. The Sequence Diagrams show the
-operation ordering and local-state reconciliation that the feature depends on.
+authoritative and which responsibilities must remain elsewhere. The Test
+Coverage Map shows which parts of the feature are directly or indirectly
+protected and where current gaps exist. The relevant ADR explains why the
+current boundary exists. The Sequence Diagrams show the operation ordering and
+local-state reconciliation that the feature depends on.
 
 ## Architecture Path
 
@@ -60,11 +63,48 @@ change, read:
 2. [Ownership Map](ownership-map.md)
 3. [State Taxonomy](state-taxonomy.md)
 4. [Architecture Signals](architecture-signals.md)
-5. The relevant [ADRs](adr/)
+5. [What Would Break](what-would-break.md)
+6. [Test Coverage Map](test-coverage-map.md)
+7. The relevant [ADRs](adr/)
 
 This path moves from system structure to explicit owners, then to state
-lifecycle, decision signals, and the recorded reasons behind protected
+lifecycle and decision signals. What Would Break makes the affected
+constraints concrete, the Test Coverage Map identifies current regression
+protection and gaps, and the relevant ADRs record the reasons behind protected
 boundaries.
+
+## Change Safety Path
+
+Before making a non-trivial architectural or ownership change, read:
+
+1. [Architecture Signals](architecture-signals.md)
+2. [What Would Break](what-would-break.md)
+3. [Test Coverage Map](test-coverage-map.md)
+4. The relevant [ADRs](adr/)
+
+Read **Architecture Signals** first to answer whether the proposed movement
+creates a complete ownership boundary or only relocates code. Use it when a
+change affects owners, state authority, lifecycle, extraction, backend
+layering, or mobile/platform behavior. It supplies the decision criteria used
+to interpret the more concrete risks and evidence in the remaining documents.
+
+Read **What Would Break** next to answer which current assumptions and
+workflows a reasonable-looking change could violate. Use it to compare the
+proposal with known ownership, state, lifecycle, and platform failure modes.
+It turns the general signals into concrete consequences and identifies the
+ADRs, sequences, and tests connected to each constraint.
+
+Read the **Test Coverage Map** to answer how the affected behavior is currently
+protected and which gaps remain. Use it before deciding whether passing tests
+would provide enough evidence for the proposed change. It complements What
+Would Break by distinguishing directly tested behavior from indirect
+protection and untested assumptions.
+
+Read the relevant **ADRs** last to answer why the current decision was accepted
+and which alternatives and consequences were considered. Use them whenever
+the proposed change touches a recorded decision. They provide the historical
+decision context needed to determine whether the work preserves the current
+architecture or changes it.
 
 ## Mobile Path
 
@@ -72,13 +112,18 @@ Before touching mobile editing, focus, viewport behavior, scrolling, keyboard
 guards, or pager/swipe behavior, read:
 
 - [Mobile Focus System](mobile-focus-system.md)
+- [What Would Break](what-would-break.md)
+- [Test Coverage Map](test-coverage-map.md)
 - [ADR-004: Mobile Edit Row](adr/ADR-004-mobile-edit-row.md)
 - [ADR-005: iOS Focus Guard](adr/ADR-005-ios-focus-guard.md)
 
 These are protected areas because mobile edit placement, root and list sizing,
 scroll ownership, focus scopes, touch handling, `visualViewport`, and
-WKWebView behavior form one cross-cutting system. A change that appears local
-to JSX, CSS, or one input can violate platform invariants elsewhere.
+WKWebView behavior form one cross-cutting system. What Would Break identifies
+the failure modes associated with reasonable-looking mobile changes, while the
+Test Coverage Map distinguishes automated protection from behavior that still
+requires simulator or device verification. A change that appears local to JSX,
+CSS, or one input can violate platform invariants elsewhere.
 
 ## Reverse Engineering Path
 
@@ -108,10 +153,12 @@ The root architecture documents describe the current implementation:
 - [feature-atlas.md](feature-atlas.md)
 - [code-reading-guide.md](code-reading-guide.md)
 - [architecture-signals.md](architecture-signals.md)
+- [what-would-break.md](what-would-break.md)
+- [test-coverage-map.md](test-coverage-map.md)
 - [mobile-focus-system.md](mobile-focus-system.md)
 
 Update these when current ownership, state flow, feature implementation,
-runtime sequences, or protected invariants change.
+runtime sequences, protected invariants, or test protection change.
 
 ### Guides
 
