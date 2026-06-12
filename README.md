@@ -30,49 +30,6 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 |---------------------|-------------|
 | <img src="docs/images/statistics-dashboard.png" alt="Statistics dashboard" width="300"> | <img src="docs/images/light-theme.png" alt="Light theme task list" width="300"> |
 
-## Tech Stack
-
-Backend:
-- Java 17
-- Spring Boot 3.2.5
-- Spring Web
-- Spring Data JPA
-- Jakarta Bean Validation
-- MySQL for local runtime
-- H2 for backend tests
-
-Frontend:
-- React 18
-- TypeScript
-- react-scripts
-- React Testing Library
-- Capacitor iOS
-
-## Project Structure
-
-```text
-.
-├── src/main/java/com/example/taskmanager/   # Spring Boot API, entities, repositories
-├── src/main/resources/                      # Backend configuration
-├── src/main/resources/schema-updates/       # Manual MySQL schema update scripts
-├── src/test/java/com/example/taskmanager/   # Backend tests
-├── SQL Files/                               # MySQL schema
-├── taskmanager-frontend/                    # React + TypeScript frontend
-├── taskmanager-frontend/ios/App             # Capacitor iOS project
-└── pom.xml                                  # Maven backend project
-```
-
-## Key Engineering Decisions
-
-- The React + TypeScript frontend is wrapped with Capacitor so the same UI can be tested as an iOS app.
-- Capacitor was chosen to allow rapid iteration on a React-based UI while validating mobile interaction behavior directly on iPhone hardware and the iOS simulator.
-- The backend is a Spring Boot REST API with MySQL persistence for local runtime data.
-- Database schema changes are controlled manually with `spring.jpa.hibernate.ddl-auto=none` to avoid accidental schema mutation.
-- The mobile task creation flow was refined around compact controls, one-tap menu switching, stable date selection, and anchored time pickers.
-- Completing a recurring task regenerates the next occurrence and preserves the scheduled duration when both start and end times exist.
-- The shared task model powers multiple derived views: list, board, calendar, agenda, and detail/edit views.
-- Light, dark, and system theme support plus 12-hour / 24-hour time and US / European date settings are persisted user preferences.
-
 ## Features
 
 - Task creation, editing, copying, deletion, and completion.
@@ -94,6 +51,24 @@ Frontend:
 - Accessibility improvements including ARIA labels, keyboard navigation, touch-target improvements, dialog semantics, and focus management.
 - Capacitor iOS build for iPhone and Xcode Simulator testing.
 
+## Tech Stack
+
+Backend:
+- Java 17
+- Spring Boot 3.2.5
+- Spring Web
+- Spring Data JPA
+- Jakarta Bean Validation
+- MySQL for local runtime
+- H2 for backend tests
+
+Frontend:
+- React 18
+- TypeScript
+- react-scripts
+- React Testing Library
+- Capacitor iOS
+
 ## Technical Highlights
 
 - React + TypeScript frontend.
@@ -107,15 +82,30 @@ Frontend:
 - Accessibility-focused implementation with semantic dialogs, focus restoration, keyboard behavior, labels, and touch ergonomics.
 - iOS testing through Capacitor and Xcode Simulator.
 
-## iOS WKWebView Mobile Text-Focus Stability
+## Key Engineering Decisions
 
-The Capacitor iOS build includes a mobile text-focus guard for a WKWebView issue where the visual viewport can drift during keyboard resize or touch-drag gestures, leaving a temporary white gap even after document scroll has been reset.
+- The React + TypeScript frontend is wrapped with Capacitor so the same UI can be tested as an iOS app.
+- Capacitor was chosen to allow rapid iteration on a React-based UI while validating mobile interaction behavior directly on iPhone hardware and the iOS simulator.
+- The backend is a Spring Boot REST API with MySQL persistence for local runtime data.
+- Database schema changes are controlled manually with `spring.jpa.hibernate.ddl-auto=none` to avoid accidental schema mutation.
+- The mobile task creation flow was refined around compact controls, one-tap menu switching, stable date selection, and anchored time pickers.
+- Completing a recurring task regenerates the next occurrence and preserves the scheduled duration when both start and end times exist.
+- The shared task model powers multiple derived views: list, board, calendar, agenda, and detail/edit views.
+- Light, dark, and system theme support plus 12-hour / 24-hour time and US / European date settings are persisted user preferences.
 
-Inline task editing needed special handling because editing inside the task list flow, sticky/nested scroll containers, and description textareas all gave iOS more opportunities to auto-scroll the focused caret into view. Mobile edit now renders in a stable `.mobile-edit-panel` outside the `li.item` flow while staying visually associated with the selected task. The panel uses normal card/list scrolling instead of sticky positioning or its own nested `overflow-y: auto` scroll container.
+## Project Structure
 
-Mobile/coarse-pointer edit descriptions intentionally use the title-style `input.input` control. Create-task descriptions and desktop edit descriptions remain `textarea.input.controls__description`, where bounded textarea touch handling preserves internal scrolling without leaking overscroll into the visual viewport.
-
-The final production fix avoids Capacitor Keyboard plugin hooks, shell transforms, broad viewport-height calculations, and pre-focus blocking. It relies on focused-field touchmove prevention, bounded textarea overscroll prevention, stable focus transition tracking, and the mobile edit panel structure. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
+```text
+.
+├── src/main/java/com/example/taskmanager/   # Spring Boot API, entities, repositories
+├── src/main/resources/                      # Backend configuration
+├── src/main/resources/schema-updates/       # Manual MySQL schema update scripts
+├── src/test/java/com/example/taskmanager/   # Backend tests
+├── SQL Files/                               # MySQL schema
+├── taskmanager-frontend/                    # React + TypeScript frontend
+├── taskmanager-frontend/ios/App             # Capacitor iOS project
+└── pom.xml                                  # Maven backend project
+```
 
 ## Prerequisites
 
@@ -270,28 +260,6 @@ Many Xcode WebKit, keyboard, haptic, and Auto Layout warnings printed by the
 iOS simulator are system noise. The important app signal is that the WebView
 loads and the API requests succeed.
 
-## Recent Improvements
-
-- Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
-- Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
-- Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
-- Extracted shared frontend date/time utilities for local `LocalDateTime` input values, snooze handling, overdue checks, and recurrence next-occurrence calculations.
-- Allowed optional note titles in the backend so note creation matches the current body/content-only frontend note UI.
-- Added child-resource parent-not-found regression coverage and extracted a shared parent task existence guard for attachments, notes, reminders, and subtasks.
-- Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
-- Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
-- Added project and tag editing to the inline task edit form.
-- Fixed time formatting so PM values convert correctly to 24-hour display and AM/PM remains consistently uppercase.
-- Added validation that prevents end times before or equal to start times in both frontend and backend flows.
-- Added immediate inline feedback for invalid start/end time ranges.
-- Improved mobile accessibility with ARIA labels, larger touch targets, and more consistent keyboard behavior.
-- Added dialog semantics, Escape ordering, and focus restoration for modal and popover interactions.
-- Improved swipe gesture safety so page navigation does not conflict with controls, menus, date pickers, time pickers, task cards, or dialogs.
-- Improved contrast and tag-color safety by keeping user-selected tag colors as accents instead of unsafe foreground text.
-- Aligned create and edit control behavior for compact time summaries, anchored dropdowns, project/tag controls, and recurrence selection.
-- Added interactive task count badges for all, done, and overdue task filters.
-- Fixed bulk completion so recurring tasks generate their next occurrence instead of being marked done directly.
-
 ## Main API Areas
 
 The backend exposes REST endpoints for:
@@ -327,6 +295,38 @@ Invalid requests return structured validation errors or a bad request response.
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs backend and frontend tests on push and pull request.
 
 Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, attachments, recurrence, and time-range validation. Frontend tests cover task UI behavior, create/edit interactions, date/time utilities, API calls, recurrence controls, recurring-copy handling, duplicate title numbering, mobile swipe guards, accessibility semantics, and interactive task filters.
+
+## iOS WKWebView Mobile Text-Focus Stability
+
+The Capacitor iOS build includes a mobile text-focus guard for a WKWebView issue where the visual viewport can drift during keyboard resize or touch-drag gestures, leaving a temporary white gap even after document scroll has been reset.
+
+Inline task editing needed special handling because editing inside the task list flow, sticky/nested scroll containers, and description textareas all gave iOS more opportunities to auto-scroll the focused caret into view. Mobile edit now renders in a stable `.mobile-edit-panel` outside the `li.item` flow while staying visually associated with the selected task. The panel uses normal card/list scrolling instead of sticky positioning or its own nested `overflow-y: auto` scroll container.
+
+Mobile/coarse-pointer edit descriptions intentionally use the title-style `input.input` control. Create-task descriptions and desktop edit descriptions remain `textarea.input.controls__description`, where bounded textarea touch handling preserves internal scrolling without leaking overscroll into the visual viewport.
+
+The final production fix avoids Capacitor Keyboard plugin hooks, shell transforms, broad viewport-height calculations, and pre-focus blocking. It relies on focused-field touchmove prevention, bounded textarea overscroll prevention, stable focus transition tracking, and the mobile edit panel structure. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
+
+## Recent Improvements
+
+- Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
+- Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
+- Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
+- Extracted shared frontend date/time utilities for local `LocalDateTime` input values, snooze handling, overdue checks, and recurrence next-occurrence calculations.
+- Allowed optional note titles in the backend so note creation matches the current body/content-only frontend note UI.
+- Added child-resource parent-not-found regression coverage and extracted a shared parent task existence guard for attachments, notes, reminders, and subtasks.
+- Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
+- Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
+- Added project and tag editing to the inline task edit form.
+- Fixed time formatting so PM values convert correctly to 24-hour display and AM/PM remains consistently uppercase.
+- Added validation that prevents end times before or equal to start times in both frontend and backend flows.
+- Added immediate inline feedback for invalid start/end time ranges.
+- Improved mobile accessibility with ARIA labels, larger touch targets, and more consistent keyboard behavior.
+- Added dialog semantics, Escape ordering, and focus restoration for modal and popover interactions.
+- Improved swipe gesture safety so page navigation does not conflict with controls, menus, date pickers, time pickers, task cards, or dialogs.
+- Improved contrast and tag-color safety by keeping user-selected tag colors as accents instead of unsafe foreground text.
+- Aligned create and edit control behavior for compact time summaries, anchored dropdowns, project/tag controls, and recurrence selection.
+- Added interactive task count badges for all, done, and overdue task filters.
+- Fixed bulk completion so recurring tasks generate their next occurrence instead of being marked done directly.
 
 ## Future Improvements
 
