@@ -4168,6 +4168,15 @@ input[type="datetime-local"] {
     min-width: 0;
   }
 
+  .item__status-row .item__badge--overdue {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1rem;
+    border-radius: 999px;
+    padding: 0.08rem 0.42rem;
+    line-height: 1;
+  }
+
   .item__chips,
   .item__badges,
   .selected-tags {

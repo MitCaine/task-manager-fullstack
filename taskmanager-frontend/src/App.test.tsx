@@ -485,7 +485,7 @@ test('mobile task card groups status and overdue indicators below the title', as
     expect(titleLine).toBeInTheDocument();
     expect(title.parentElement).toBe(titleLine);
     expect(statusRow?.parentElement).toBe(titleLine);
-    expect(within(statusRow as HTMLElement).getByText('Overdue')).toBeInTheDocument();
+    expect(within(statusRow as HTMLElement).getByText('Overdue')).toHaveClass('item__badge--overdue');
   } finally {
     restoreTouchEnvironment();
   }
@@ -1354,6 +1354,7 @@ test('task card status row preserves desktop placement and becomes a full mobile
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const titleLineRule = css.match(/\.item__title-line\s*\{[^}]*\}/)?.[0] ?? '';
   const statusRowRules = css.match(/\.item__status-row\s*\{[^}]*\}/g) ?? [];
+  const mobileOverdueRule = css.match(/\.item__status-row \.item__badge--overdue\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(titleLineRule).toContain('align-items: center');
   expect(titleLineRule).toContain('flex-wrap: wrap');
@@ -1361,6 +1362,8 @@ test('task card status row preserves desktop placement and becomes a full mobile
   expect(statusRowRules[1]).toContain('display: flex');
   expect(statusRowRules[1]).toContain('flex: 0 0 100%');
   expect(statusRowRules[1]).toContain('flex-wrap: wrap');
+  expect(mobileOverdueRule).toContain('border-radius: 999px');
+  expect(mobileOverdueRule).toContain('padding: 0.08rem 0.42rem');
   expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
 });
 

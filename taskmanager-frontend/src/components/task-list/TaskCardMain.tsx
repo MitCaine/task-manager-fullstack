@@ -195,7 +195,7 @@ function TaskCardMain({
               >
                 {statusLabel}
               </button>
-              {overdue && <span className="item__badge">Overdue</span>}
+              {overdue && <span className="item__badge item__badge--overdue">Overdue</span>}
             </div>
           </div>
           <span className="item__meta item__meta--inline">
