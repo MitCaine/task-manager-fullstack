@@ -1354,6 +1354,10 @@ input[type="datetime-local"] {
   gap: 0.4rem;
 }
 
+.item__status-row {
+  display: contents;
+}
+
 .item__title {
   font-size: 1.05rem;
   font-weight: 600;
@@ -4153,6 +4157,15 @@ input[type="datetime-local"] {
     text-align: center;
     font-size: 0.76rem;
     white-space: nowrap;
+  }
+
+  .item__status-row {
+    display: flex;
+    align-items: center;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
   }
 
   .item__chips,

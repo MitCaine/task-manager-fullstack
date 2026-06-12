@@ -467,6 +467,30 @@ test('recurring mobile task card shows a schedule repeat indicator', async () =>
   }
 });
 
+test('mobile task card groups status and overdue indicators below the title', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetTasks.mockResolvedValue([{
+    ...sampleTask,
+    title: 'A long mobile task title that can wrap independently',
+    dateTimeScheduled: '2020-01-01T09:00:00',
+  }]);
+  render(<App />);
+
+  try {
+    const title = await screen.findByText('A long mobile task title that can wrap independently');
+    const titleLine = title.closest('.item__title-line');
+    const status = screen.getByRole('button', { name: /change status from active/i });
+    const statusRow = status.closest('.item__status-row');
+
+    expect(titleLine).toBeInTheDocument();
+    expect(title.parentElement).toBe(titleLine);
+    expect(statusRow?.parentElement).toBe(titleLine);
+    expect(within(statusRow as HTMLElement).getByText('Overdue')).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('clicking task count badge shows all tasks and updates active styling', async () => {
   mockGetTasks.mockResolvedValue([
     { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
@@ -1326,12 +1350,17 @@ test('mobile description textareas keep a 16px font size above the iOS focus zoo
   expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
 });
 
-test('task card title line keeps status badges vertically centered', () => {
+test('task card status row preserves desktop placement and becomes a full mobile metadata row', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const titleLineRule = css.match(/\.item__title-line\s*\{[^}]*\}/)?.[0] ?? '';
+  const statusRowRules = css.match(/\.item__status-row\s*\{[^}]*\}/g) ?? [];
 
   expect(titleLineRule).toContain('align-items: center');
   expect(titleLineRule).toContain('flex-wrap: wrap');
+  expect(statusRowRules[0]).toContain('display: contents');
+  expect(statusRowRules[1]).toContain('display: flex');
+  expect(statusRowRules[1]).toContain('flex: 0 0 100%');
+  expect(statusRowRules[1]).toContain('flex-wrap: wrap');
   expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
 });
 

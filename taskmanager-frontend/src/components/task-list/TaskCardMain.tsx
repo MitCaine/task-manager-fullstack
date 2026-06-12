@@ -179,22 +179,24 @@ function TaskCardMain({
         <div className="item__title-row">
           <div className="item__title-line">
             <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
-            <button
-              type="button"
-              className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
-              aria-label={`Change status from ${statusLabel}`}
-              onClick={e => {
-                e.stopPropagation();
-                if (!bulkMode) {
-                  onOpenStatusMove();
-                }
-              }}
-              onMouseDown={e => e.stopPropagation()}
-              onTouchStart={e => e.stopPropagation()}
-            >
-              {statusLabel}
-            </button>
-            {overdue && <span className="item__badge">Overdue</span>}
+            <div className="item__status-row">
+              <button
+                type="button"
+                className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
+                aria-label={`Change status from ${statusLabel}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  if (!bulkMode) {
+                    onOpenStatusMove();
+                  }
+                }}
+                onMouseDown={e => e.stopPropagation()}
+                onTouchStart={e => e.stopPropagation()}
+              >
+                {statusLabel}
+              </button>
+              {overdue && <span className="item__badge">Overdue</span>}
+            </div>
           </div>
           <span className="item__meta item__meta--inline">
             {dateTimeLabel}
