@@ -1326,6 +1326,17 @@ test('mobile description textareas keep a 16px font size above the iOS focus zoo
   expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
 });
 
+test('description character counter stays outside the text field', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const wrapperRule = css.match(/\.desc-wrap\s*\{[^}]*\}/)?.[0] ?? '';
+  const counterRule = css.match(/\.char-count\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(wrapperRule).toContain('display: grid');
+  expect(counterRule).toContain('position: static');
+  expect(counterRule).toContain('justify-self: end');
+  expect(counterRule).not.toContain('position: absolute');
+});
+
 test('mobile text focus guard resets document scroll after create title blur', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
