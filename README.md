@@ -4,16 +4,31 @@ A full-stack task management and mobile productivity application with a Spring B
 
 ## Screenshots
 
-- [ ] Task List View
-- [ ] Task Creation
-- [ ] Task Editing
-- [ ] Calendar View
-- [ ] Board View
-- [ ] Statistics Dashboard
-- [ ] Recurring Task Example
-- [ ] Project and Tag Management
-- [ ] Light Theme
-- [ ] Dark Theme
+Representative mobile screenshots from the Capacitor iOS build running on iPhone.
+
+### Task Management
+
+| Task List | Task Creation | Task Editing |
+|-----------|--------------|--------------|
+| <img src="docs/images/task-list.png" alt="Task list view" width="250"> | <img src="docs/images/task-creation.png" alt="Task creation form" width="250"> | <img src="docs/images/task-editing.png" alt="Task editing form" width="250"> |
+
+### Calendar Planning
+
+| Monthly | Quarterly |
+|----------|------------|
+| <img src="docs/images/calendar-view-monthly.png" alt="Monthly calendar view" width="300"> | <img src="docs/images/calendar-view-quarterly.png" alt="Quarterly calendar view" width="300"> |
+
+### Organization
+
+| Project Management | Tag Management |
+|-------------------|----------------|
+| <img src="docs/images/project-management.png" alt="Project management dropdown" width="300"> | <img src="docs/images/tag-management.png" alt="Tag management dropdown" width="300"> |
+
+### Additional Features
+
+| Statistics Dashboard | Light Theme |
+|---------------------|-------------|
+| <img src="docs/images/statistics-dashboard.png" alt="Statistics dashboard" width="300"> | <img src="docs/images/light-theme.png" alt="Light theme task list" width="300"> |
 
 ## Tech Stack
 
@@ -62,7 +77,7 @@ Frontend:
 
 - Task creation, editing, copying, deletion, and completion.
 - Projects, tags, and priority management.
-- Calendar views for Month, Week, and Day planning.
+- Calendar views for Day, Week, Month, and Quarter planning.
 - Board / Kanban-style status management.
 - Recurring tasks with daily, weekly, and monthly frequencies.
 - Automatic generation of the next occurrence when recurring tasks are completed.
