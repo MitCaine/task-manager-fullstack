@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import Calendar from './Calendar';
@@ -36,6 +36,18 @@ const openYearOverview = async () => {
   await userEvent.click(screen.getByRole('button', { name: String(new Date().getFullYear()) }));
 };
 
+const futureTask = (overrides: Partial<Task> = {}): Task => {
+  const scheduled = new Date(Date.now() + 10 * 60 * 1000);
+  const localDateTime = `${scheduled.getFullYear()}-${String(scheduled.getMonth() + 1).padStart(2, '0')}-${String(scheduled.getDate()).padStart(2, '0')}T${String(scheduled.getHours()).padStart(2, '0')}:${String(scheduled.getMinutes()).padStart(2, '0')}:00`;
+  return {
+    taskID: 1,
+    title: 'Recurring calendar task',
+    dateTimeScheduled: localDateTime,
+    recurrenceRuleID: 10,
+    ...overrides,
+  };
+};
+
 test('calendar week view shows a week-level empty state', () => {
   renderCalendar();
 
@@ -62,6 +74,24 @@ test('calendar day view shows day empty state', async () => {
   await userEvent.click(dayButton);
 
   expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
+});
+
+test('calendar recurring task entry shows Repeats', () => {
+  renderCalendar([futureTask()]);
+
+  const taskEntry = screen.getByText('Recurring calendar task').closest('.cal-item');
+  if (!(taskEntry instanceof HTMLElement)) throw new Error('Calendar task entry not found');
+  expect(within(taskEntry).getByText('Repeats')).toBeInTheDocument();
+});
+
+test('calendar upcoming recurring task shows Repeats', async () => {
+  renderCalendar([futureTask()]);
+
+  await openYearOverview();
+
+  const agendaEntry = screen.getByText('Recurring calendar task').closest('.cal-agenda__item');
+  if (!(agendaEntry instanceof HTMLElement)) throw new Error('Calendar agenda entry not found');
+  expect(within(agendaEntry).getByText('Repeats')).toBeInTheDocument();
 });
 
 test('calendar overview keeps four-month ranges outside desktop shell', async () => {

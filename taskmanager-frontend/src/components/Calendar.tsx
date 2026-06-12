@@ -487,6 +487,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                       {t.priority[0] + t.priority.slice(1).toLowerCase()}
                     </span>
                   )}
+                  {t.recurrenceRuleID && <span className="item__badge item__badge--repeat">Repeats</span>}
                 </div>
                 {t.projectID && (() => {
                   const proj = projects.find(p => p.projectID === Number(t.projectID));
@@ -544,7 +545,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                 </span>
                 <span className="cal-agenda__body">
                   <span className="cal-agenda__title">{task.title}</span>
-                  {(task.priority || project) && (
+                  {(task.priority || project || task.recurrenceRuleID) && (
                     <span className="cal-agenda__meta">
                       {task.priority && (
                         <span className={`cal-item__priority cal-item__priority--${task.priority.toLowerCase()}`}>
@@ -552,6 +553,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                         </span>
                       )}
                       {project && <span className="cal-item__project-chip">{project.title}</span>}
+                      {task.recurrenceRuleID && <span className="item__badge item__badge--repeat">Repeats</span>}
                     </span>
                   )}
                 </span>

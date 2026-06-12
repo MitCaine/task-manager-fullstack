@@ -427,6 +427,42 @@ test('shows task titles after loading', async () => {
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
 });
 
+test('recurring desktop task card shows Repeats and non-recurring task card does not', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Recurring task', recurrenceRuleID: 10 },
+    { ...sampleTask, taskID: 2, title: 'One-time task', recurrenceRuleID: null },
+  ]);
+  render(<App />);
+
+  try {
+    const recurringItem = (await screen.findByText('Recurring task')).closest('li');
+    const oneTimeItem = screen.getByText('One-time task').closest('li');
+    if (!(recurringItem instanceof HTMLElement) || !(oneTimeItem instanceof HTMLElement)) {
+      throw new Error('Task cards not found');
+    }
+
+    expect(within(recurringItem).getByText('Repeats')).toBeInTheDocument();
+    expect(within(oneTimeItem).queryByText('Repeats')).not.toBeInTheDocument();
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('recurring mobile task card shows Repeats', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, recurrenceRuleID: 10 }]);
+  render(<App />);
+
+  try {
+    const taskItem = (await screen.findByText('Buy milk')).closest('li');
+    if (!(taskItem instanceof HTMLElement)) throw new Error('Mobile task card not found');
+    expect(within(taskItem).getByText('Repeats')).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('clicking task count badge shows all tasks and updates active styling', async () => {
   mockGetTasks.mockResolvedValue([
     { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
