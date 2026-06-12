@@ -2155,6 +2155,29 @@ test('mobile edit title-style description keeps save semantics', async () => {
   }
 });
 
+test('mobile edit can change priority and save it', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel({ ...sampleTask, priority: 'LOW' });
+
+  try {
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /^low$/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /^high$/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+    });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
+      priority: 'HIGH',
+    })));
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('mobile edit title and description focus do not report visual viewport drift in a stable viewport', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const restoreViewport = mockVisualViewport({ height: 888, offsetTop: 0, pageTop: 0, scale: 1 });
@@ -2851,6 +2874,52 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   })));
   expect(mockAddTagToTask).toHaveBeenCalledWith(52, 9);
   expect(mockRemoveTagFromTask).toHaveBeenCalledWith(52, 8);
+});
+
+test('desktop inline edit can change priority and save it', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const editCard = await openInlineEditCard({ ...sampleTask, priority: 'LOW' });
+
+  try {
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^low$/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^medium$/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+    });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
+      priority: 'MEDIUM',
+    })));
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('inline edit can clear priority', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const editCard = await openInlineEditCard({ ...sampleTask, priority: 'HIGH' });
+
+  try {
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^high$/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /remove priority/i }));
+    });
+    await act(async () => {
+      userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+    });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
+      priority: null,
+    })));
+  } finally {
+    restoreMedia();
+  }
 });
 
 test('inline edit uses compact start and end time summaries', async () => {

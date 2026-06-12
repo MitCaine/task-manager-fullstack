@@ -316,6 +316,26 @@ class TaskControllerTest {
     }
 
     @Test
+    void updateTask_found_updatesPriority() throws Exception {
+        Task existing = makeTask(1L, "Old title", 1L, null);
+        existing.setPriority("LOW");
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        String body = """
+                {"title":"New title","description":"","userID":1,"priority":"HIGH"}
+                """;
+
+        mockMvc.perform(put("/tasks/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priority").value("HIGH"));
+
+        assertEquals("HIGH", existing.getPriority());
+    }
+
+    @Test
     void updateTask_endBeforeStart_returns400() throws Exception {
         String body = """
                 {"title":"New title","description":"","dateTimeScheduled":"2026-06-15T21:00:00","endDateTimeScheduled":"2026-06-15T20:00:00"}

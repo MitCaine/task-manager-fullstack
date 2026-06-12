@@ -1392,7 +1392,7 @@ function App() {
     setOpenCreateControl(current => isCreateControlGroupActive(current, control) ? null : control);
   };
 
-  const toggleInlineEditDropdown = (control: 'project' | 'tags' | 'repeat') => {
+  const toggleInlineEditDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
     closeFloatingControls({ timeEditors: false });
     setOpenTimeEditorScope(null);
     setInlineEditOpenControl(current => current === control ? null : control);
@@ -2102,6 +2102,43 @@ function App() {
           timeRangeError={currentEditTimeRangeError}
         />
         <div className="form-row item__edit-meta-row">
+          <div className="tag-select">
+            <button
+              type="button"
+              className={`select tag-select__btn${editPriority !== '' ? ' tag-select__btn--active' : ''}`}
+              data-inline-edit-menu-trigger
+              onClick={() => {
+                toggleInlineEditDropdown('priority');
+              }}
+            >
+              {editPriority === ''
+                ? 'Priority'
+                : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[editPriority] }} />{formatPriorityLabel(editPriority)}</>}
+            </button>
+            {inlineEditOpenControl === 'priority' && (
+              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
+                <button
+                  type="button"
+                  className={`tag-select__item tag-select__item--remove${editPriority === '' ? ' tag-select__item--on' : ''}`}
+                  onClick={() => { setEditPriority(''); setInlineEditOpenControl(null); }}
+                >
+                  Remove priority
+                </button>
+                {(['LOW', 'MEDIUM', 'HIGH'] as const).map(priority => (
+                  <button
+                    key={priority}
+                    type="button"
+                    className={`tag-select__item${editPriority === priority ? ' tag-select__item--on' : ''}`}
+                    onClick={() => { setEditPriority(priority); setInlineEditOpenControl(null); }}
+                  >
+                    <span className="priority-dot" style={{ background: PRIORITY_COLOR[priority] }} />
+                    {formatPriorityLabel(priority)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="tag-select" ref={editProjectDropdownRef}>
             <button
               type="button"
