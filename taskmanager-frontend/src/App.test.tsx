@@ -2449,6 +2449,20 @@ test('mobile edit panel is not sticky or an independent scroll container', () =>
   expect(panelRule).not.toContain('-webkit-overflow-scrolling: touch');
 });
 
+test('mobile edit dropdowns stay in panel flow and actions use a stable row', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const dropdownRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.tag-select__dropdown\s*\{[^}]*\}/)?.[0] ?? '';
+  const actionsRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.item__edit-actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const actionButtonRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.item__edit-actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(dropdownRule).toContain('position: static');
+  expect(dropdownRule).toContain('max-height: min(14rem, 35dvh)');
+  expect(dropdownRule).toContain('overflow-y: auto');
+  expect(actionsRule).toContain('display: grid');
+  expect(actionsRule).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+  expect(actionButtonRule).toContain('width: 100%');
+});
+
 test('mobile task list remains the scroll owner for mobile edit', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const appListRules = css.match(/\.mobile-page--tasks \.app__list\s*\{[^}]*\}/g) ?? [];

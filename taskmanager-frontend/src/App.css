@@ -3566,6 +3566,23 @@ input[type="datetime-local"] {
     flex: 0 0 auto;
   }
 
+  .mobile-page--tasks .mobile-edit-panel .tag-select__dropdown {
+    position: static;
+    max-height: min(14rem, 35dvh);
+    margin-top: 0.25rem;
+    overflow-y: auto;
+  }
+
+  .mobile-page--tasks .mobile-edit-panel .item__edit-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .mobile-page--tasks .mobile-edit-panel .item__edit-actions .btn {
+    width: 100%;
+  }
+
   .spread,
   .detail__header,
   .datetime-row__top,
