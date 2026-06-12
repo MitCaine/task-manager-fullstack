@@ -934,6 +934,11 @@
   gap: 0.35rem;
 }
 
+.cal-agenda__time {
+  display: inline-flex;
+  align-items: center;
+}
+
 .cal-item__time-date {
   display: inline-flex;
   align-items: center;

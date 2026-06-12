@@ -427,7 +427,7 @@ test('shows task titles after loading', async () => {
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
 });
 
-test('recurring desktop task card shows Repeats and non-recurring task card does not', async () => {
+test('recurring desktop task card shows a schedule repeat indicator and non-recurring task card does not', async () => {
   const restoreMedia = mockDesktopMediaEnvironment();
   mockGetTasks.mockResolvedValue([
     { ...sampleTask, taskID: 1, title: 'Recurring task', recurrenceRuleID: 10 },
@@ -442,14 +442,16 @@ test('recurring desktop task card shows Repeats and non-recurring task card does
       throw new Error('Task cards not found');
     }
 
-    expect(within(recurringItem).getByText('Repeats')).toBeInTheDocument();
-    expect(within(oneTimeItem).queryByText('Repeats')).not.toBeInTheDocument();
+    const repeatIndicator = within(recurringItem).getByLabelText('Repeats');
+    expect(repeatIndicator).toHaveClass('repeat-indicator');
+    expect(repeatIndicator.closest('.item__meta--inline')).toBeInTheDocument();
+    expect(within(oneTimeItem).queryByLabelText('Repeats')).not.toBeInTheDocument();
   } finally {
     restoreMedia();
   }
 });
 
-test('recurring mobile task card shows Repeats', async () => {
+test('recurring mobile task card shows a schedule repeat indicator', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([{ ...sampleTask, recurrenceRuleID: 10 }]);
   render(<App />);
@@ -457,7 +459,9 @@ test('recurring mobile task card shows Repeats', async () => {
   try {
     const taskItem = (await screen.findByText('Buy milk')).closest('li');
     if (!(taskItem instanceof HTMLElement)) throw new Error('Mobile task card not found');
-    expect(within(taskItem).getByText('Repeats')).toBeInTheDocument();
+    const repeatIndicator = within(taskItem).getByLabelText('Repeats');
+    expect(repeatIndicator).toHaveClass('repeat-indicator');
+    expect(repeatIndicator.closest('.item__meta--inline')).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }

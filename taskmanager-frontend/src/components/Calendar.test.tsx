@@ -76,22 +76,26 @@ test('calendar day view shows day empty state', async () => {
   expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
 });
 
-test('calendar recurring task entry shows Repeats', () => {
+test('calendar recurring task entry shows a schedule repeat indicator', () => {
   renderCalendar([futureTask()]);
 
   const taskEntry = screen.getByText('Recurring calendar task').closest('.cal-item');
   if (!(taskEntry instanceof HTMLElement)) throw new Error('Calendar task entry not found');
-  expect(within(taskEntry).getByText('Repeats')).toBeInTheDocument();
+  const repeatIndicator = within(taskEntry).getByLabelText('Repeats');
+  expect(repeatIndicator).toHaveClass('repeat-indicator');
+  expect(repeatIndicator.closest('.cal-item__time')).toBeInTheDocument();
 });
 
-test('calendar upcoming recurring task shows Repeats', async () => {
+test('calendar upcoming recurring task shows a schedule repeat indicator', async () => {
   renderCalendar([futureTask()]);
 
   await openYearOverview();
 
   const agendaEntry = screen.getByText('Recurring calendar task').closest('.cal-agenda__item');
   if (!(agendaEntry instanceof HTMLElement)) throw new Error('Calendar agenda entry not found');
-  expect(within(agendaEntry).getByText('Repeats')).toBeInTheDocument();
+  const repeatIndicator = within(agendaEntry).getByLabelText('Repeats');
+  expect(repeatIndicator).toHaveClass('repeat-indicator');
+  expect(repeatIndicator.closest('.cal-agenda__time')).toBeInTheDocument();
 });
 
 test('calendar overview keeps four-month ranges outside desktop shell', async () => {

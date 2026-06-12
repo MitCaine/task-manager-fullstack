@@ -6,7 +6,6 @@ type TaskCardBadgesProps = {
   projectTitle: string | null;
   priority: Task['priority'];
   priorityLabel: string | null;
-  recurring: boolean;
   completed: boolean;
   subtaskDone: number;
   subtaskTotal: number;
@@ -16,12 +15,11 @@ function TaskCardBadges({
   projectTitle,
   priority,
   priorityLabel,
-  recurring,
   completed,
   subtaskDone,
   subtaskTotal,
 }: TaskCardBadgesProps) {
-  if (!projectTitle && !priority && !recurring && !completed && subtaskTotal === 0) return null;
+  if (!projectTitle && !priority && !completed && subtaskTotal === 0) return null;
 
   return (
     <div className="item__badges">
@@ -31,7 +29,6 @@ function TaskCardBadges({
           {priorityLabel}
         </span>
       )}
-      {recurring && <span className="item__badge item__badge--repeat">Repeats</span>}
       {completed && <span className="item__badge item__badge--done">Done</span>}
       {subtaskTotal > 0 && (
         <span className={`item__badge ${subtaskDone === subtaskTotal ? 'item__badge--subtasks-done' : 'item__badge--subtasks'}`}>
@@ -199,12 +196,14 @@ function TaskCardMain({
             </button>
             {overdue && <span className="item__badge">Overdue</span>}
           </div>
-          <span className="item__meta item__meta--inline">{dateTimeLabel}</span>
+          <span className="item__meta item__meta--inline">
+            {dateTimeLabel}
+            {task.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
+          </span>
           <TaskCardBadges
             projectTitle={projectTitle}
             priority={task.priority}
             priorityLabel={priorityLabel}
-            recurring={Boolean(task.recurrenceRuleID)}
             completed={completed}
             subtaskDone={subtaskDone}
             subtaskTotal={subtaskTotal}

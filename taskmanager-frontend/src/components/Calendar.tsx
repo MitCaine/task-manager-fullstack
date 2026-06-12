@@ -478,6 +478,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                 {showDate && dateLabel
                   ? <><span className="cal-item__time-date">{dateLabel}</span><span>{timeLabel}</span></>
                   : timeLabel}
+                {t.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
               </span>
               <div className="cal-item__body">
                 <div className="cal-item__title-line">
@@ -487,7 +488,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                       {t.priority[0] + t.priority.slice(1).toLowerCase()}
                     </span>
                   )}
-                  {t.recurrenceRuleID && <span className="item__badge item__badge--repeat">Repeats</span>}
                 </div>
                 {t.projectID && (() => {
                   const proj = projects.find(p => p.projectID === Number(t.projectID));
@@ -541,11 +541,14 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               >
                 <span className="cal-agenda__when">
                   <span>{fmtShortDate(task.dateTimeScheduled!)}</span>
-                  <span>{fmtTimeRange(task.dateTimeScheduled!, task.endDateTimeScheduled)}</span>
+                  <span className="cal-agenda__time">
+                    {fmtTimeRange(task.dateTimeScheduled!, task.endDateTimeScheduled)}
+                    {task.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
+                  </span>
                 </span>
                 <span className="cal-agenda__body">
                   <span className="cal-agenda__title">{task.title}</span>
-                  {(task.priority || project || task.recurrenceRuleID) && (
+                  {(task.priority || project) && (
                     <span className="cal-agenda__meta">
                       {task.priority && (
                         <span className={`cal-item__priority cal-item__priority--${task.priority.toLowerCase()}`}>
@@ -553,7 +556,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                         </span>
                       )}
                       {project && <span className="cal-item__project-chip">{project.title}</span>}
-                      {task.recurrenceRuleID && <span className="item__badge item__badge--repeat">Repeats</span>}
                     </span>
                   )}
                 </span>
