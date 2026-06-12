@@ -2463,6 +2463,30 @@ test('mobile edit dropdowns stay in panel flow and actions use a stable row', ()
   expect(actionButtonRule).toContain('width: 100%');
 });
 
+test('mobile edit time controls keep Clear Time and Done on a full-width action row', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    await act(async () => {
+      userEvent.click(within(editPanel).getByRole('button', { name: /\+ start time/i }));
+    });
+
+    const editor = getOpenTimeEditor(editPanel);
+    expect(within(editor).getByRole('button', { name: /clear time/i })).toBeInTheDocument();
+    expect(within(editor).getByRole('button', { name: /^done$/i })).toBeInTheDocument();
+
+    const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+    const timeRowRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__time\s*\{[^}]*\}/)?.[0] ?? '';
+    const editorActionsRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__editor-actions\s*\{[^}]*\}/)?.[0] ?? '';
+
+    expect(timeRowRule).toContain('grid-template-columns: 1.55rem minmax(0, 1fr) 0.18rem minmax(0, 1fr) minmax(0, 1fr)');
+    expect(editorActionsRule).toContain('grid-column: 1 / -1');
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('mobile task list remains the scroll owner for mobile edit', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const appListRules = css.match(/\.mobile-page--tasks \.app__list\s*\{[^}]*\}/g) ?? [];
