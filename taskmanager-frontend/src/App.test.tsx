@@ -1367,6 +1367,17 @@ test('task card status row preserves desktop placement and becomes a full mobile
   expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
 });
 
+test('repeat indicator remains lightweight but visible in schedule metadata', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const repeatIndicatorRule = css.match(/\.repeat-indicator\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(repeatIndicatorRule).toContain('color: var(--accent)');
+  expect(repeatIndicatorRule).toContain('font-size: 1em');
+  expect(repeatIndicatorRule).toContain('opacity: 0.78');
+  expect(repeatIndicatorRule).not.toContain('background');
+  expect(repeatIndicatorRule).not.toContain('border');
+});
+
 test('description character counter stays outside the text field', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const wrapperRule = css.match(/\.desc-wrap\s*\{[^}]*\}/)?.[0] ?? '';
