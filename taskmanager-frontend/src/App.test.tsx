@@ -1326,6 +1326,15 @@ test('mobile description textareas keep a 16px font size above the iOS focus zoo
   expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
 });
 
+test('task card title line keeps status badges vertically centered', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const titleLineRule = css.match(/\.item__title-line\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(titleLineRule).toContain('align-items: center');
+  expect(titleLineRule).toContain('flex-wrap: wrap');
+  expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
+});
+
 test('description character counter stays outside the text field', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const wrapperRule = css.match(/\.desc-wrap\s*\{[^}]*\}/)?.[0] ?? '';

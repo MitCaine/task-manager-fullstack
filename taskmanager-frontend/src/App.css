@@ -4157,7 +4157,6 @@ input[type="datetime-local"] {
 
   .item__chips,
   .item__badges,
-  .item__title-line,
   .selected-tags {
     display: flex;
     flex-wrap: wrap;
