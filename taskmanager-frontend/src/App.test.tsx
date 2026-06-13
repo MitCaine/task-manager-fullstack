@@ -998,6 +998,30 @@ test('priority menu options are real buttons', async () => {
   expect(screen.getByRole('button', { name: /^high$/i })).toBeInTheDocument();
 });
 
+test('open create dropdown controls close when their trigger is clicked again', async () => {
+  render(<App />);
+  const createCard = getCreateCard();
+  const createScope = within(createCard);
+  const triggers = [
+    createScope.getByRole('button', { name: /^priority$/i }),
+    createScope.getByRole('button', { name: /^project$/i }),
+    createScope.getByRole('button', { name: /^tags$/i }),
+    createScope.getByRole('button', { name: /repeat.*do not repeat/i }),
+  ];
+
+  for (const trigger of triggers) {
+    await act(async () => {
+      userEvent.click(trigger);
+    });
+    expect(createCard.querySelector('.tag-select__dropdown')).toBeInTheDocument();
+
+    await act(async () => {
+      userEvent.click(trigger);
+    });
+    expect(createCard.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
+  }
+});
+
 test('start time editor closes when clicking the create title input', async () => {
   render(<App />);
 
@@ -2300,6 +2324,8 @@ test('mobile edit can change priority and save it', async () => {
     await act(async () => {
       userEvent.click(within(editPanel).getByRole('button', { name: /^high$/i }));
     });
+    expect(within(editPanel).getByRole('button', { name: /^high$/i })).toBeInTheDocument();
+    expect(mockUpdateTask).not.toHaveBeenCalled();
     await act(async () => {
       userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
     });
@@ -2307,6 +2333,63 @@ test('mobile edit can change priority and save it', async () => {
     await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
       priority: 'HIGH',
     })));
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('open mobile edit dropdown controls close when their trigger is tapped again', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const editScope = within(editPanel);
+    const triggers = [
+      editScope.getByRole('button', { name: /^priority$/i }),
+      editScope.getByRole('button', { name: /^project$/i }),
+      editScope.getByRole('button', { name: /^tags$/i }),
+      editScope.getByRole('button', { name: /repeat.*do not repeat/i }),
+    ];
+
+    for (const trigger of triggers) {
+      await act(async () => {
+        userEvent.click(trigger);
+      });
+      expect(editPanel.querySelector('.tag-select__dropdown')).toBeInTheDocument();
+
+      await act(async () => {
+        userEvent.click(trigger);
+      });
+      expect(editPanel.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
+    }
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('canceling mobile edit does not persist a dropdown draft change', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const editPanel = await openMobileEditPanel({ ...sampleTask, priority: 'LOW' });
+
+  try {
+    const editScope = within(editPanel);
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: /^low$/i }));
+    });
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: /^high$/i }));
+    });
+    expect(editScope.getByRole('button', { name: /^high$/i })).toBeInTheDocument();
+    expect(mockUpdateTask).not.toHaveBeenCalled();
+
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: /^cancel$/i }));
+    });
+
+    expect(mockUpdateTask).not.toHaveBeenCalled();
+    const taskItem = document.querySelector(`#task-${sampleTask.taskID}`);
+    if (!(taskItem instanceof HTMLElement)) throw new Error('Restored task item not found');
+    expect(within(taskItem).getByText('Low')).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }

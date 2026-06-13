@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import type { RefObject, TouchEvent } from 'react';
+import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
 import {
@@ -72,6 +72,14 @@ declare global {
 type Theme = 'system' | 'light' | 'dark';
 type MobilePage = 'add' | 'tasks' | 'calendar';
 type CreateOpenControl = string | null;
+
+function toggleOpenControl(
+  setOpenControl: Dispatch<SetStateAction<string | null>>,
+  control: string,
+  isActive: (current: string | null, control: string) => boolean = (current, next) => current === next,
+) {
+  setOpenControl(current => isActive(current, control) ? null : control);
+}
 
 function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
   if (control === 'start') return current === 'start' || current === 'start-hour' || current === 'start-minute' || current === 'start-ampm';
@@ -1354,7 +1362,7 @@ function App() {
   });
   const currentEditTimeRangeError = validateTaskTimeRange(draftEditDateTimeScheduled, draftEditEndDateTimeScheduled);
 
-  const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean } = {}) => {
+  const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean; inlineEditControls?: boolean } = {}) => {
     setShowEditPriorityDropdown(false);
     setShowEditProjectDropdown(false);
     setShowEditTagDropdown(false);
@@ -1362,7 +1370,7 @@ function App() {
     setShowSettings(false);
     setShowStats(false);
     setStatusMoveTask(null);
-    setInlineEditOpenControl(null);
+    if (options.inlineEditControls !== false) setInlineEditOpenControl(null);
     if (options.timeEditors !== false) setOpenTimeEditorScope(null);
     if (options.createControls !== false) setOpenCreateControl(null);
   };
@@ -1389,13 +1397,13 @@ function App() {
 
   const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
     closeFloatingControls({ createControls: false });
-    setOpenCreateControl(current => isCreateControlGroupActive(current, control) ? null : control);
+    toggleOpenControl(setOpenCreateControl, control, isCreateControlGroupActive);
   };
 
   const toggleInlineEditDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
-    closeFloatingControls({ timeEditors: false });
+    closeFloatingControls({ timeEditors: false, inlineEditControls: false });
     setOpenTimeEditorScope(null);
-    setInlineEditOpenControl(current => current === control ? null : control);
+    toggleOpenControl(setInlineEditOpenControl, control);
   };
 
   // Task create, update, completion, and focus handlers.
