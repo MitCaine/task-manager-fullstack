@@ -48,6 +48,7 @@ export type DateTimeRowProps = {
   onEndAmpm?: (v: Ampm) => void;
   useDateDisplayProxy?: boolean;
   dateDisplayLabel?: string;
+  desktopSingleRow?: boolean;
 };
 
 // Shared date and optional start/end time controls.
@@ -69,6 +70,7 @@ export default function DateTimeRow({
   onEndHour, onEndMinute, onEndAmpm,
   useDateDisplayProxy = false,
   dateDisplayLabel,
+  desktopSingleRow = false,
 }: DateTimeRowProps): JSX.Element {
   const [openTimeSelect, setOpenTimeSelect] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -213,7 +215,7 @@ export default function DateTimeRow({
   }, [activeEditor, controlledCreateRow]);
 
   return (
-    <div className="datetime-row" ref={rowRef}>
+    <div className={`datetime-row${desktopSingleRow ? ' datetime-row--desktop-single-row' : ''}`} ref={rowRef}>
       <div className="datetime-row__top">
         {useDateDisplayProxy ? (
           <div className="datetime-row__date-shell">

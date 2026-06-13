@@ -206,14 +206,14 @@ select {
     margin-top: 0;
   }
 
-  .app__add .datetime-row {
+  .datetime-row--desktop-single-row {
     display: grid;
     grid-template-columns: 7.75rem minmax(7rem, 1fr) minmax(7rem, 1fr);
     gap: 0.4rem;
     align-items: stretch;
   }
 
-  .app__add .datetime-row__top {
+  .datetime-row--desktop-single-row .datetime-row__top {
     display: flex;
     min-width: 0;
   }
@@ -226,7 +226,7 @@ select {
     max-width: 7.75rem;
   }
 
-  .app__add .datetime-row__summary-row {
+  .datetime-row--desktop-single-row .datetime-row__summary-row {
     display: grid;
     grid-column: 2 / 4;
     grid-template-columns: repeat(2, minmax(7rem, 1fr));
@@ -234,7 +234,7 @@ select {
     min-width: 0;
   }
 
-  .app__add .datetime-row__date {
+  .datetime-row--desktop-single-row .datetime-row__date {
     width: 7.75rem;
     min-width: 7.75rem;
     max-width: 7.75rem;
@@ -382,7 +382,7 @@ select {
     min-width: 3.25rem;
   }
 
-  .app__add .datetime-row__editor {
+  .datetime-row--desktop-single-row .datetime-row__editor {
     grid-column: 1 / -1;
     width: 100%;
   }
