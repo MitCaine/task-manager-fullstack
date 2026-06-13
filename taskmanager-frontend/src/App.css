@@ -386,6 +386,113 @@ select {
     grid-column: 1 / -1;
     width: 100%;
   }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row {
+    display: grid;
+    grid-template-columns: 7rem repeat(2, minmax(9.25rem, 1fr));
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__top {
+    display: flex;
+    min-width: 0;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__summary-row {
+    display: grid;
+    grid-column: 2 / 4;
+    grid-template-columns: repeat(2, minmax(9.25rem, 1fr));
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__date {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    text-align: center;
+    text-align-last: center;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__time-control {
+    min-width: 0;
+    padding-inline: 0.35rem;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__time-text {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__editor {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__time {
+    display: grid;
+    grid-template-columns: 2.8rem auto max-content auto auto 1fr max-content max-content;
+    align-items: center;
+    column-gap: 0.35rem;
+    row-gap: 0;
+    justify-content: stretch;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__end-label {
+    flex: initial;
+    width: 2.8rem;
+    min-width: 2.8rem;
+    margin-right: 0;
+    overflow: hidden;
+    font-size: 0.66rem;
+    line-height: 1;
+    padding-right: 0.08rem;
+    text-align: left;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__time .time-select {
+    flex: initial;
+    width: max-content;
+    min-width: 0;
+    justify-self: start;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__time .time-select__btn {
+    display: block;
+    width: max-content;
+    min-width: 2.55rem;
+    min-height: 1.6rem;
+    padding: 0.18rem 0.28rem;
+    font-size: 0.7rem;
+    color: var(--text);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__editor-actions {
+    display: contents;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__clear-time,
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__done {
+    width: max-content;
+    min-width: 0;
+    min-height: 1.75rem;
+    justify-self: end;
+    padding: 0.22rem 0.5rem;
+    border-radius: 7px;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__clear-time {
+    min-width: 5rem;
+  }
+
+  .item__edit-card:not(.mobile-edit-panel) .datetime-row__done {
+    min-width: 3.25rem;
+  }
 }
 
 /* ── Task panel ─────────────────────────────────────────── */

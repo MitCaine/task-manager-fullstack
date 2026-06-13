@@ -2714,6 +2714,29 @@ test('desktop inline edit entry does not reposition the task list', async () => 
   }
 });
 
+test('desktop inline edit keeps date start and end controls on one row without changing create selectors', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const editLayoutRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row\s*\{[^}]*\}/)?.[0] ?? '';
+  const editSummaryRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__summary-row\s*\{[^}]*\}/)?.[0] ?? '';
+  const editDateRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date\s*\{[^}]*\}/)?.[0] ?? '';
+  const editTimeTextRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-text\s*\{[^}]*\}/)?.[0] ?? '';
+  const editExpandedRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time\s*\{[^}]*\}/)?.[0] ?? '';
+  const editActionsRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__editor-actions\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(editLayoutRule).toContain('display: grid');
+  expect(editLayoutRule).toContain('grid-template-columns: 7rem repeat(2, minmax(9.25rem, 1fr))');
+  expect(editSummaryRule).toContain('grid-column: 2 / 4');
+  expect(editSummaryRule).toContain('grid-template-columns: repeat(2, minmax(9.25rem, 1fr))');
+  expect(editDateRule).toContain('text-align: center');
+  expect(editTimeTextRule).toContain('overflow: visible');
+  expect(editTimeTextRule).toContain('text-overflow: clip');
+  expect(editExpandedRule).toContain('grid-template-columns: 2.8rem auto max-content auto auto 1fr max-content max-content');
+  expect(editActionsRule).toContain('display: contents');
+  expect(css).toContain('.app__add .datetime-row {');
+  expect(css).toContain('grid-template-columns: 7.75rem minmax(7rem, 1fr) minmax(7rem, 1fr)');
+  expect(css).not.toContain('datetime-row--desktop-single-row');
+});
+
 test('inline edit title first outside touchmove is prevented immediately after focus', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const editCard = await openMobileEditPanel();
