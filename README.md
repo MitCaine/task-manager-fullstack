@@ -1,6 +1,6 @@
 # Task Manager Fullstack
 
-A full-stack task management and mobile productivity application with a Spring Boot REST API and a React + TypeScript frontend. The app supports task creation, scheduling, filtering, calendar views, board-style status management, projects, tags, subtasks, notes, reminders, attachments, recurring tasks, and iOS testing through Capacitor.
+A full-stack task management and mobile productivity application with a Spring Boot REST API and a React + TypeScript frontend. The app supports task creation, scheduling, filtering, calendar views, task status management across Active, In Progress, and Done, projects, tags, subtasks, notes, reminders, attachments, recurring tasks, and iOS testing through Capacitor.
 
 ## Screenshots
 
@@ -35,13 +35,15 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 - Task creation, editing, copying, deletion, and completion.
 - Projects, tags, and priority management.
 - Calendar views for Day, Week, Month, and Quarter planning.
-- Board / Kanban-style status management.
+- Status movement between Active, In Progress, and Done.
 - Recurring tasks with daily, weekly, and monthly frequencies.
 - Automatic generation of the next occurrence when recurring tasks are completed.
 - Optional start and end times with start/end range display throughout the application.
 - Sorting and filtering by date, status, priority, project, tag, and search text.
 - Interactive task count badges for all, done, and overdue task filters.
 - Task details panel with subtasks, notes, reminders, attachments, projects, tags, and recurrence.
+- Detail-panel edits autosave after a short debounce.
+- Due-reminder in-app toasts with dismiss and snooze actions.
 - Task statistics dashboard.
 - Bulk task selection and actions.
 - Mobile-friendly swipe navigation between task, creation, and calendar views.
@@ -90,8 +92,8 @@ Frontend:
 - Database schema changes are controlled manually with `spring.jpa.hibernate.ddl-auto=none` to avoid accidental schema mutation.
 - The mobile task creation flow was refined around compact controls, one-tap menu switching, stable date selection, and anchored time pickers.
 - Completing a recurring task regenerates the next occurrence and preserves the scheduled duration when both start and end times exist.
-- The shared task model powers multiple derived views: list, board, calendar, agenda, and detail/edit views.
-- Light, dark, and system theme support plus 12-hour / 24-hour time and US / European date settings are persisted user preferences.
+- The shared task model powers multiple derived views: list, calendar, agenda, status-management, and detail/edit views.
+- Light, dark, and system theme preferences are persisted locally. The 12-hour / 24-hour time and US / European date display formats are configurable per session.
 
 ## Project Structure
 
@@ -121,7 +123,7 @@ first use.
 The backend is configured for:
 
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/TaskManagementDB
+spring.datasource.url=jdbc:mysql://localhost:3306/taskmanagementdb
 spring.datasource.username=taskuser
 spring.datasource.password=taskpass
 server.address=0.0.0.0
@@ -133,7 +135,10 @@ The schema is not managed automatically by Hibernate:
 spring.jpa.hibernate.ddl-auto=none
 ```
 
-Apply `SQL Files/databasemodel.sql` before running the backend against MySQL.
+Create the local `taskmanagementdb` database and a MySQL user matching the
+configured `taskuser` / `taskpass` credentials before importing the schema.
+`SQL Files/databasemodel.sql` does not create the database or user. Apply that
+schema file before running the backend against MySQL.
 
 If upgrading an existing database, also apply any scripts in
 `src/main/resources/schema-updates/`, including:
@@ -246,7 +251,7 @@ npm run ios:sync
 npm run ios:open
 ```
 
-In Xcode, select your iPhone 17 Pro Max as the run destination and press Run.
+In Xcode, select an available simulator or connected iPhone as the run destination and press Run.
 For production use, point `REACT_APP_API_BASE_URL` at a deployed HTTPS backend.
 
 If the iOS app loads but cannot reach the API, verify that:
@@ -269,6 +274,10 @@ The backend exposes REST endpoints for:
 - `/tasks/{id}/repeat`
 - `/tasks/{id}/recurrence`
 - `/tasks/{id}/tags/{tagId}`
+- `/tasks/{id}/subtasks`
+- `/tasks/{id}/notes`
+- `/tasks/{id}/reminders`
+- `/tasks/{id}/attachments`
 - `/subtasks`
 - `/notes`
 - `/reminders`
@@ -296,6 +305,8 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` runs backend and front
 
 Backend tests cover the controller and repository behavior for tasks, tags, reminders, subtasks, notes, projects, attachments, recurrence, and time-range validation. Frontend tests cover task UI behavior, create/edit interactions, date/time utilities, API calls, recurrence controls, recurring-copy handling, duplicate title numbering, mobile swipe guards, accessibility semantics, and interactive task filters.
 
+There is no browser-to-backend end-to-end suite. Real WKWebView behavior is validated manually through iOS simulator/device testing, while automated tests protect DOM and event invariants.
+
 ## iOS WKWebView Mobile Text-Focus Stability
 
 The Capacitor iOS build includes a mobile text-focus guard for a WKWebView issue where the visual viewport can drift during keyboard resize or touch-drag gestures, leaving a temporary white gap even after document scroll has been reset.
@@ -312,7 +323,7 @@ The final production fix avoids Capacitor Keyboard plugin hooks, shell transform
 - Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
 - Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
 - Extracted shared frontend date/time utilities for local `LocalDateTime` input values, snooze handling, overdue checks, and recurrence next-occurrence calculations.
-- Allowed optional note titles in the backend so note creation matches the current body/content-only frontend note UI.
+- Allowed blank note titles in the backend flow so note creation matches the current body/content-only frontend note UI.
 - Added child-resource parent-not-found regression coverage and extracted a shared parent task existence guard for attachments, notes, reminders, and subtasks.
 - Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
 - Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
@@ -331,7 +342,7 @@ The final production fix avoids Capacitor Keyboard plugin hooks, shell transform
 ## Future Improvements
 
 - Push or local notifications for reminders.
-- Drag-and-drop board movement.
+- Drag-and-drop status movement.
 - Offline-first persistence or a local cache.
 - Service-layer extraction for backend business logic.
 - More explicit database migration tooling.
