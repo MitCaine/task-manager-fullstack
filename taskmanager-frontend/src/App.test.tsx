@@ -1196,7 +1196,7 @@ test('desktop inline edit date and time controls use the create highlight stylin
   const editHighlightRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date:focus-visible,[\s\S]*?\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-summary--active\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(editHighlightRule).toContain('border-width: 1.5px');
-  expect(editHighlightRule).toContain('border-color: var(--accent)');
+  expect(editHighlightRule).toContain('border-color: transparent');
   expect(editHighlightRule).toContain('background: var(--input-bg)');
   expect(editHighlightRule).toContain('color: var(--accent)');
   expect(editHighlightRule).toContain('box-shadow: inset 0 0 0 1px var(--accent)');

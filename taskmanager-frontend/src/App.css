@@ -429,7 +429,7 @@ select {
   .item__edit-card:not(.mobile-edit-panel) .datetime-row__date--active,
   .item__edit-card:not(.mobile-edit-panel) .datetime-row__time-summary--active {
     border-width: 1.5px;
-    border-color: var(--accent);
+    border-color: transparent;
     background: var(--input-bg);
     color: var(--accent);
     box-shadow: inset 0 0 0 1px var(--accent);
