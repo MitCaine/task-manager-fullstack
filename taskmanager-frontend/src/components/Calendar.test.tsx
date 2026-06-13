@@ -4,10 +4,10 @@ import { readFileSync } from 'fs';
 import Calendar from './Calendar';
 import type { Task } from '../types/task';
 
-const renderCalendar = (tasks: Task[] = [], hideCompleted = false) => render(
+const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Array<{ projectID: number; title: string }> = []) => render(
   <Calendar
     tasks={tasks}
-    projects={[]}
+    projects={projects}
     is24Hour={false}
     isEuropeanDate={false}
     onEditTask={jest.fn()}
@@ -124,6 +124,35 @@ test('calendar task entry shows two tags plus an accessible overflow indicator',
   const overflow = within(taskEntry).getByLabelText('More tags: Third, Fourth');
   expect(overflow).toHaveTextContent('+2');
   expect(overflow).toHaveAttribute('title', 'More tags: Third, Fourth');
+});
+
+test('calendar project and tag chips share a wrapping body metadata row', () => {
+  renderCalendar(
+    [futureTask({ projectID: 7, tags: calendarTags })],
+    false,
+    [{ projectID: 7, title: 'Wedding Planning' }],
+  );
+
+  const taskEntry = getCalendarTaskEntry();
+  const body = taskEntry.querySelector('.cal-item__body');
+  const metadata = taskEntry.querySelector('.cal-item__meta');
+  const statusBadges = taskEntry.querySelector('.cal-item__badges');
+  if (!(body instanceof HTMLElement) || !(metadata instanceof HTMLElement) || !(statusBadges instanceof HTMLElement)) {
+    throw new Error('Expected calendar task body metadata and status areas');
+  }
+
+  expect(body).toContainElement(metadata);
+  expect(metadata).toContainElement(within(taskEntry).getByText('Wedding Planning'));
+  expect(metadata).toContainElement(within(taskEntry).getByText('First'));
+  expect(metadata).toContainElement(within(taskEntry).getByLabelText('More tags: Third, Fourth'));
+  expect(statusBadges.querySelector('.cal-item__tag-chip')).not.toBeInTheDocument();
+
+  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const bodyRule = css.match(/\.cal-item__body\s*\{[^}]*\}/)?.[0] ?? '';
+  const metadataRule = css.match(/\.cal-item__meta\s*\{[^}]*\}/)?.[0] ?? '';
+  expect(bodyRule).toContain('flex: 1 1 auto');
+  expect(metadataRule).toContain('display: flex');
+  expect(metadataRule).toContain('flex-wrap: wrap');
 });
 
 test('month and day calendar task entries use the shared tag overflow display', async () => {

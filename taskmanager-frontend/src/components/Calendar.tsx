@@ -493,31 +493,35 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                     </span>
                   )}
                 </div>
-                {t.projectID && (() => {
-                  const proj = projects.find(p => p.projectID === Number(t.projectID));
-                  return proj ? (
-                    <span className="cal-item__project-chip">{proj.title}</span>
-                  ) : null;
-                })()}
                 {t.description && (
                   <span className="cal-item__desc">{t.description}</span>
                 )}
+                {(t.projectID || taskTags.length > 0) && (
+                  <div className="cal-item__meta">
+                    {t.projectID && (() => {
+                      const proj = projects.find(p => p.projectID === Number(t.projectID));
+                      return proj ? (
+                        <span className="cal-item__project-chip">{proj.title}</span>
+                      ) : null;
+                    })()}
+                    {visibleTags.map(tag => (
+                      <span key={tag.tagID} className="cal-item__tag-chip" style={tagAccentStyle(tag.color)}>
+                        {tag.title}
+                      </span>
+                    ))}
+                    {hiddenTags.length > 0 && (
+                      <span
+                        className="cal-item__tag-chip"
+                        aria-label={`More tags: ${hiddenTagLabel}`}
+                        title={`More tags: ${hiddenTagLabel}`}
+                      >
+                        +{hiddenTags.length}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="cal-item__badges">
-                {visibleTags.map(tag => (
-                  <span key={tag.tagID} className="cal-item__tag-chip" style={tagAccentStyle(tag.color)}>
-                    {tag.title}
-                  </span>
-                ))}
-                {hiddenTags.length > 0 && (
-                  <span
-                    className="cal-item__tag-chip"
-                    aria-label={`More tags: ${hiddenTagLabel}`}
-                    title={`More tags: ${hiddenTagLabel}`}
-                  >
-                    +{hiddenTags.length}
-                  </span>
-                )}
                 {completed && <span className="cal-item__done-badge">Done</span>}
                 {overdue   && <span className="cal-item__overdue-badge">Overdue</span>}
               </div>

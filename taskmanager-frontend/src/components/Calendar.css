@@ -960,8 +960,17 @@
 
 .cal-item__body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+.cal-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
   min-width: 0;
 }
 
