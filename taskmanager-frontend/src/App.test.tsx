@@ -2750,11 +2750,13 @@ test('desktop inline edit keeps date start and end controls on one row without c
   expect(editTimeSummaryRule).toContain('min-width: 0');
   expect(editTimeTextRule).toContain('overflow: hidden');
   expect(editTimeTextRule).toContain('text-overflow: ellipsis');
-  expect(editExpandedRule).toContain('grid-template-columns: 2.4rem minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr)');
+  expect(editExpandedRule).toContain('grid-template-columns: 2.4rem minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr) auto');
   expect(editExpandedRule).toContain('max-width: 100%');
-  expect(editActionsRule).toContain('grid-column: 1 / -1');
+  expect(editActionsRule).toContain('grid-column: auto');
   expect(editActionsRule).toContain('justify-content: flex-end');
+  expect(editActionsRule).toContain('justify-self: end');
   expect(editActionsRule).toContain('min-width: 0');
+  expect(editActionsRule).toContain('max-width: 100%');
   expect(css).toContain('.app__add .datetime-row {');
   expect(css).toContain('grid-template-columns: 7.75rem minmax(7rem, 1fr) minmax(7rem, 1fr)');
   expect(css).not.toContain('datetime-row--desktop-single-row');
