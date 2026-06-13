@@ -1191,6 +1191,17 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
 
+test('desktop inline edit date and time controls use the create highlight styling contract', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const editHighlightRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date:focus-visible,[\s\S]*?\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-summary--active\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(editHighlightRule).toContain('border-width: 1.5px');
+  expect(editHighlightRule).toContain('border-color: var(--accent)');
+  expect(editHighlightRule).toContain('background: var(--input-bg)');
+  expect(editHighlightRule).toContain('color: var(--accent)');
+  expect(editHighlightRule).toContain('box-shadow: inset 0 0 0 1px var(--accent)');
+});
+
 test('filter dropdowns share left-aligned custom menu behavior and display long names', async () => {
   mockGetProjects.mockResolvedValue([
     { projectID: 7, title: 'Wedding Planning' },
