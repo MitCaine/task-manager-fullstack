@@ -9,10 +9,14 @@ data model, or APIs.
 
 The recommended direction separates two responsibilities:
 
-- **Assignment controls** help users quickly assign a project or tags while
-  creating, editing, or filtering tasks.
-- **Catalog management** provides a deliberate place to create, rename,
-  recolor, merge, and delete projects or tags.
+- **Assignment pickers** assign existing projects or tags while creating,
+  editing, or filtering tasks.
+- **Catalog management surfaces** create, rename, recolor, delete, bulk-add,
+  bulk-delete, merge, and clean up projects or tags.
+
+Tag assignment should be addressed first. Tag catalogs are likely to grow
+faster than project catalogs, and multi-select assignment becomes difficult
+sooner than single-select project assignment.
 
 ## Current Behavior Summary
 
@@ -199,9 +203,29 @@ grouping. At 20 or more items this creates several problems:
 
 ## Recommended UX Model
 
+### Searchable Multi-Select Tag Picker
+
+Use a searchable multi-select picker for tag assignment.
+
+- Keep selected tags in a dedicated section above the searchable result list.
+- Keep the picker open while selecting or removing multiple tags.
+- Exclude selected tags from ordinary results or mark them clearly.
+- Show the current selected count without imposing a maximum in the first
+  implementation.
+- Support keyboard navigation and an accessible checkbox/listbox model.
+- Keep assignment focused on existing tags. Move creation, deletion, color
+  changes, and other catalog maintenance into `Manage Tags`.
+- Provide a `Manage Tags` entry point at the bottom of the picker.
+
+Implement this picker before the searchable project picker. Create,
+inline/mobile edit, detail edit, and tag-filter controls should share search
+and result behavior only where that does not disturb their existing state and
+persistence ownership.
+
 ### Searchable Project Picker
 
-Use a searchable single-select picker for project assignment.
+Use a searchable single-select picker for project assignment after the
+searchable tag picker is stable.
 
 - Keep `No project` as a clear first option.
 - Show the currently assigned project above search results or as the selected
@@ -211,30 +235,13 @@ Use a searchable single-select picker for project assignment.
 - Support keyboard navigation: focus search, Arrow Up/Down, Enter to select,
   Escape to close.
 - Close after selection because projects are single-select.
-- Keep `Create project` available when no exact match exists, subject to title
-  validation.
-- Move deletion and other destructive management out of the assignment picker.
+- Keep assignment focused on existing projects. Move creation, deletion, and
+  other catalog maintenance into `Manage Projects`.
 - Provide a `Manage Projects` entry point at the bottom of the picker.
 
 The create, inline/mobile edit, detail edit, and project-filter controls should
 share the same search/result behavior where practical, while retaining their
 existing state and persistence ownership.
-
-### Searchable Multi-Select Tag Picker
-
-Use a searchable multi-select picker for tag assignment.
-
-- Keep selected tags in a dedicated section above the searchable result list.
-- Keep the picker open while selecting or removing multiple tags.
-- Exclude selected tags from ordinary results or mark them clearly.
-- Show the current count and the maximum count.
-- Disable unselected results when the maximum is reached, while still allowing
-  selected tags to be removed.
-- Support keyboard navigation and an accessible checkbox/listbox model.
-- Keep `Create tag` available when no exact match exists, subject to title and
-  color validation.
-- Move deletion and color/catalog maintenance into `Manage Tags`.
-- Provide a `Manage Tags` entry point at the bottom of the picker.
 
 ### Selected Tags Section
 
@@ -242,16 +249,18 @@ Selected tags should remain visible independently of search results.
 
 - Render removable chips in assignment contexts.
 - Preserve selection order unless a deliberate product rule replaces it.
-- Keep removals available when the maximum is reached.
 - In detail edit, preserve current autosave semantics.
 - In inline/mobile edit, preserve current draft-only behavior until Save.
 
 ### Maximum Tags Per Task
 
-Recommend a maximum of **5 tags per task** for new assignments.
+Do not make a five-tag limit an early implementation requirement. Card and
+calendar overflow display solves most visual clutter without immediately
+restricting user data or changing API behavior.
 
-Five tags are enough for useful categorization while limiting visual noise and
-the number of association requests. This limit must be introduced carefully:
+A maximum such as **5 tags per task** may still be a useful later product and
+data-integrity decision. Before adopting it, validate the user need, migration
+impact, API contract, and compatibility behavior:
 
 - Existing tasks with more than five tags must remain readable and editable.
 - Do not silently remove existing tags.
@@ -262,8 +271,8 @@ the number of association requests. This limit must be introduced carefully:
 - Return a clear conflict or validation response when the backend rejects an
   additional tag.
 
-Phase 2 should not enforce only a frontend limit; other clients and direct API
-requests would otherwise bypass it.
+Any future limit must not be enforced only in the frontend; other clients and
+direct API requests would otherwise bypass it.
 
 ### Card and Calendar Overflow Display
 
@@ -271,7 +280,7 @@ Use a consistent compact overflow contract:
 
 - Task cards: retain the existing two visible tags plus interactive `+N`.
 - Create preview: retain three visible tags plus `+N`, or align to two if visual
-  consistency is preferred during Phase 2.
+  consistency is preferred during the overflow-display phase.
 - Calendar task-list entries: show at most two tag chips plus `+N`.
 - Agenda/upcoming: keep tags hidden unless user research shows they are needed;
   project and priority already provide compact context.
@@ -281,6 +290,19 @@ Use a consistent compact overflow contract:
 The `+N` indicator should expose the hidden tag names through an accessible
 label or tooltip. Opening a task remains the reliable way to inspect all tags.
 
+### Recent Projects and Tags
+
+After basic searchable pickers are stable, consider showing a small
+`Recently used` section before ordinary search results.
+
+- Recent items can reduce repeated searching without replacing search.
+- Selected items should remain visually separate from recent items.
+- Do not require persistence in the first version.
+- Define a clear source of truth before implementing recent or frequent
+  behavior: recent assignment events, task usage frequency, per-device local
+  history, or server-owned user history produce different results.
+- Keep recent/frequent ranking out of the first searchable-picker pass.
+
 ### Manage Projects / Manage Tags
 
 Add dedicated management entry points instead of performing destructive catalog
@@ -289,7 +311,7 @@ actions inside assignment pickers.
 Recommended modal or panel capabilities:
 
 - Search and sort the catalog.
-- Show title, tag color where applicable, and usage count.
+- Show title and tag color where applicable.
 - Create one item.
 - Rename items.
 - Recolor tags.
@@ -299,12 +321,29 @@ Recommended modal or panel capabilities:
 
 This management surface should not own task assignment draft state.
 
+### Usage Counts
+
+Add usage counts after the core management surfaces exist. Counts belong most
+naturally in management screens and may also help in larger picker views.
+
+Examples:
+
+- `Wedding Planning (12)`
+- `Docs (4)`
+
+Usage counts must come from an authoritative source and define what they count,
+such as active tasks only or all tasks. They should support management decisions
+without making ordinary assignment results visually noisy.
+
 ## Bulk Operation Plan
 
 ### Bulk Add Projects and Tags
 
 Bulk add should accept a newline-separated or paste-friendly list, trim values,
 reject blanks, identify duplicates, and show a preview before submission.
+
+Bulk add should remain before bulk delete because it does not mutate existing
+task assignments and has a smaller data-integrity risk.
 
 Recommended safeguards:
 
@@ -359,83 +398,122 @@ Merge is safer than deletion when duplicate projects or tags are in use.
 
 ## Recommended Implementation Phases
 
-### Phase 1: Searchable Assignment Pickers
+### Phase 1: Searchable Tag Picker
 
 Deliver:
 
-- Searchable single-select project picker.
 - Searchable multi-select tag picker.
 - Dedicated selected-tags section.
-- Shared search/result behavior across create, inline/mobile edit, detail edit,
-  and filters where appropriate.
-- `Manage Projects` and `Manage Tags` entry points that may initially be
-  disabled or route to an informational placeholder.
+- Search and result behavior across create, inline/mobile edit, detail edit,
+  and tag filters where appropriate.
+- Existing-tag assignment only; catalog creation, recoloring, and deletion
+  remain separate concerns.
 
 Keep:
 
 - Existing catalog loading APIs.
 - Existing create/edit/detail state ownership.
 - Existing save, autosave, and task-tag association behavior.
-- Existing deletion behavior temporarily, but remove deletion buttons from the
-  assignment picker only when a real management surface is available.
+- Existing tag count with no new maximum.
 
 Likely files:
 
 - `taskmanager-frontend/src/App.tsx`
 - `taskmanager-frontend/src/components/task-list/TaskListControls.tsx`
-- New focused picker components under `taskmanager-frontend/src/components/`
+- A focused tag-picker component under `taskmanager-frontend/src/components/`
 - `taskmanager-frontend/src/App.css`
 - `taskmanager-frontend/src/App.test.tsx`
 
 Testing:
 
 - Search matching, case handling, empty results, and long names.
-- Project single-select and close-on-select behavior.
 - Tag multi-select, selected section, removal, and keep-open behavior.
 - Keyboard and Escape behavior.
 - Create draft, edit draft, detail autosave, Save, and Cancel invariants.
 - Mobile focus, dropdown flow, scroll ownership, and clipping regressions.
-- Filter selection remains single-select.
+- Tag filter remains single-select.
 
-### Phase 2: Max 5 Tags and Card/Calendar `+N`
+### Phase 2: Searchable Project Picker
 
 Deliver:
 
-- Five-tag assignment limit with clear count and disabled-add behavior.
-- Compatibility behavior for existing tasks over the limit.
-- Backend enforcement for new tag associations.
-- Calendar task-list entries capped at two tags plus `+N`.
-- Accessible hidden-tag summaries.
+- Searchable single-select project picker.
+- Shared search/list primitives from Phase 1 only if the boundary remains small
+  and preserves project single-select behavior.
+- Existing-project assignment only.
 
 Likely files:
 
 - `taskmanager-frontend/src/App.tsx`
-- Shared tag picker and display components
+- `taskmanager-frontend/src/components/task-list/TaskListControls.tsx`
+- Focused picker components under `taskmanager-frontend/src/components/`
+- `taskmanager-frontend/src/App.css`
+- `taskmanager-frontend/src/App.test.tsx`
+
+Testing:
+
+- Project search, empty results, and long names.
+- Single-select and close-on-select behavior.
+- `No project` behavior.
+- Create draft, edit draft, detail autosave, Save, and Cancel invariants.
+- Project filter remains single-select.
+
+### Phase 3: Card/Calendar Tag Overflow Display With `+N`
+
+Deliver:
+
+- Preserve the existing task-card and create-preview overflow behavior.
+- Cap calendar task-list entries at two tag chips plus `+N`.
+- Add accessible hidden-tag summaries.
+- Keep all selected tags visible in detail and assignment surfaces.
+
+Likely files:
+
 - `taskmanager-frontend/src/components/create-task/TaskTags.tsx`
 - `taskmanager-frontend/src/components/create-task/AddTaskPreview.tsx`
 - `taskmanager-frontend/src/components/Calendar.tsx`
 - `taskmanager-frontend/src/components/Calendar.css`
-- `src/main/java/com/example/taskmanager/TaskController.java`
-- Backend validation/service support introduced for the tag limit
-- Frontend and backend tests
+- `taskmanager-frontend/src/components/Calendar.test.tsx`
+- `taskmanager-frontend/src/App.test.tsx`
 
 Testing:
 
-- Add up to five tags and reject the sixth.
-- Remove a tag and add a replacement.
-- Existing over-limit tasks remain intact and can remove tags.
-- Direct API attempts cannot bypass the limit.
-- Task cards, preview, and calendar show correct `+N`.
-- Detail views still show all selected tags.
+- Task cards, preview, and calendar show the correct visible count and `+N`.
+- Accessible labels expose hidden tag counts or names.
+- Detail and assignment views still show all selected tags.
+- No maximum tag count is introduced.
 
-### Phase 3: Manage Projects/Tags Modal
+### Phase 4: Recent Projects/Tags
 
 Deliver:
 
-- Searchable, sortable catalog management surface.
+- Optional `Recently used` sections in searchable pickers.
+- A documented source-of-truth decision for recent or frequent ordering.
+- A non-persistent implementation only if product behavior is clear without
+  persistence.
+
+Likely files:
+
+- Searchable picker components
+- `taskmanager-frontend/src/App.tsx`
+- A focused recent-items utility or hook if needed
+- Frontend tests
+
+Testing:
+
+- Recent items do not replace or hide search results.
+- Selected items remain distinct from recent items.
+- Ordering updates according to the documented source of truth.
+- Clearing or restarting behavior matches the chosen non-persistent model.
+
+### Phase 5: Manage Projects/Tags Surfaces
+
+Deliver:
+
+- Searchable, sortable catalog management surfaces.
 - Single-item create, rename, tag recolor, and safe delete.
-- Usage counts and explicit delete warnings.
-- Assignment pickers link to the management surface.
+- Assignment pickers link to management surfaces.
+- Assignment pickers no longer own catalog mutation actions.
 
 Likely files:
 
@@ -445,18 +523,39 @@ Likely files:
 - `taskmanager-frontend/src/App.tsx`
 - `src/main/java/com/example/taskmanager/ProjectController.java`
 - `src/main/java/com/example/taskmanager/TagController.java`
-- Repository queries or dedicated usage-summary endpoints
 - Frontend and backend tests
 
 Testing:
 
-- Search, sort, rename, recolor, and create.
-- Usage counts match task assignments.
-- Delete warnings distinguish used and unused items.
+- Search, sort, rename, recolor, create, and safe single delete.
+- Assignment pickers remain focused on assignment.
 - Successful deletion reconciles tasks, drafts, filters, and picker results.
-- Failed or stale deletion leaves the catalog unchanged.
+- Failed deletion leaves the catalog unchanged.
 
-### Phase 4: Bulk Add
+### Phase 6: Usage Counts
+
+Deliver:
+
+- Authoritative usage counts in management surfaces.
+- Clearly defined count semantics.
+- Optional counts in larger picker views if they improve selection.
+
+Likely files:
+
+- Management components
+- `taskmanager-frontend/src/api/tasks.ts`
+- Repository queries or dedicated usage-summary endpoints
+- Backend request/response contracts
+- Frontend and backend tests
+
+Testing:
+
+- Counts match the defined task population.
+- Counts update after assignment, removal, and deletion.
+- Used and unused items are clearly distinguishable.
+- Count failures do not block ordinary assignment.
+
+### Phase 7: Bulk Add
 
 Deliver:
 
@@ -466,7 +565,7 @@ Deliver:
 
 Likely files:
 
-- Management modal components
+- Management surface components
 - `taskmanager-frontend/src/api/tasks.ts`
 - `taskmanager-frontend/src/hooks/useProjectTagCatalog.ts`
 - New backend request/response DTOs and controller routes
@@ -479,8 +578,9 @@ Testing:
 - Tag default colors and explicit colors.
 - Atomic or documented partial-result behavior.
 - Retry behavior and catalog refresh after success/failure.
+- Existing task assignments remain unchanged.
 
-### Phase 5: Bulk Delete With Usage Warnings
+### Phase 8: Bulk Delete With Usage Warnings
 
 Deliver:
 
@@ -491,7 +591,7 @@ Deliver:
 
 Likely files:
 
-- Management modal components
+- Management surface components
 - `taskmanager-frontend/src/api/tasks.ts`
 - Backend usage-query, preview, and bulk-delete endpoints
 - Transaction/service support
@@ -507,7 +607,7 @@ Testing:
 - Roll back or clearly report failures.
 - Reconcile frontend tasks, drafts, filters, and catalogs after completion.
 
-### Phase 6: Merge and Cleanup Tools
+### Phase 9: Merge and Cleanup Tools
 
 Deliver:
 
@@ -544,6 +644,8 @@ Extract focused picker behavior, not task draft ownership.
   state should remain with their current owners.
 - Project and tag pickers can share search/list primitives, but should preserve
   their different single-select and multi-select interaction models.
+- Assignment pickers assign existing categories. They should not own creation,
+  rename, recolor, deletion, bulk operations, merge, or cleanup behavior.
 
 ### Catalog Loading Strategy
 
@@ -554,7 +656,10 @@ Reassess when catalogs reach hundreds or thousands of items:
 
 - Add server-side search, stable sorting, and pagination.
 - Debounce remote queries.
-- Cache recent and selected items so selections remain visible across pages.
+- Cache selected items so selections remain visible across pages.
+- Add recent or frequent items only after defining whether their source of truth
+  is local interaction history, task assignment history, or server-owned user
+  history.
 - Keep IDs as the source of truth; do not rely on title uniqueness.
 
 ### Deletion Integrity
@@ -570,11 +675,15 @@ enough for a safe management UX.
 
 ## Explicit Non-Goals for the First Implementation Pass
 
-The first implementation pass should only deliver searchable assignment
-pickers. It should not:
+The first implementation pass should deliver a searchable tag picker only.
+Project search may share a minimal search primitive in the same pass only if
+the existing code clearly supports it without expanding risk or changing
+project behavior. The first pass should not:
 
 - Add bulk create or bulk delete.
 - Add merge or cleanup tools.
+- Add management surfaces or usage counts.
+- Add recent or frequent projects/tags.
 - Enforce the five-tag limit.
 - Change database schema.
 - Add backend APIs, pagination, or server-side search.
@@ -589,15 +698,19 @@ pickers. It should not:
 
 ## Decision Summary
 
-1. Introduce searchable assignment pickers before adding catalog-management
-   complexity.
+1. Implement searchable tag assignment before searchable project assignment.
 2. Keep project assignment single-select and tag assignment multi-select.
-3. Move destructive actions out of assignment pickers into dedicated management
-   surfaces.
-4. Introduce a five-tag limit only with backend enforcement and compatibility
-   behavior for existing tasks.
-5. Reuse the existing `+N` display approach and add it to calendar task-list
-   entries.
-6. Require usage-aware backend support before bulk deletion.
-7. Treat merge and cleanup as transactional backend features, not frontend
+3. Keep assignment pickers focused on assigning existing categories; use
+   management surfaces for all catalog mutation and cleanup operations.
+4. Solve visual clutter with consistent `+N` overflow before deciding whether
+   to restrict tags per task.
+5. Treat a five-tag limit as a later product and data-integrity decision that
+   requires backend enforcement and compatibility behavior.
+6. Add recent projects/tags only after basic search and after defining a clear
+   source of truth.
+7. Add usage counts primarily to management surfaces, with optional use in
+   larger pickers.
+8. Keep lower-risk bulk add before usage-aware, confirmed, backend-supported
+   bulk delete.
+9. Treat merge and cleanup as transactional backend features, not frontend
    request loops.
