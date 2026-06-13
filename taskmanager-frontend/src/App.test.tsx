@@ -2918,6 +2918,22 @@ test('task tag chips keep user tag colors as accents instead of foreground text 
   expect(tagChip.style.color).toBe('');
 });
 
+test('project badges stay content-sized and wrap long names without stretching', () => {
+  const appCss = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const calendarCss = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const taskProjectRule = appCss.match(/\.item__project-chip\s*\{[^}]*\}/)?.[0] ?? '';
+  const calendarProjectRule = calendarCss.match(/\.cal-item__project-chip\s*\{[^}]*\}/)?.[0] ?? '';
+
+  for (const rule of [taskProjectRule, calendarProjectRule]) {
+    expect(rule).toContain('display: inline-flex');
+    expect(rule).toContain('width: fit-content');
+    expect(rule).toContain('max-width: 100%');
+    expect(rule).toContain('align-self: flex-start');
+    expect(rule).toContain('white-space: normal');
+    expect(rule).toContain('overflow-wrap: anywhere');
+  }
+});
+
 test('editing a task with end time preserves endDateTimeScheduled and metadata', async () => {
   const taskWithEnd: Task = {
     ...sampleTask,

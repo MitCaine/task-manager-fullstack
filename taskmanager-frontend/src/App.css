@@ -2037,11 +2037,17 @@ input[type="datetime-local"] {
 }
 
 .item__project-chip {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
   background: rgba(139, 92, 246, 0.15);
   color: var(--accent);
   border-color: rgba(139, 92, 246, 0.45);
   text-transform: none;
   letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .item__tag-chip {
