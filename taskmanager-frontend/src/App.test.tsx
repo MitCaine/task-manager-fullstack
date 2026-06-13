@@ -565,7 +565,10 @@ test('completed filter empty state explains completed tasks', async () => {
   await screen.findByText('Active task');
 
   await act(async () => {
-    userEvent.selectOptions(screen.getByLabelText('Show'), 'completed');
+    userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitemradio', { name: 'Done' }));
   });
 
   expect(screen.getByText('No completed tasks yet')).toBeInTheDocument();
@@ -580,7 +583,10 @@ test('overdue filter empty state reinforces progress', async () => {
   await screen.findByText('Future task');
 
   await act(async () => {
-    userEvent.selectOptions(screen.getByLabelText('Show'), 'overdue');
+    userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitemradio', { name: 'Overdue' }));
   });
 
   expect(screen.getByText('No overdue tasks')).toBeInTheDocument();
@@ -1159,6 +1165,31 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*max-content;/);
   expect(css).not.toContain('tag-select__dropdown--create-tags');
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
+});
+
+test('filter dropdowns share left-aligned custom menu behavior and display long names', async () => {
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Wedding Planning' },
+    { projectID: 9, title: 'Task Manager' },
+  ]);
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Car Maintenance', color: '#22c55e' }]);
+  render(<App />);
+
+  const projectFilter = await screen.findByLabelText(/Project filter:/);
+  userEvent.click(projectFilter);
+
+  const projectMenu = await screen.findByRole('menu', { name: 'Project options' });
+  expect(projectMenu).toHaveClass('tag-select__dropdown', 'filter-field__dropdown');
+  expect(await within(projectMenu).findByRole('menuitemradio', { name: 'Wedding Planning' })).toBeInTheDocument();
+  expect(within(projectMenu).getByRole('menuitemradio', { name: 'Task Manager' })).toBeInTheDocument();
+
+  userEvent.click(screen.getByLabelText(/Tag filter:/));
+  const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
+  expect(await within(tagMenu).findByRole('menuitemradio', { name: 'Car Maintenance' })).toBeInTheDocument();
+
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  expect(css).toMatch(/\.tag-select__dropdown\.filter-field__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*max-content;[^}]*min-width:\s*100%;[^}]*max-width:\s*min\(220px, calc\(100vw - 2rem\)\);/);
+  expect(css).toMatch(/\.filter-field__dropdown \.tag-select__item\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
 });
 
 test('repeat dropdown uses a value-aligned dropdown hook', async () => {

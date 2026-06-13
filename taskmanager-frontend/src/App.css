@@ -1864,8 +1864,20 @@ input[type="datetime-local"] {
   padding: 0.22rem 0.5rem;
   font-size: 0.76rem;
   border-radius: 7px;
-  text-align: center;
-  text-align-last: center;
+  text-align: left;
+}
+
+.tag-select__dropdown.filter-field__dropdown {
+  left: 0;
+  right: auto;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(220px, calc(100vw - 2rem));
+}
+
+.filter-field__dropdown .tag-select__item {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .list-controls__group {

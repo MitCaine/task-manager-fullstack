@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { RefObject } from 'react';
 import type { Project, Tag } from '../../types/task';
 
@@ -34,6 +35,66 @@ type TaskListControlsProps = {
   onBulkMarkDone: () => void;
   onBulkDelete: () => void;
 };
+
+type FilterDropdownProps<T extends string | number> = {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+};
+
+function FilterDropdown<T extends string | number>({
+  label,
+  value,
+  options,
+  onChange,
+}: FilterDropdownProps<T>) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = options.find(option => option.value === value)?.label ?? '';
+
+  return (
+    <div
+      className="filter-field tag-select"
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <span className="filter-field__label">{label}</span>
+      <button
+        type="button"
+        className={`select select--sm filter-field__select tag-select__btn${open ? ' tag-select__btn--active' : ''}`}
+        aria-label={`${label} filter: ${selectedLabel}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+      >
+        {selectedLabel}
+      </button>
+      {open && (
+        <div className="tag-select__dropdown filter-field__dropdown" role="menu" aria-label={`${label} options`}>
+          {options.map(option => (
+            <button
+              key={String(option.value)}
+              type="button"
+              role="menuitemradio"
+              aria-checked={option.value === value}
+              className={`tag-select__item${option.value === value ? ' tag-select__item--on' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TaskListControls({
   viewTab,
@@ -80,62 +141,60 @@ function TaskListControls({
 
       <div className="list-controls list-controls--with-reset">
         <div className="list-controls__row list-controls__row--primary">
-          <label className="filter-field">
-            <span className="filter-field__label">Sort</span>
-            <select className="select select--sm filter-field__select" value={sortBy} onChange={e => onSortByChange(e.target.value as SortBy)}>
-              <option value="dueAsc">Date ↑</option>
-              <option value="dueDesc">Date ↓</option>
-              <option value="titleAsc">A-Z</option>
-              <option value="priorityDesc">Priority</option>
-              <option value="overdueFirst">Overdue first</option>
-            </select>
-          </label>
-          <label className="filter-field">
-            <span className="filter-field__label">Show</span>
-            <select className="select select--sm filter-field__select" value={showFilterValue} onChange={e => onFilterStatusChange(e.target.value as FilterStatus)}>
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="completed">Done</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </label>
-          <label className="filter-field">
-            <span className="filter-field__label">Priority</span>
-            <select className="select select--sm filter-field__select" value={priorityFilterValue} onChange={e => onFilterStatusChange(e.target.value as FilterStatus)}>
-              <option value="all">All</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </label>
+          <FilterDropdown
+            label="Sort"
+            value={sortBy}
+            options={[
+              { value: 'dueAsc', label: 'Date ↑' },
+              { value: 'dueDesc', label: 'Date ↓' },
+              { value: 'titleAsc', label: 'A-Z' },
+              { value: 'priorityDesc', label: 'Priority' },
+              { value: 'overdueFirst', label: 'Overdue first' },
+            ]}
+            onChange={onSortByChange}
+          />
+          <FilterDropdown
+            label="Show"
+            value={showFilterValue}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'completed', label: 'Done' },
+              { value: 'overdue', label: 'Overdue' },
+            ]}
+            onChange={onFilterStatusChange}
+          />
+          <FilterDropdown
+            label="Priority"
+            value={priorityFilterValue}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'high', label: 'High' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'low', label: 'Low' },
+            ]}
+            onChange={onFilterStatusChange}
+          />
         </div>
         <div className="list-controls__row list-controls__row--secondary">
-          <label className="filter-field">
-            <span className="filter-field__label">Project</span>
-            <select
-              className="select select--sm filter-field__select"
-              value={filterProjectID}
-              onChange={e => onFilterProjectChange(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">All</option>
-              {projects.map(p => (
-                <option key={p.projectID} value={p.projectID}>{p.title}</option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-field">
-            <span className="filter-field__label">Tag</span>
-            <select
-              className="select select--sm filter-field__select"
-              value={filterTagID}
-              onChange={e => onFilterTagChange(e.target.value === '' ? '' : Number(e.target.value))}
-            >
-              <option value="">All</option>
-              {tags.map(tag => (
-                <option key={tag.tagID} value={tag.tagID}>{tag.title}</option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Project"
+            value={filterProjectID}
+            options={[
+              { value: '', label: 'All' },
+              ...projects.map(project => ({ value: project.projectID, label: project.title })),
+            ]}
+            onChange={onFilterProjectChange}
+          />
+          <FilterDropdown
+            label="Tag"
+            value={filterTagID}
+            options={[
+              { value: '', label: 'All' },
+              ...tags.map(tag => ({ value: tag.tagID, label: tag.title })),
+            ]}
+            onChange={onFilterTagChange}
+          />
           <button
             className="btn btn--ghost btn--sm btn--reset-filters"
             onClick={onResetFilters}
