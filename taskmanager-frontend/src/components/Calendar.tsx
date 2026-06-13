@@ -463,6 +463,10 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           const completed  = t.statusID === 2;
           const timeLabel = t.dateTimeScheduled ? fmtTimeRange(t.dateTimeScheduled, t.endDateTimeScheduled) : '—';
           const dateLabel = t.dateTimeScheduled ? fmtShortDate(t.dateTimeScheduled) : null;
+          const taskTags = t.tags ?? [];
+          const visibleTags = taskTags.slice(0, 2);
+          const hiddenTags = taskTags.slice(2);
+          const hiddenTagLabel = hiddenTags.map(tag => tag.title).join(', ');
           return (
             <li
               key={t.taskID}
@@ -500,11 +504,20 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                 )}
               </div>
               <div className="cal-item__badges">
-                {(t.tags ?? []).map(tag => (
+                {visibleTags.map(tag => (
                   <span key={tag.tagID} className="cal-item__tag-chip" style={tagAccentStyle(tag.color)}>
                     {tag.title}
                   </span>
                 ))}
+                {hiddenTags.length > 0 && (
+                  <span
+                    className="cal-item__tag-chip"
+                    aria-label={`More tags: ${hiddenTagLabel}`}
+                    title={`More tags: ${hiddenTagLabel}`}
+                  >
+                    +{hiddenTags.length}
+                  </span>
+                )}
                 {completed && <span className="cal-item__done-badge">Done</span>}
                 {overdue   && <span className="cal-item__overdue-badge">Overdue</span>}
               </div>
