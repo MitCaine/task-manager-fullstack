@@ -1218,8 +1218,23 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
 
   const projectMenu = await screen.findByRole('menu', { name: 'Project options' });
   expect(projectMenu).toHaveClass('tag-select__dropdown', 'filter-field__dropdown');
-  expect(await within(projectMenu).findByRole('menuitemradio', { name: 'Wedding Planning' })).toBeInTheDocument();
-  expect(within(projectMenu).getByRole('menuitemradio', { name: 'Task Manager' })).toBeInTheDocument();
+  const projectMenuScope = within(projectMenu);
+  expect(projectMenuScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
+  const projectSearch = projectMenuScope.getByRole('searchbox', { name: 'Search project filters' });
+  userEvent.type(projectSearch, 'TASK');
+  expect(await projectMenuScope.findByRole('menuitemradio', { name: 'Task Manager' })).toBeInTheDocument();
+  expect(projectMenuScope.queryByRole('menuitemradio', { name: 'Wedding Planning' })).not.toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(projectMenuScope.getByRole('menuitemradio', { name: 'Task Manager' }));
+  });
+  expect(screen.getByLabelText('Project filter: Task Manager')).toBeInTheDocument();
+
+  userEvent.click(screen.getByLabelText('Project filter: Task Manager'));
+  const reopenedProjectMenu = await screen.findByRole('menu', { name: 'Project options' });
+  const reopenedProjectScope = within(reopenedProjectMenu);
+  userEvent.type(reopenedProjectScope.getByRole('searchbox', { name: 'Search project filters' }), 'missing');
+  expect(reopenedProjectScope.getByText('No projects match your search.')).toBeInTheDocument();
+  expect(reopenedProjectScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
 
   userEvent.click(screen.getByLabelText(/Tag filter:/));
   const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
@@ -1256,6 +1271,37 @@ test('create tags dropdown uses the generic dropdown sizing', async () => {
   const dropdown = document.querySelector('.tag-select--create-tags .tag-select__dropdown');
   expect(dropdown).toBeInTheDocument();
   expect(dropdown).not.toHaveClass('tag-select__dropdown--create-tags');
+});
+
+test('create project assignment searches case-insensitively and preserves project actions', async () => {
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 8, title: 'Wedding Planning' },
+  ]);
+  render(<App />);
+
+  const createCard = getCreateCard();
+  const createScope = within(createCard);
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
+  });
+
+  const dropdown = createCard.querySelector('.tag-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error('Create project dropdown not found');
+  const dropdownScope = within(dropdown);
+  expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
+  const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create projects' });
+  userEvent.type(searchInput, 'WEDDING');
+
+  expect(dropdownScope.getByLabelText('📁 Wedding Planning')).toBeInTheDocument();
+  expect(dropdownScope.queryByLabelText('📁 Home')).not.toBeInTheDocument();
+  userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
+  expect(createScope.getByLabelText('Remove project Wedding Planning')).toBeInTheDocument();
+
+  userEvent.clear(searchInput);
+  userEvent.type(searchInput, 'missing');
+  expect(dropdownScope.getByText('No projects match your search.')).toBeInTheDocument();
+  expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
 });
 
 test('create tag assignment searches case-insensitively and preserves multi-select behavior', async () => {
@@ -2791,6 +2837,96 @@ test('mobile edit tag search filters and selects without changing panel or scrol
   }
 });
 
+test('mobile edit project search filters and selects without changing panel or scroll ownership', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 9, title: 'Wedding Planning' },
+  ]);
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const editScope = within(editPanel);
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
+    });
+
+    const dropdown = editPanel.querySelector('.tag-select__dropdown');
+    if (!(dropdown instanceof HTMLElement)) throw new Error('Mobile edit project dropdown not found');
+    const dropdownScope = within(dropdown);
+    expect(dropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
+    expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
+    const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit projects' });
+    userEvent.type(searchInput, 'wedding');
+
+    expect(dropdownScope.getByRole('button', { name: 'Wedding Planning' })).toBeInTheDocument();
+    expect(dropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
+    await act(async () => {
+      userEvent.click(dropdownScope.getByRole('button', { name: 'Wedding Planning' }));
+    });
+
+    expect(editScope.getByRole('button', { name: 'Wedding Planning' })).toBeInTheDocument();
+    expect(editPanel.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: 'Wedding Planning' }));
+    });
+    const reopenedDropdown = editPanel.querySelector('.tag-select__dropdown');
+    if (!(reopenedDropdown instanceof HTMLElement)) throw new Error('Reopened mobile edit project dropdown not found');
+    await act(async () => {
+      userEvent.click(within(reopenedDropdown).getByRole('button', { name: /no project/i }));
+    });
+    expect(editScope.getByRole('button', { name: /^project$/i })).toBeInTheDocument();
+    expect(editPanel).toHaveClass('mobile-edit-panel');
+    expect(editPanel.closest('.mobile-page--tasks')).toBeInTheDocument();
+
+    const taskList = document.querySelector('.mobile-page--tasks .app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Mobile task list not found');
+    expect(taskList).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('detail panel project search filters and autosaves the selected project', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  mockGetTask.mockResolvedValue(sampleTask);
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 9, title: 'Wedding Planning' },
+  ]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  try {
+    await act(async () => {
+      userEvent.click(screen.getByText('Buy milk'));
+    });
+    const detailPanel = document.querySelector('.app__detail');
+    if (!(detailPanel instanceof HTMLElement)) throw new Error('Detail panel not found');
+    const detailScope = within(detailPanel);
+
+    await act(async () => {
+      userEvent.click(detailScope.getByRole('button', { name: /add project/i }));
+    });
+    const dropdown = detailPanel.querySelector('.tag-select__dropdown');
+    if (!(dropdown instanceof HTMLElement)) throw new Error('Detail project dropdown not found');
+    const dropdownScope = within(dropdown);
+    expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
+    userEvent.type(dropdownScope.getByRole('searchbox', { name: 'Search detail projects' }), 'WEDDING');
+
+    expect(dropdownScope.getByLabelText('📁 Wedding Planning')).toBeInTheDocument();
+    expect(dropdownScope.queryByLabelText('📁 Home')).not.toBeInTheDocument();
+    userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
+      projectID: 9,
+    })));
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('desktop inline edit entry does not reposition the task list', async () => {
   const restoreMedia = mockDesktopMediaEnvironment();
   const restoreRects = mockInlineEditRects();
@@ -3253,8 +3389,14 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: 'Home' }));
   });
+  const projectDropdown = editCard.querySelector('.tag-select__dropdown');
+  if (!(projectDropdown instanceof HTMLElement)) throw new Error('Project dropdown not found');
+  const projectDropdownScope = within(projectDropdown);
+  expect(projectDropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
+  userEvent.type(projectDropdownScope.getByRole('searchbox', { name: 'Search edit projects' }), 'WORK');
+  expect(projectDropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: 'Work' }));
+    userEvent.click(projectDropdownScope.getByRole('button', { name: 'Work' }));
   });
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /1 tag/i }));

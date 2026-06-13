@@ -44,7 +44,7 @@ import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
 import ConfirmDelete from './components/shared/ConfirmDelete';
 import DetailSectionShell from './components/shared/DetailSectionShell';
-import SearchableTagList from './components/shared/SearchableTagList';
+import SearchableCatalogList from './components/shared/SearchableCatalogList';
 import TagColorPicker from './components/forms/TagColorPicker';
 import InlineProjectForm from './components/forms/InlineProjectForm';
 import InlineTagForm from './components/forms/InlineTagForm';
@@ -2179,9 +2179,13 @@ function App() {
                 >
                   No project
                 </button>
-                {projects.length === 0
-                  ? <p className="tag-select__empty">No projects yet.</p>
-                  : projects.map(p => {
+                <SearchableCatalogList
+                  items={projects}
+                  searchLabel="Search edit projects"
+                  searchPlaceholder="Search projects..."
+                  emptyMessage="No projects yet."
+                  noMatchesMessage="No projects match your search."
+                  renderItem={p => {
                     const selected = Number(editProjectID) === p.projectID;
                     return (
                       <button
@@ -2193,7 +2197,8 @@ function App() {
                         {p.title}
                       </button>
                     );
-                  })}
+                  }}
+                />
               </div>
             )}
           </div>
@@ -2220,10 +2225,13 @@ function App() {
                     else { setShowInlineEditTag(true); }
                   }}
                 >+ New Tag</button>
-                <SearchableTagList
-                  tags={tags}
+                <SearchableCatalogList
+                  items={tags}
                   searchLabel="Search edit tags"
-                  renderTag={tag => {
+                  searchPlaceholder="Search tags..."
+                  emptyMessage="No tags yet."
+                  noMatchesMessage="No tags match your search."
+                  renderItem={tag => {
                     const selected = editTaskTagIDs.includes(tag.tagID);
                     return (
                       <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
@@ -2438,9 +2446,13 @@ function App() {
                       else { setShowInlineProject(true); }
                     }}
                   >+ New Project</button>
-                  {projects.length === 0
-                    ? <p className="tag-select__empty">No projects yet.</p>
-                    : projects.map(p => {
+                  <SearchableCatalogList
+                    items={projects}
+                    searchLabel="Search create projects"
+                    searchPlaceholder="Search projects..."
+                    emptyMessage="No projects yet."
+                    noMatchesMessage="No projects match your search."
+                    renderItem={p => {
                       const selected = newProjectID === p.projectID;
                       return (
                         <div key={p.projectID} className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
@@ -2461,8 +2473,8 @@ function App() {
                           >×</button>
                         </div>
                       );
-                    })
-                  }
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -2490,10 +2502,13 @@ function App() {
                       else { setShowInlineTag(true); }
                     }}
                   >+ New Tag</button>
-                  <SearchableTagList
-                    tags={tags}
+                  <SearchableCatalogList
+                    items={tags}
                     searchLabel="Search create tags"
-                    renderTag={tag => {
+                    searchPlaceholder="Search tags..."
+                    emptyMessage="No tags yet."
+                    noMatchesMessage="No tags match your search."
+                    renderItem={tag => {
                       const selected = newTaskTagIDs.includes(tag.tagID);
                       return (
                         <div key={tag.tagID}>
@@ -2891,9 +2906,13 @@ function App() {
                   {showEditProjectDropdown && (
                     <div className="tag-select__dropdown">
                       <button type="button" className="tag-select__new-btn tag-select__new-btn--top" onClick={() => { setShowEditProjectDropdown(false); if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); } else { setShowInlineEditProject(true); } }}>+ New Project</button>
-                      {projects.length === 0
-                        ? <p className="tag-select__empty">No projects yet.</p>
-                        : projects.map(p => {
+                      <SearchableCatalogList
+                        items={projects}
+                        searchLabel="Search detail projects"
+                        searchPlaceholder="Search projects..."
+                        emptyMessage="No projects yet."
+                        noMatchesMessage="No projects match your search."
+                        renderItem={p => {
                           const selected = Number(editProjectID) === p.projectID;
                           return (
                             <div key={p.projectID} className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
@@ -2904,8 +2923,8 @@ function App() {
                               <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeProject(p.projectID); }} title="Delete project" aria-label="Delete project">×</button>
                             </div>
                           );
-                        })
-                      }
+                        }}
+                      />
                     </div>
                   )}
                 </div>
@@ -2925,10 +2944,13 @@ function App() {
                   {showEditTagDropdown && (
                     <div className="tag-select__dropdown">
                       <button type="button" className="tag-select__new-btn tag-select__new-btn--top" onClick={() => { setShowEditTagDropdown(false); if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); } else { setShowInlineEditTag(true); } }}>+ New Tag</button>
-                      <SearchableTagList
-                        tags={tags}
+                      <SearchableCatalogList
+                        items={tags}
                         searchLabel="Search detail tags"
-                        renderTag={tag => {
+                        searchPlaceholder="Search tags..."
+                        emptyMessage="No tags yet."
+                        noMatchesMessage="No tags match your search."
+                        renderItem={tag => {
                           const selected = editTaskTagIDs.includes(tag.tagID);
                           return (
                             <div key={tag.tagID}>

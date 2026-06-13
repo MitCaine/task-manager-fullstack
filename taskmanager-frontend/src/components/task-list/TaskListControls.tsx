@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { RefObject } from 'react';
 import type { Project, Tag } from '../../types/task';
-import SearchableTagList from '../shared/SearchableTagList';
+import SearchableCatalogList from '../shared/SearchableCatalogList';
 
 export type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 export type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
@@ -144,10 +144,13 @@ function TagFilterDropdown({
           >
             All
           </button>
-          <SearchableTagList
-            tags={tags}
+          <SearchableCatalogList
+            items={tags}
             searchLabel="Search tag filters"
-            renderTag={tag => (
+            searchPlaceholder="Search tags..."
+            emptyMessage="No tags yet."
+            noMatchesMessage="No tags match your search."
+            renderItem={tag => (
               <button
                 key={tag.tagID}
                 type="button"
@@ -161,6 +164,81 @@ function TagFilterDropdown({
               >
                 <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
                 {tag.title}
+              </button>
+            )}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectFilterDropdown({
+  value,
+  projects,
+  onChange,
+}: {
+  value: number | '';
+  projects: Project[];
+  onChange: (projectID: number | '') => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = projects.find(project => project.projectID === value)?.title ?? 'All';
+
+  return (
+    <div
+      className="filter-field tag-select"
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <span className="filter-field__label">Project</span>
+      <button
+        type="button"
+        className={`select select--sm filter-field__select tag-select__btn${open ? ' tag-select__btn--active' : ''}`}
+        aria-label={`Project filter: ${selectedLabel}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+      >
+        {selectedLabel}
+      </button>
+      {open && (
+        <div className="tag-select__dropdown filter-field__dropdown" role="menu" aria-label="Project options">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={value === ''}
+            className={`tag-select__item${value === '' ? ' tag-select__item--on' : ''}`}
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+          >
+            All
+          </button>
+          <SearchableCatalogList
+            items={projects}
+            searchLabel="Search project filters"
+            searchPlaceholder="Search projects..."
+            emptyMessage="No projects yet."
+            noMatchesMessage="No projects match your search."
+            renderItem={project => (
+              <button
+                key={project.projectID}
+                type="button"
+                role="menuitemradio"
+                aria-checked={project.projectID === value}
+                className={`tag-select__item${project.projectID === value ? ' tag-select__item--on' : ''}`}
+                onClick={() => {
+                  onChange(project.projectID);
+                  setOpen(false);
+                }}
+              >
+                {project.title}
               </button>
             )}
           />
@@ -251,13 +329,9 @@ function TaskListControls({
           />
         </div>
         <div className="list-controls__row list-controls__row--secondary">
-          <FilterDropdown
-            label="Project"
+          <ProjectFilterDropdown
             value={filterProjectID}
-            options={[
-              { value: '', label: 'All' },
-              ...projects.map(project => ({ value: project.projectID, label: project.title })),
-            ]}
+            projects={projects}
             onChange={onFilterProjectChange}
           />
           <TagFilterDropdown
