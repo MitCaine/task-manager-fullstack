@@ -2097,7 +2097,6 @@ function App() {
             onEndHour: setEditEndHour,
             onEndMinute: setEditEndMinute,
             onEndAmpm: setEditEndAmpm,
-            desktopSingleRow: variant === 'inline',
           }}
           recurrenceControlProps={{
             value: editRepeatFrequency,
@@ -2362,7 +2361,6 @@ function App() {
               onEndHour: setEndHour,
               onEndMinute: setEndMinute,
               onEndAmpm: setEndAmpm,
-              desktopSingleRow: true,
             }}
             recurrenceControlProps={{
               value: newRepeatFrequency,

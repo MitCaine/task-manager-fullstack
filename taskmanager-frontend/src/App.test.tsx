@@ -1294,36 +1294,6 @@ test('create form keeps repeat before the action row controls', async () => {
   expect(priorityButton.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-test('desktop create and inline edit share the single-row date and time layout', async () => {
-  const restoreMedia = mockDesktopMediaEnvironment();
-  mockGetTasks.mockResolvedValue([sampleTask]);
-  mockGetTask.mockResolvedValue(sampleTask);
-  render(<App />);
-  await screen.findByText(sampleTask.title);
-
-  try {
-    const createRow = getCreateCard().querySelector('.datetime-row');
-    expect(createRow).toHaveClass('datetime-row--desktop-single-row');
-
-    await openTaskActions();
-    await act(async () => {
-      userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
-    });
-    const editCard = document.querySelector('.item__edit-card');
-    if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
-    const editRow = editCard.querySelector('.datetime-row');
-    expect(editRow).toHaveClass('datetime-row--desktop-single-row');
-
-    const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-    const sharedLayoutRule = css.match(/\.datetime-row--desktop-single-row\s*\{[^}]*\}/)?.[0] ?? '';
-    const sharedSummaryRule = css.match(/\.datetime-row--desktop-single-row \.datetime-row__summary-row\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(sharedLayoutRule).toContain('grid-template-columns: 7.75rem minmax(7rem, 1fr) minmax(7rem, 1fr)');
-    expect(sharedSummaryRule).toContain('grid-column: 2 / 4');
-  } finally {
-    restoreMedia();
-  }
-});
-
 test('create task can select daily recurrence and saves it', async () => {
   mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task' });
   mockSetRepeat.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task', recurrenceRuleID: 11 });
@@ -2718,7 +2688,6 @@ test('mobile edit panel exposes recurrence project and tag controls', async () =
   const editPanel = await openMobileEditPanel({ ...sampleTask, recurrenceRuleID: 10 });
 
   try {
-    expect(editPanel.querySelector('.datetime-row')).not.toHaveClass('datetime-row--desktop-single-row');
     expect(within(editPanel).getByRole('button', { name: /repeat/i })).toBeInTheDocument();
     expect(within(editPanel).getByRole('button', { name: /project/i })).toBeInTheDocument();
     expect(within(editPanel).getByRole('button', { name: /tags/i })).toBeInTheDocument();
