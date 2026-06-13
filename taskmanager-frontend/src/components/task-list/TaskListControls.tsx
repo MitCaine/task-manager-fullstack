@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { RefObject } from 'react';
 import type { Project, Tag } from '../../types/task';
+import SearchableTagList from '../shared/SearchableTagList';
 
 export type SortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 export type FilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
@@ -90,6 +91,79 @@ function FilterDropdown<T extends string | number>({
               {option.label}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TagFilterDropdown({
+  value,
+  tags,
+  onChange,
+}: {
+  value: number | '';
+  tags: Tag[];
+  onChange: (tagID: number | '') => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = tags.find(tag => tag.tagID === value)?.title ?? 'All';
+
+  return (
+    <div
+      className="filter-field tag-select"
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') setOpen(false);
+      }}
+    >
+      <span className="filter-field__label">Tag</span>
+      <button
+        type="button"
+        className={`select select--sm filter-field__select tag-select__btn${open ? ' tag-select__btn--active' : ''}`}
+        aria-label={`Tag filter: ${selectedLabel}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+      >
+        {selectedLabel}
+      </button>
+      {open && (
+        <div className="tag-select__dropdown filter-field__dropdown" role="menu" aria-label="Tag options">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={value === ''}
+            className={`tag-select__item${value === '' ? ' tag-select__item--on' : ''}`}
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+          >
+            All
+          </button>
+          <SearchableTagList
+            tags={tags}
+            searchLabel="Search tag filters"
+            renderTag={tag => (
+              <button
+                key={tag.tagID}
+                type="button"
+                role="menuitemradio"
+                aria-checked={tag.tagID === value}
+                className={`tag-select__item${tag.tagID === value ? ' tag-select__item--on' : ''}`}
+                onClick={() => {
+                  onChange(tag.tagID);
+                  setOpen(false);
+                }}
+              >
+                <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                {tag.title}
+              </button>
+            )}
+          />
         </div>
       )}
     </div>
@@ -186,13 +260,9 @@ function TaskListControls({
             ]}
             onChange={onFilterProjectChange}
           />
-          <FilterDropdown
-            label="Tag"
+          <TagFilterDropdown
             value={filterTagID}
-            options={[
-              { value: '', label: 'All' },
-              ...tags.map(tag => ({ value: tag.tagID, label: tag.title })),
-            ]}
+            tags={tags}
             onChange={onFilterTagChange}
           />
           <button

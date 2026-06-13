@@ -2442,6 +2442,14 @@ input[type="datetime-local"] {
   gap: 0.15rem;
 }
 
+.tag-select__search {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.38rem 0.5rem;
+  font-size: 0.8rem;
+}
+
 .tag-select__dropdown.recurrence-select__dropdown--value-aligned {
   left: auto;
   right: 0;

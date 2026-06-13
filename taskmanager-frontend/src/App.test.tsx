@@ -1207,7 +1207,10 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
     { projectID: 7, title: 'Wedding Planning' },
     { projectID: 9, title: 'Task Manager' },
   ]);
-  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Car Maintenance', color: '#22c55e' }]);
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Car Maintenance', color: '#22c55e' },
+    { tagID: 10, title: 'Deep Work', color: '#6366f1' },
+  ]);
   render(<App />);
 
   const projectFilter = await screen.findByLabelText(/Project filter:/);
@@ -1220,7 +1223,12 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
 
   userEvent.click(screen.getByLabelText(/Tag filter:/));
   const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
+  const tagSearch = within(tagMenu).getByRole('searchbox', { name: 'Search tag filters' });
+  userEvent.type(tagSearch, 'CAR');
   expect(await within(tagMenu).findByRole('menuitemradio', { name: 'Car Maintenance' })).toBeInTheDocument();
+  expect(within(tagMenu).queryByRole('menuitemradio', { name: 'Deep Work' })).not.toBeInTheDocument();
+  const tagColor = within(tagMenu).getByRole('menuitemradio', { name: 'Car Maintenance' }).querySelector('.tag-dot');
+  expect(tagColor).toHaveStyle({ background: '#22c55e' });
 
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   expect(css).toMatch(/\.tag-select__dropdown\.filter-field__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*max-content;[^}]*min-width:\s*100%;[^}]*max-width:\s*min\(220px, calc\(100vw - 2rem\)\);/);
@@ -1248,6 +1256,45 @@ test('create tags dropdown uses the generic dropdown sizing', async () => {
   const dropdown = document.querySelector('.tag-select--create-tags .tag-select__dropdown');
   expect(dropdown).toBeInTheDocument();
   expect(dropdown).not.toHaveClass('tag-select__dropdown--create-tags');
+});
+
+test('create tag assignment searches case-insensitively and preserves multi-select behavior', async () => {
+  mockGetTags.mockResolvedValue([
+    { tagID: 7, title: 'Errand', color: '#22c55e' },
+    { tagID: 8, title: 'Deep Work', color: '#6366f1' },
+    { tagID: 9, title: 'Planning', color: '#f97316' },
+  ]);
+  render(<App />);
+
+  const createCard = getCreateCard();
+  const createScope = within(createCard);
+  await act(async () => {
+    userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
+  });
+
+  const dropdown = createCard.querySelector('.tag-select--create-tags .tag-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error('Create tag dropdown not found');
+  const dropdownScope = within(dropdown);
+  const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create tags' });
+
+  userEvent.type(searchInput, 'DEEP');
+  expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
+  expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
+
+  const colorButton = dropdownScope.getByRole('button', { name: 'Change tag color' });
+  expect(colorButton).toHaveStyle({ background: '#6366f1' });
+  userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+
+  expect(dropdown).toBeInTheDocument();
+  expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
+
+  userEvent.clear(searchInput);
+  userEvent.type(searchInput, 'missing');
+  expect(dropdownScope.getByText('No tags match your search.')).toBeInTheDocument();
+  expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
+
+  userEvent.click(createScope.getByLabelText('Remove tag Deep Work'));
+  await waitFor(() => expect(createScope.queryByLabelText('Remove tag Deep Work')).not.toBeInTheDocument());
 });
 
 test('create date selection updates the preview immediately', async () => {
@@ -2702,6 +2749,43 @@ test('mobile edit panel exposes recurrence project and tag controls', async () =
     expect(within(editPanel).getByRole('button', { name: /repeat/i })).toBeInTheDocument();
     expect(within(editPanel).getByRole('button', { name: /project/i })).toBeInTheDocument();
     expect(within(editPanel).getByRole('button', { name: /tags/i })).toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit tag search filters and selects without changing panel or scroll ownership', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
+    { tagID: 9, title: 'Deep Work', color: '#6366f1' },
+  ]);
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const editScope = within(editPanel);
+    await act(async () => {
+      userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
+    });
+
+    const dropdown = editPanel.querySelector('.tag-select__dropdown');
+    if (!(dropdown instanceof HTMLElement)) throw new Error('Mobile edit tag dropdown not found');
+    const dropdownScope = within(dropdown);
+    const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit tags' });
+    userEvent.type(searchInput, 'deep');
+
+    expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
+    expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
+    userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+
+    expect(dropdown).toBeInTheDocument();
+    expect(editScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
+    expect(editPanel).toHaveClass('mobile-edit-panel');
+    expect(editPanel.closest('.mobile-page--tasks')).toBeInTheDocument();
+
+    const taskList = document.querySelector('.mobile-page--tasks .app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Mobile task list not found');
+    expect(taskList).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }
