@@ -94,8 +94,8 @@ export default function CatalogManagementModal({
         </div>
 
         <div className="catalog-manager__tabs">
-          <button className={`btn btn--sm${section === 'projects' ? '' : ' btn--ghost'}`} onClick={() => changeSection('projects')}>Projects</button>
-          <button className={`btn btn--sm${section === 'tags' ? '' : ' btn--ghost'}`} onClick={() => changeSection('tags')}>Tags</button>
+          <button className={`btn catalog-manager__tab${section === 'projects' ? '' : ' btn--ghost'}`} onClick={() => changeSection('projects')}>Projects</button>
+          <button className={`btn catalog-manager__tab${section === 'tags' ? '' : ' btn--ghost'}`} onClick={() => changeSection('tags')}>Tags</button>
         </div>
 
         <div className="catalog-manager__create">
@@ -107,7 +107,7 @@ export default function CatalogManagementModal({
             aria-label={`New ${section === 'projects' ? 'project' : 'tag'} name`}
           />
           {section === 'tags' && (
-            <input type="color" value={newTagColor} onChange={event => setNewTagColor(event.currentTarget.value)} aria-label="New tag color" />
+            <input className="catalog-manager__color-input" type="color" value={newTagColor} onChange={event => setNewTagColor(event.currentTarget.value)} aria-label="New tag color" />
           )}
           <button className="btn btn--sm" onClick={createItem} disabled={!newTitle.trim()}>Create</button>
         </div>
@@ -157,7 +157,7 @@ export default function CatalogManagementModal({
                         <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>
                       </div>
                       <div className="catalog-manager__actions">
-                        {editing && <input type="color" value={editingColor} onChange={event => setEditingColor(event.currentTarget.value)} aria-label={`Color for tag ${tag.title}`} />}
+                        {editing && <input className="catalog-manager__color-input" type="color" value={editingColor} onChange={event => setEditingColor(event.currentTarget.value)} aria-label={`Color for tag ${tag.title}`} />}
                         {editing
                           ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
                           : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(tag.tagID); setEditingTitle(tag.title); setEditingColor(tag.color ?? '#6366f1'); }}>Edit</button>}

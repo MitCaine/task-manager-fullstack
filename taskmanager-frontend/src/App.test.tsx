@@ -4092,6 +4092,8 @@ test('project management searches creates renames and confirms deletion with usa
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
+  expect(scope.getByRole('button', { name: /^projects$/i })).toHaveClass('catalog-manager__tab');
+  expect(scope.getByRole('button', { name: /^tags$/i })).toHaveClass('catalog-manager__tab');
   expect(scope.getByText('1 task')).toBeInTheDocument();
   userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
   expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
@@ -4142,7 +4144,9 @@ test('tag management creates edits color and confirms deletion with usage count'
   userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
 
   userEvent.type(scope.getByLabelText('New tag name'), 'Docs');
-  fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
+  const newTagColor = scope.getByLabelText('New tag color');
+  expect(newTagColor).toHaveClass('catalog-manager__color-input');
+  fireEvent.change(newTagColor, { target: { value: '#f97316' } });
   await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create$/i })); });
   expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Docs', color: '#f97316' });
 
@@ -4151,6 +4155,7 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(within(errandRow).getByText('1 task')).toBeInTheDocument();
   await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
   const renameInput = within(errandRow).getByLabelText('Rename tag Errand');
+  expect(within(errandRow).getByLabelText('Color for tag Errand')).toHaveClass('catalog-manager__color-input');
   userEvent.clear(renameInput);
   userEvent.type(renameInput, 'Chores');
   fireEvent.change(within(errandRow).getByLabelText('Color for tag Errand'), { target: { value: '#ef4444' } });
@@ -4164,6 +4169,19 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
   await act(async () => { userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
+});
+
+test('catalog management modal keeps navigation spacing and color swatch focus styling scoped', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const tabsRule = css.match(/\.catalog-manager__tabs\s*\{[^}]*\}/)?.[0] ?? '';
+  const tabRule = css.match(/\.catalog-manager__tab\s*\{[^}]*\}/)?.[0] ?? '';
+  const colorInputRule = css.match(/\.catalog-manager__color-input\s*\{[^}]*\}/)?.[0] ?? '';
+  const colorFocusRule = css.match(/\.catalog-manager__color-input:focus-visible\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(tabsRule).toContain('margin-bottom: 1rem');
+  expect(tabRule).toContain('min-height: 2.4rem');
+  expect(colorInputRule).toContain('border-radius: 50%');
+  expect(colorFocusRule).toContain('outline: 2px solid var(--accent)');
 });
 
 // Task move behavior.
