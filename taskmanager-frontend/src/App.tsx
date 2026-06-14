@@ -35,6 +35,7 @@ import type { RepeatFrequency } from './components/create-task/RecurrenceControl
 import { SelectedTagChips } from './components/create-task/TagProjectChips';
 import TaskEditorFields from './components/create-task/TaskEditorFields';
 import StatsModal from './components/settings/StatsModal';
+import CatalogManagementModal from './components/settings/CatalogManagementModal';
 import StatusMoveDialog from './components/dialogs/StatusMoveDialog';
 import SettingsPanel from './components/settings/SettingsPanel';
 import TaskListControls from './components/task-list/TaskListControls';
@@ -192,6 +193,7 @@ function App() {
   const [is24Hour, setIs24Hour] = useState(false);
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [catalogManagerSection, setCatalogManagerSection] = useState<'projects' | 'tags' | null>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsRestoreFocusRef = useRef<HTMLElement | null>(null);
@@ -378,6 +380,10 @@ function App() {
       loadProjectTagCatalog,
       createProjectFromDraft,
       createTagFromDraft,
+      createProjectInCatalog,
+      createTagInCatalog,
+      updateProjectTitle,
+      updateTagDetails,
       updateTagColor,
       deleteProjectFromCatalog,
       deleteTagFromCatalog,
@@ -1119,6 +1125,7 @@ function App() {
       if (e.key === 'Escape') {
         if (statusMoveTask !== null) { setStatusMoveTask(null); return; }
         if (showStats) { setShowStats(false); return; }
+        if (catalogManagerSection !== null) { setCatalogManagerSection(null); return; }
         if (showSettings) { setShowSettings(false); return; }
         if (selectedTaskId !== null) { closePanel(); return; }
         if (
@@ -1154,6 +1161,7 @@ function App() {
     search,
     bulkMode,
     showStats,
+    catalogManagerSection,
     showSettings,
     openCreateControl,
     inlineEditOpenControl,
@@ -1855,6 +1863,32 @@ function App() {
     if (Number(newProjectID) === projectID) setNewProjectID('');
     if (Number(editProjectID) === projectID) setEditProjectID('');
   };
+
+  const updateManagedTag = async (tagID: number, title: string, color: string) => {
+    const updated = await updateTagDetails(tagID, { title: title.trim(), color });
+    if (!updated) return false;
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      tags: (task.tags ?? []).map(tag => tag.tagID === tagID ? { ...tag, title: title.trim(), color } : tag),
+    })));
+    return true;
+  };
+
+  const projectUsage = useMemo(() => {
+    const counts = new Map<number, number>();
+    tasks.forEach(task => {
+      if (task.projectID != null) counts.set(Number(task.projectID), (counts.get(Number(task.projectID)) ?? 0) + 1);
+    });
+    return counts;
+  }, [tasks]);
+
+  const tagUsage = useMemo(() => {
+    const counts = new Map<number, number>();
+    tasks.forEach(task => {
+      (task.tags ?? []).forEach(tag => counts.set(tag.tagID, (counts.get(tag.tagID) ?? 0) + 1));
+    });
+    return counts;
+  }, [tasks]);
 
   // Tag creation, color changes, deletion, and task assignment handlers.
   const addTagInline = async () => {
@@ -2647,9 +2681,28 @@ function App() {
             onToggleTimeFormat={() => setIs24Hour(p => !p)}
             onToggleDateFormat={() => setIsEuropeanDate(p => !p)}
             onThemeChange={setTheme}
+            onManageProjects={() => { setShowSettings(false); setCatalogManagerSection('projects'); }}
+            onManageTags={() => { setShowSettings(false); setCatalogManagerSection('tags'); }}
           />
         )}
         </div>
+
+        {catalogManagerSection && (
+          <CatalogManagementModal
+            initialSection={catalogManagerSection}
+            projects={projects}
+            tags={tags}
+            projectUsage={projectUsage}
+            tagUsage={tagUsage}
+            onClose={() => setCatalogManagerSection(null)}
+            onCreateProject={async title => Boolean(await createProjectInCatalog(title))}
+            onCreateTag={async (title, color) => Boolean(await createTagInCatalog(title, color))}
+            onRenameProject={updateProjectTitle}
+            onUpdateTag={updateManagedTag}
+            onDeleteProject={removeProject}
+            onDeleteTag={removeTag}
+          />
+        )}
 
         <TaskListControls
           viewTab={viewTab}

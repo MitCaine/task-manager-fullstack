@@ -3,7 +3,7 @@ import {
   getSubtasks, createSubtask, updateSubtask, patchSubtaskStatus, deleteSubtask,
   getNotes, createNote, deleteNote,
   getReminders, createReminder, deleteReminder, patchReminderDate,
-  getProjects, createProject, deleteProject,
+  getProjects, createProject, updateProject, deleteProject,
   getTags, createTag, updateTag, deleteTag, addTagToTask, removeTagFromTask,
   getAttachments, createAttachment, deleteAttachment,
   getRecurrence, setRepeat,
@@ -362,6 +362,17 @@ describe('createProject', () => {
   });
 });
 
+describe('updateProject', () => {
+  test('makes a PUT request to /projects/{id}', async () => {
+    const spy = mockFetch(true, { ...mockProject, title: 'Renamed' });
+    await updateProject(1, { title: 'Renamed' });
+    expect(spy).toHaveBeenCalledWith('/projects/1', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ title: 'Renamed' }),
+    }));
+  });
+});
+
 describe('deleteProject', () => {
   test('makes a DELETE request to /projects/{id}', async () => {
     const spy = mockFetch(true, null);
@@ -410,19 +421,19 @@ describe('createTag', () => {
 });
 
 describe('updateTag', () => {
-  test('makes a PATCH request to /tags/{id} with color', async () => {
+  test('makes a PATCH request to /tags/{id} with title and color', async () => {
     const spy = mockFetch(true, { ...mockTag, color: '#4ade80' });
-    const result = await updateTag(1, '#4ade80');
+    const result = await updateTag(1, { title: 'Urgent', color: '#4ade80' });
     expect(spy).toHaveBeenCalledWith('/tags/1', expect.objectContaining({
       method: 'PATCH',
-      body: JSON.stringify({ color: '#4ade80' }),
+      body: JSON.stringify({ title: 'Urgent', color: '#4ade80' }),
     }));
     expect(result.color).toBe('#4ade80');
   });
 
   test('throws when response is not ok', async () => {
     mockFetch(false, {});
-    await expect(updateTag(1, '#000')).rejects.toThrow('500');
+    await expect(updateTag(1, { title: 'Urgent', color: '#000' })).rejects.toThrow('500');
   });
 });
 

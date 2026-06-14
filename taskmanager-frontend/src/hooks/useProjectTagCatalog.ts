@@ -7,6 +7,7 @@ import {
   deleteTag as deleteTagAPI,
   getProjects,
   getTags,
+  updateProject as updateProjectAPI,
   updateTag as updateTagAPI,
 } from '../api/tasks';
 import type { Project, Tag } from '../types/task';
@@ -39,6 +40,10 @@ type UseProjectTagCatalogResult = {
     loadProjectTagCatalog: () => Promise<void>;
     createProjectFromDraft: () => Promise<Project | null>;
     createTagFromDraft: (options?: CreateTagOptions) => Promise<Tag | null>;
+    createProjectInCatalog: (title: string) => Promise<Project | null>;
+    createTagInCatalog: (title: string, color: string) => Promise<Tag | null>;
+    updateProjectTitle: (projectID: number, title: string) => Promise<boolean>;
+    updateTagDetails: (tagID: number, update: Pick<Tag, 'title' | 'color'>) => Promise<boolean>;
     updateTagColor: (tagID: number, color: string) => Promise<boolean>;
     deleteProjectFromCatalog: (projectID: number) => Promise<boolean>;
     deleteTagFromCatalog: (tagID: number) => Promise<boolean>;
@@ -57,13 +62,12 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     getTags().then(setTags).catch(() => {});
   };
 
-  const createProjectFromDraft = async () => {
-    const title = newProjectTitle.trim();
+  const createProjectInCatalog = async (rawTitle: string) => {
+    const title = rawTitle.trim();
     if (!title) return null;
     try {
       const saved = await createProject({ title });
       setProjects(prev => [...prev, saved]);
-      setNewProjectTitle('');
       return saved;
     } catch {
       setError('Failed to create project.');
@@ -71,14 +75,18 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     }
   };
 
-  const createTagFromDraft = async ({ resetColor = true }: CreateTagOptions = {}) => {
-    const title = newTagTitle.trim();
+  const createProjectFromDraft = async () => {
+    const saved = await createProjectInCatalog(newProjectTitle);
+    if (saved) setNewProjectTitle('');
+    return saved;
+  };
+
+  const createTagInCatalog = async (rawTitle: string, color: string) => {
+    const title = rawTitle.trim();
     if (!title) return null;
     try {
-      const saved = await createTag({ title, color: newTagColor });
+      const saved = await createTag({ title, color });
       setTags(prev => [...prev, saved]);
-      setNewTagTitle('');
-      if (resetColor) setNewTagColor('#6366f1');
       return saved;
     } catch {
       setError('Failed to create tag.');
@@ -86,15 +94,45 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     }
   };
 
-  const updateTagColor = async (tagID: number, color: string) => {
+  const createTagFromDraft = async ({ resetColor = true }: CreateTagOptions = {}) => {
+    const saved = await createTagInCatalog(newTagTitle, newTagColor);
+    if (saved) {
+      setNewTagTitle('');
+      if (resetColor) setNewTagColor('#6366f1');
+    }
+    return saved;
+  };
+
+  const updateProjectTitle = async (projectID: number, rawTitle: string) => {
+    const title = rawTitle.trim();
+    const project = projects.find(item => item.projectID === projectID);
+    if (!title || !project) return false;
     try {
-      await updateTagAPI(tagID, color);
-      setTags(prev => prev.map(t => t.tagID === tagID ? { ...t, color } : t));
+      const { projectID: _projectID, ...projectFields } = project;
+      const saved = await updateProjectAPI(projectID, { ...projectFields, title });
+      setProjects(prev => prev.map(item => item.projectID === projectID ? saved : item));
       return true;
     } catch {
-      setError('Failed to update tag color.');
+      setError('Failed to update project.');
       return false;
     }
+  };
+
+  const updateTagDetails = async (tagID: number, update: Pick<Tag, 'title' | 'color'>) => {
+    try {
+      const saved = await updateTagAPI(tagID, update);
+      setTags(prev => prev.map(tag => tag.tagID === tagID ? saved : tag));
+      return true;
+    } catch {
+      setError('Failed to update tag.');
+      return false;
+    }
+  };
+
+  const updateTagColor = async (tagID: number, color: string) => {
+    const tag = tags.find(item => item.tagID === tagID);
+    if (!tag) return false;
+    return updateTagDetails(tagID, { title: tag.title, color });
   };
 
   const deleteTagFromCatalog = async (tagID: number) => {
@@ -138,6 +176,10 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
       loadProjectTagCatalog,
       createProjectFromDraft,
       createTagFromDraft,
+      createProjectInCatalog,
+      createTagInCatalog,
+      updateProjectTitle,
+      updateTagDetails,
       updateTagColor,
       deleteProjectFromCatalog,
       deleteTagFromCatalog,

@@ -4,7 +4,7 @@ import { readFileSync } from 'fs';
 import App from './App';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
-  getProjects, createProject, getTags, createTag, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
+  getProjects, createProject, updateProject, deleteProject, getTags, createTag, updateTag, deleteTag, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
   getSubtasks, getNotes, getReminders, getAttachments,
 } from './api/tasks';
 import type { Task } from './types/task';
@@ -25,8 +25,12 @@ const mockDeleteTask     = deleteTask     as jest.MockedFunction<typeof deleteTa
 const mockPatchStatus    = patchTaskStatus as jest.MockedFunction<typeof patchTaskStatus>;
 const mockGetProjects    = getProjects    as jest.MockedFunction<typeof getProjects>;
 const mockCreateProject  = createProject  as jest.MockedFunction<typeof createProject>;
+const mockUpdateProject  = updateProject  as jest.MockedFunction<typeof updateProject>;
+const mockDeleteProject  = deleteProject  as jest.MockedFunction<typeof deleteProject>;
 const mockGetTags        = getTags        as jest.MockedFunction<typeof getTags>;
 const mockCreateTag      = createTag      as jest.MockedFunction<typeof createTag>;
+const mockUpdateTag      = updateTag      as jest.MockedFunction<typeof updateTag>;
+const mockDeleteTag      = deleteTag      as jest.MockedFunction<typeof deleteTag>;
 const mockGetRecurrence  = getRecurrence  as jest.MockedFunction<typeof getRecurrence>;
 const mockSetRepeat      = setRepeat      as jest.MockedFunction<typeof setRepeat>;
 const mockAddTagToTask   = addTagToTask   as jest.MockedFunction<typeof addTagToTask>;
@@ -61,8 +65,12 @@ beforeEach(() => {
   mockPatchStatus.mockResolvedValue(sampleTask);
   mockGetProjects.mockResolvedValue([]);
   mockCreateProject.mockImplementation(async project => ({ projectID: 101, title: project.title }));
+  mockUpdateProject.mockImplementation(async (id, project) => ({ ...project, projectID: id }));
+  mockDeleteProject.mockResolvedValue(undefined);
   mockGetTags.mockResolvedValue([]);
   mockCreateTag.mockImplementation(async tag => ({ tagID: 102, title: tag.title, color: tag.color }));
+  mockUpdateTag.mockImplementation(async (id, update) => ({ tagID: id, title: update.title, color: update.color }));
+  mockDeleteTag.mockResolvedValue(undefined);
   mockGetSubtasks.mockResolvedValue([]);
   mockGetNotes.mockResolvedValue([]);
   mockGetReminders.mockResolvedValue([]);
@@ -4068,6 +4076,94 @@ test('Settings trigger exposes popover state and controls', async () => {
 
   expect(settingsButton).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('region', { name: /settings/i })).toHaveAttribute('id', 'task-card-settings-panel');
+});
+
+test('project management searches creates renames and confirms deletion with usage count', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, projectID: 7 }]);
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 9, title: 'Wedding Planning' },
+  ]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  expect(scope.getByText('1 task')).toBeInTheDocument();
+  userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
+  expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
+  expect(scope.queryByText('Home')).not.toBeInTheDocument();
+  userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
+
+  userEvent.type(scope.getByLabelText('New project name'), 'Office');
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create$/i })); });
+  expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
+
+  const homeRow = scope.getByText('Home').closest('.catalog-manager__item');
+  if (!(homeRow instanceof HTMLElement)) throw new Error('Home project row not found');
+  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /rename/i })); });
+  const renameInput = within(homeRow).getByLabelText('Rename project Home');
+  userEvent.clear(renameInput);
+  userEvent.type(renameInput, 'House');
+  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^save$/i })); });
+  expect(mockUpdateProject).toHaveBeenCalledWith(7, expect.objectContaining({ title: 'House' }));
+
+  const renamedProject = await scope.findByText('House');
+  const renamedProjectRow = renamedProject.closest('.catalog-manager__item');
+  if (!(renamedProjectRow instanceof HTMLElement)) throw new Error('Renamed project row not found');
+  await act(async () => { userEvent.click(within(renamedProjectRow).getByRole('button', { name: /delete/i })); });
+  expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
+  expect(mockDeleteProject).toHaveBeenCalledWith(7);
+  await act(async () => { userEvent.keyboard('{Escape}'); });
+  expect(screen.queryByRole('dialog', { name: /manage projects and tags/i })).not.toBeInTheDocument();
+});
+
+test('tag management creates edits color and confirms deletion with usage count', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, tags: [{ tagID: 8, title: 'Errand', color: '#22c55e' }] }]);
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
+    { tagID: 9, title: 'Focus', color: '#6366f1' },
+  ]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'focus');
+  expect(scope.getByText('Focus')).toBeInTheDocument();
+  expect(scope.queryByText('Errand')).not.toBeInTheDocument();
+  userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
+
+  userEvent.type(scope.getByLabelText('New tag name'), 'Docs');
+  fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create$/i })); });
+  expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Docs', color: '#f97316' });
+
+  const errandRow = scope.getByText('Errand').closest('.catalog-manager__item');
+  if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
+  expect(within(errandRow).getByText('1 task')).toBeInTheDocument();
+  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  const renameInput = within(errandRow).getByLabelText('Rename tag Errand');
+  userEvent.clear(renameInput);
+  userEvent.type(renameInput, 'Chores');
+  fireEvent.change(within(errandRow).getByLabelText('Color for tag Errand'), { target: { value: '#ef4444' } });
+  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^save$/i })); });
+  expect(mockUpdateTag).toHaveBeenCalledWith(8, { title: 'Chores', color: '#ef4444' });
+
+  const renamedTag = await scope.findByText('Chores');
+  const renamedTagRow = renamedTag.closest('.catalog-manager__item');
+  if (!(renamedTagRow instanceof HTMLElement)) throw new Error('Renamed tag row not found');
+  await act(async () => { userEvent.click(within(renamedTagRow).getByRole('button', { name: /delete/i })); });
+  expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
+  expect(mockDeleteTag).toHaveBeenCalledWith(8);
 });
 
 // Task move behavior.

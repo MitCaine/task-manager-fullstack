@@ -120,6 +120,10 @@ export function createProject(p: Omit<Project, 'projectID'>): Promise<Project> {
   return apiFetch(PROJECTS_URL, json('POST', p));
 }
 
+export function updateProject(id: number, project: Omit<Project, 'projectID'>): Promise<Project> {
+  return apiFetch(`${PROJECTS_URL}/${id}`, json('PUT', project));
+}
+
 export function deleteProject(id: number): Promise<void> {
   return apiDelete(`${PROJECTS_URL}/${id}`);
 }
@@ -134,8 +138,8 @@ export function createTag(t: Omit<Tag, 'tagID'>): Promise<Tag> {
   return apiFetch(TAGS_URL, json('POST', t));
 }
 
-export function updateTag(id: number, color: string): Promise<Tag> {
-  return apiFetch(`${TAGS_URL}/${id}`, json('PATCH', { color }));
+export function updateTag(id: number, update: Pick<Tag, 'title' | 'color'>): Promise<Tag> {
+  return apiFetch(`${TAGS_URL}/${id}`, json('PATCH', update));
 }
 
 export function deleteTag(id: number): Promise<void> {
