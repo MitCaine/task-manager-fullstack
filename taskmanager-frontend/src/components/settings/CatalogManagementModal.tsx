@@ -109,7 +109,7 @@ export default function CatalogManagementModal({
           {section === 'tags' && (
             <input className="catalog-manager__color-input" type="color" value={newTagColor} onChange={event => setNewTagColor(event.currentTarget.value)} aria-label="New tag color" />
           )}
-          <button className="btn btn--sm" onClick={createItem} disabled={!newTitle.trim()}>Create</button>
+          <button className="btn catalog-manager__create-button" onClick={createItem} disabled={!newTitle.trim()}>Create</button>
         </div>
 
         <input
@@ -121,53 +121,55 @@ export default function CatalogManagementModal({
           aria-label={`Search managed ${section}`}
         />
 
-        {items.length === 0 ? (
-          <p className="catalog-manager__empty">No {section} match your search.</p>
-        ) : (
-          <ul className="catalog-manager__list">
-            {section === 'projects'
-              ? filteredProjects.map(project => {
-                  const editing = editingID === project.projectID;
-                  return (
-                    <li key={project.projectID} className="catalog-manager__item">
-                      <div className="catalog-manager__main">
-                        {editing
-                          ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
-                          : <span className="catalog-manager__name">{project.title}</span>}
-                        <span className="catalog-manager__usage">{usageLabel(projectUsage.get(project.projectID) ?? 0)}</span>
-                      </div>
-                      <div className="catalog-manager__actions">
-                        {editing
-                          ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                          : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(project.projectID); setEditingTitle(project.title); }}>Rename</button>}
-                        <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 })}>Delete</button>
-                      </div>
-                    </li>
-                  );
-                })
-              : filteredTags.map(tag => {
-                  const editing = editingID === tag.tagID;
-                  return (
-                    <li key={tag.tagID} className="catalog-manager__item">
-                      <div className="catalog-manager__main">
-                        <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                        {editing
-                          ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename tag ${tag.title}`} />
-                          : <span className="catalog-manager__name">{tag.title}</span>}
-                        <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>
-                      </div>
-                      <div className="catalog-manager__actions">
-                        {editing && <input className="catalog-manager__color-input" type="color" value={editingColor} onChange={event => setEditingColor(event.currentTarget.value)} aria-label={`Color for tag ${tag.title}`} />}
-                        {editing
-                          ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                          : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(tag.tagID); setEditingTitle(tag.title); setEditingColor(tag.color ?? '#6366f1'); }}>Edit</button>}
-                        <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 })}>Delete</button>
-                      </div>
-                    </li>
-                  );
-                })}
-          </ul>
-        )}
+        <div className="catalog-manager__body">
+          {items.length === 0 ? (
+            <p className="catalog-manager__empty">No {section} match your search.</p>
+          ) : (
+            <ul className="catalog-manager__list">
+              {section === 'projects'
+                ? filteredProjects.map(project => {
+                    const editing = editingID === project.projectID;
+                    return (
+                      <li key={project.projectID} className="catalog-manager__item">
+                        <div className="catalog-manager__main">
+                          {editing
+                            ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
+                            : <span className="catalog-manager__name">{project.title}</span>}
+                          <span className="catalog-manager__usage">{usageLabel(projectUsage.get(project.projectID) ?? 0)}</span>
+                        </div>
+                        <div className="catalog-manager__actions">
+                          {editing
+                            ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
+                            : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(project.projectID); setEditingTitle(project.title); }}>Rename</button>}
+                          <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 })}>Delete</button>
+                        </div>
+                      </li>
+                    );
+                  })
+                : filteredTags.map(tag => {
+                    const editing = editingID === tag.tagID;
+                    return (
+                      <li key={tag.tagID} className="catalog-manager__item">
+                        <div className="catalog-manager__main">
+                          <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
+                          {editing
+                            ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename tag ${tag.title}`} />
+                            : <span className="catalog-manager__name">{tag.title}</span>}
+                          <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>
+                        </div>
+                        <div className="catalog-manager__actions">
+                          {editing && <input className="catalog-manager__color-input" type="color" value={editingColor} onChange={event => setEditingColor(event.currentTarget.value)} aria-label={`Color for tag ${tag.title}`} />}
+                          {editing
+                            ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
+                            : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(tag.tagID); setEditingTitle(tag.title); setEditingColor(tag.color ?? '#6366f1'); }}>Edit</button>}
+                          <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 })}>Delete</button>
+                        </div>
+                      </li>
+                    );
+                  })}
+            </ul>
+          )}
+        </div>
 
         {pendingDelete && (
           <div className="catalog-manager__confirm" role="alert">
