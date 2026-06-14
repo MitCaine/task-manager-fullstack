@@ -5,6 +5,9 @@
 This documentation set explains the current Task Manager implementation from
 several complementary perspectives.
 
+- The [Codex Workflow Guide](codex-workflow-guide.md) routes coding agents to
+  the right existing documents, verification scope, and scoped-commit
+  practices without duplicating project architecture.
 - The [Study Guide](TaskManager_Architecture_Study_Guide.md) is the primary
   onboarding document. It connects the original database-class design to the
   production application and explains the major engineering lessons.
