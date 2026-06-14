@@ -4075,7 +4075,21 @@ test('Settings trigger exposes popover state and controls', async () => {
   });
 
   expect(settingsButton).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByRole('region', { name: /settings/i })).toHaveAttribute('id', 'task-card-settings-panel');
+  const settingsPanel = screen.getByRole('region', { name: /settings/i });
+  expect(settingsPanel).toHaveAttribute('id', 'task-card-settings-panel');
+  expect(within(settingsPanel).getByText('Display preferences')).toBeInTheDocument();
+  expect(within(settingsPanel).getByText('Management')).toBeInTheDocument();
+  const managementActions = within(settingsPanel).getByRole('button', { name: /manage projects/i }).closest('.settings-group__actions');
+  expect(managementActions).toContainElement(within(settingsPanel).getByRole('button', { name: /manage tags/i }));
+});
+
+test('Settings management actions stay grouped until the mobile breakpoint', () => {
+  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const actionsRule = css.match(/\.settings-group__actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-group__actions\s*\{[^}]*\}/)?.[0] ?? '';
+
+  expect(actionsRule).toContain('flex-wrap: nowrap');
+  expect(mobileSettingsRules).toContain('flex-wrap: wrap');
 });
 
 test('project management searches creates renames and confirms deletion with usage count', async () => {

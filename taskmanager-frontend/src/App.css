@@ -1286,6 +1286,22 @@ input[type="datetime-local"] {
   margin-left: auto;
 }
 
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.settings-group__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
+.settings-group--management {
+  flex: 0 0 auto;
+}
+
 .settings-label {
   font-size: 0.82rem;
   color: var(--text-faint);
@@ -3989,6 +4005,14 @@ input[type="datetime-local"] {
 
   .settings-theme {
     margin-left: 0;
+  }
+
+  .settings-group {
+    width: 100%;
+  }
+
+  .settings-group__actions {
+    flex-wrap: wrap;
   }
 
   .datetime-row__date {
