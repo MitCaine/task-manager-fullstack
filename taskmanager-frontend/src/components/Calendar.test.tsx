@@ -4,17 +4,23 @@ import { readFileSync } from 'fs';
 import Calendar from './Calendar';
 import type { Task } from '../types/task';
 
-const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Array<{ projectID: number; title: string }> = []) => render(
-  <Calendar
-    tasks={tasks}
-    projects={projects}
-    is24Hour={false}
-    isEuropeanDate={false}
-    onEditTask={jest.fn()}
-    hideCompleted={hideCompleted}
-    onToggleHideCompleted={jest.fn()}
-  />
-);
+const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Array<{ projectID: number; title: string }> = []) => {
+  const onEditTask = jest.fn();
+  return {
+    ...render(
+      <Calendar
+        tasks={tasks}
+        projects={projects}
+        is24Hour={false}
+        isEuropeanDate={false}
+        onEditTask={onEditTask}
+        hideCompleted={hideCompleted}
+        onToggleHideCompleted={jest.fn()}
+      />
+    ),
+    onEditTask,
+  };
+};
 
 const mockDesktopCalendarQuery = (matches: boolean) => {
   Object.defineProperty(window, 'matchMedia', {
@@ -150,9 +156,58 @@ test('calendar project and tag chips share a wrapping body metadata row', () => 
   const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
   const bodyRule = css.match(/\.cal-item__body\s*\{[^}]*\}/)?.[0] ?? '';
   const metadataRule = css.match(/\.cal-item__meta\s*\{[^}]*\}/)?.[0] ?? '';
-  expect(bodyRule).toContain('flex: 1 1 auto');
+  expect(bodyRule).toContain('width: 100%');
   expect(metadataRule).toContain('display: flex');
   expect(metadataRule).toContain('flex-wrap: wrap');
+});
+
+test('calendar task entry uses a stacked schedule title description and metadata hierarchy', async () => {
+  const { onEditTask } = renderCalendar(
+    [futureTask({
+      description: 'Calendar task description',
+      priority: 'HIGH',
+      projectID: 7,
+      tags: calendarTags,
+    })],
+    false,
+    [{ projectID: 7, title: 'Wedding Planning' }],
+  );
+
+  const taskEntry = getCalendarTaskEntry();
+  const scheduleRow = taskEntry.querySelector('.cal-item__schedule-row');
+  const body = taskEntry.querySelector('.cal-item__body');
+  const title = taskEntry.querySelector('.cal-item__title');
+  const description = taskEntry.querySelector('.cal-item__desc');
+  const metadata = taskEntry.querySelector('.cal-item__meta');
+  const statusBadges = taskEntry.querySelector('.cal-item__badges');
+  if (
+    !(scheduleRow instanceof HTMLElement)
+    || !(body instanceof HTMLElement)
+    || !(title instanceof HTMLElement)
+    || !(description instanceof HTMLElement)
+    || !(metadata instanceof HTMLElement)
+    || !(statusBadges instanceof HTMLElement)
+  ) {
+    throw new Error('Expected stacked calendar task entry structure');
+  }
+
+  expect(scheduleRow).toContainElement(taskEntry.querySelector('.cal-item__time'));
+  expect(scheduleRow).toContainElement(statusBadges);
+  expect(statusBadges).toContainElement(within(taskEntry).getByText('High'));
+  expect(body).toContainElement(title);
+  expect(body).toContainElement(description);
+  expect(body).toContainElement(metadata);
+  expect(statusBadges.querySelector('.cal-item__tag-chip')).not.toBeInTheDocument();
+
+  await userEvent.click(taskEntry);
+  expect(onEditTask).toHaveBeenCalledWith(1);
+
+  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const itemRule = css.match(/^\.cal-item\s*\{[^}]*\}/m)?.[0] ?? '';
+  const scheduleRule = css.match(/^\.cal-item__schedule-row\s*\{[^}]*\}/m)?.[0] ?? '';
+  expect(itemRule).toContain('flex-direction: column');
+  expect(scheduleRule).toContain('display: flex');
+  expect(scheduleRule).toContain('flex-wrap: wrap');
 });
 
 test('month and day calendar task entries use the shared tag overflow display', async () => {

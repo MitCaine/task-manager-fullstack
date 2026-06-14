@@ -478,20 +478,26 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               onClick={() => onEditTask(t.taskID)}
               title="Edit task"
             >
-              <span className="cal-item__time">
-                {showDate && dateLabel
-                  ? <><span className="cal-item__time-date">{dateLabel}</span><span>{timeLabel}</span></>
-                  : timeLabel}
-                {t.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
-              </span>
-              <div className="cal-item__body">
-                <div className="cal-item__title-line">
-                  <span className={`cal-item__title${completed ? ' cal-item__title--done' : ''}`}>{t.title}</span>
+              <div className="cal-item__schedule-row">
+                <span className="cal-item__time">
+                  {showDate && dateLabel
+                    ? <><span className="cal-item__time-date">{dateLabel}</span><span>{timeLabel}</span></>
+                    : timeLabel}
+                  {t.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
+                </span>
+                <div className="cal-item__badges">
                   {t.priority && (
                     <span className={`cal-item__priority cal-item__priority--${t.priority.toLowerCase()}`}>
                       {t.priority[0] + t.priority.slice(1).toLowerCase()}
                     </span>
                   )}
+                  {completed && <span className="cal-item__done-badge">Done</span>}
+                  {overdue   && <span className="cal-item__overdue-badge">Overdue</span>}
+                </div>
+              </div>
+              <div className="cal-item__body">
+                <div className="cal-item__title-line">
+                  <span className={`cal-item__title${completed ? ' cal-item__title--done' : ''}`}>{t.title}</span>
                 </div>
                 {t.description && (
                   <span className="cal-item__desc">{t.description}</span>
@@ -520,10 +526,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                     )}
                   </div>
                 )}
-              </div>
-              <div className="cal-item__badges">
-                {completed && <span className="cal-item__done-badge">Done</span>}
-                {overdue   && <span className="cal-item__overdue-badge">Overdue</span>}
               </div>
             </li>
           );
