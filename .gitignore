@@ -13,3 +13,4 @@
 
 # Ignore env
 .env
+.aider*

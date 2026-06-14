@@ -2708,7 +2708,7 @@ test('mobile edit dropdowns stay in panel flow and actions use a stable row', ()
   expect(actionButtonRule).toContain('width: 100%');
 });
 
-test('mobile edit time controls keep Clear Time and Done on a full-width action row', async () => {
+test('mobile edit time controls keep Clear Time and Done compact on the selector row', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const editPanel = await openMobileEditPanel();
 
@@ -2724,9 +2724,13 @@ test('mobile edit time controls keep Clear Time and Done on a full-width action 
     const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
     const timeRowRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__time\s*\{[^}]*\}/)?.[0] ?? '';
     const editorActionsRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__editor-actions\s*\{[^}]*\}/)?.[0] ?? '';
+    const editorActionButtonRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__editor-actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
 
-    expect(timeRowRule).toContain('grid-template-columns: 1.55rem minmax(0, 1fr) 0.18rem minmax(0, 1fr) minmax(0, 1fr)');
-    expect(editorActionsRule).toContain('grid-column: 1 / -1');
+    expect(timeRowRule).toContain('grid-template-columns: 1.55rem minmax(0, 1fr) 0.18rem minmax(0, 1fr) minmax(0, 1fr) auto');
+    expect(editorActionsRule).toContain('display: flex');
+    expect(editorActionsRule).toContain('grid-column: auto');
+    expect(editorActionsRule).toContain('justify-self: end');
+    expect(editorActionButtonRule).toContain('width: auto');
   } finally {
     restoreTouchEnvironment();
   }
@@ -4079,10 +4083,13 @@ test('Settings trigger exposes popover state and controls', async () => {
   expect(settingsPanel).toHaveAttribute('id', 'task-card-settings-panel');
   expect(within(settingsPanel).getByText('Display preferences')).toBeInTheDocument();
   expect(within(settingsPanel).getByText('Management')).toBeInTheDocument();
-  const displayControls = within(settingsPanel).getByText('Theme').closest('.settings-section__controls');
+  const displayControls = within(settingsPanel).getByRole('button', { name: /24-hour/i }).closest('.settings-section__controls');
   const managementControls = within(settingsPanel).getByRole('button', { name: /manage projects/i }).closest('.settings-section__controls');
-  expect(displayControls).toContainElement(within(settingsPanel).getByRole('button', { name: /24-hour/i }));
+  expect(displayControls).toContainElement(within(settingsPanel).getByRole('button', { name: /DD\/MM\/YYYY/i }));
   expect(displayControls).toContainElement(within(settingsPanel).getByRole('combobox'));
+  expect(within(settingsPanel).queryByText('Time Format')).not.toBeInTheDocument();
+  expect(within(settingsPanel).queryByText('Date Format')).not.toBeInTheDocument();
+  expect(within(settingsPanel).queryByText('Theme')).not.toBeInTheDocument();
   expect(managementControls).toContainElement(within(settingsPanel).getByRole('button', { name: /manage tags/i }));
   expect(managementControls).not.toContainElement(within(settingsPanel).getByRole('combobox'));
 });
@@ -4090,12 +4097,12 @@ test('Settings trigger exposes popover state and controls', async () => {
 test('Settings management actions stay grouped until the mobile breakpoint', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const displayControlsRule = css.match(/\.settings-section--display \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const displayThemeRule = css.match(/\.settings-section--display \.settings-theme\s*\{[^}]*\}/)?.[0] ?? '';
+  const controlsRule = css.match(/\.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
   const managementControlsRule = css.match(/\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(displayControlsRule).toContain('flex-wrap: wrap');
-  expect(displayThemeRule).toContain('margin-left: 0');
+  expect(controlsRule).toContain('align-items: center');
   expect(managementControlsRule).toContain('flex-wrap: nowrap');
   expect(mobileSettingsRules).toContain('flex-wrap: wrap');
 });

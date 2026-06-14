@@ -41,7 +41,10 @@ small correction or link over a parallel explanation.
 ## Verification Routing
 
 Use the smallest verification scope that provides meaningful evidence, then
-expand when the change crosses ownership boundaries or shared behavior.
+expand when the change crosses ownership boundaries or shared behavior. 
+When the user has a local verification script available, prefer asking the 
+user to run `./scripts/verify-all.sh` and paste the output instead of running 
+full verification through the coding agent.
 
 | Change scope | Default verification |
 | --- | --- |
@@ -56,17 +59,20 @@ expand when the change crosses ownership boundaries or shared behavior.
 Useful commands:
 
 ```bash
-# Repository root
-./mvnw test
+# Full verification (preferred)
 ./scripts/verify-all.sh
+
+# Diff validation
 git diff --check
 
-# taskmanager-frontend/
+# Targeted verification examples
+cd taskmanager-frontend
+
 npm test -- App.test.tsx --watchAll=false --silent
 npm test -- Calendar.test.tsx --watchAll=false --silent
-npm test -- --watchAll=false --silent
-npm run build
-npm run ios:sync
+
+# Backend only
+./mvnw test
 ```
 
 Ask the user to perform simulator or physical-device checks when real

@@ -34,14 +34,11 @@ export default function SettingsPanel<ThemeValue extends string>({
           <button className="btn btn--ghost btn--sm" onClick={onToggleDateFormat}>
             {isEuropeanDate ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
           </button>
-          <div className="settings-theme">
-            <span className="settings-label">Theme</span>
-            <select className="select select--sm" value={theme} onChange={e => onThemeChange(e.target.value as ThemeValue)}>
-              {themeOptions.map(t => (
-                <option key={t} value={t}>{themeLabel[t]}</option>
-              ))}
-            </select>
-          </div>
+          <select className="select select--sm" value={theme} onChange={e => onThemeChange(e.target.value as ThemeValue)}>
+            {themeOptions.map(t => (
+              <option key={t} value={t}>{themeLabel[t]}</option>
+            ))}
+          </select>
         </div>
       </div>
       <div className="settings-section settings-section--management">
