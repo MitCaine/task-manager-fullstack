@@ -25,31 +25,31 @@ export default function SettingsPanel<ThemeValue extends string>({
 }: SettingsPanelProps<ThemeValue>): JSX.Element {
   return (
     <div id="task-card-settings-panel" className="settings-panel task-card-settings" role="region" aria-label="Settings">
-      <div className="settings-group">
+      <div className="settings-section settings-section--display">
         <span className="settings-label">Display preferences</span>
-        <div className="settings-group__actions">
+        <div className="settings-section__controls">
           <button className="btn btn--ghost btn--sm" onClick={onToggleTimeFormat}>
             {is24Hour ? '12-hour' : '24-hour'}
           </button>
           <button className="btn btn--ghost btn--sm" onClick={onToggleDateFormat}>
             {isEuropeanDate ? 'MM/DD/YYYY' : 'DD/MM/YYYY'}
           </button>
+          <div className="settings-theme">
+            <span className="settings-label">Theme</span>
+            <select className="select select--sm" value={theme} onChange={e => onThemeChange(e.target.value as ThemeValue)}>
+              {themeOptions.map(t => (
+                <option key={t} value={t}>{themeLabel[t]}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
-      <div className="settings-group settings-group--management">
+      <div className="settings-section settings-section--management">
         <span className="settings-label">Management</span>
-        <div className="settings-group__actions">
+        <div className="settings-section__controls">
           <button className="btn btn--ghost btn--sm" onClick={onManageProjects}>Manage Projects</button>
           <button className="btn btn--ghost btn--sm" onClick={onManageTags}>Manage Tags</button>
         </div>
-      </div>
-      <div className="settings-theme">
-        <span className="settings-label">Theme</span>
-        <select className="select select--sm" value={theme} onChange={e => onThemeChange(e.target.value as ThemeValue)}>
-          {themeOptions.map(t => (
-            <option key={t} value={t}>{themeLabel[t]}</option>
-          ))}
-        </select>
       </div>
     </div>
   );

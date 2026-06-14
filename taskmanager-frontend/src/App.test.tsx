@@ -4079,16 +4079,24 @@ test('Settings trigger exposes popover state and controls', async () => {
   expect(settingsPanel).toHaveAttribute('id', 'task-card-settings-panel');
   expect(within(settingsPanel).getByText('Display preferences')).toBeInTheDocument();
   expect(within(settingsPanel).getByText('Management')).toBeInTheDocument();
-  const managementActions = within(settingsPanel).getByRole('button', { name: /manage projects/i }).closest('.settings-group__actions');
-  expect(managementActions).toContainElement(within(settingsPanel).getByRole('button', { name: /manage tags/i }));
+  const displayControls = within(settingsPanel).getByText('Theme').closest('.settings-section__controls');
+  const managementControls = within(settingsPanel).getByRole('button', { name: /manage projects/i }).closest('.settings-section__controls');
+  expect(displayControls).toContainElement(within(settingsPanel).getByRole('button', { name: /24-hour/i }));
+  expect(displayControls).toContainElement(within(settingsPanel).getByRole('combobox'));
+  expect(managementControls).toContainElement(within(settingsPanel).getByRole('button', { name: /manage tags/i }));
+  expect(managementControls).not.toContainElement(within(settingsPanel).getByRole('combobox'));
 });
 
 test('Settings management actions stay grouped until the mobile breakpoint', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const actionsRule = css.match(/\.settings-group__actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-group__actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const displayControlsRule = css.match(/\.settings-section--display \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
+  const displayThemeRule = css.match(/\.settings-section--display \.settings-theme\s*\{[^}]*\}/)?.[0] ?? '';
+  const managementControlsRule = css.match(/\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
 
-  expect(actionsRule).toContain('flex-wrap: nowrap');
+  expect(displayControlsRule).toContain('flex-wrap: wrap');
+  expect(displayThemeRule).toContain('margin-left: 0');
+  expect(managementControlsRule).toContain('flex-wrap: nowrap');
   expect(mobileSettingsRules).toContain('flex-wrap: wrap');
 });
 
