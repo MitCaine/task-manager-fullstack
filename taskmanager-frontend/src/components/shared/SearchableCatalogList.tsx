@@ -10,6 +10,7 @@ type SearchableCatalogListProps<T extends TitledCatalogItem> = {
   searchLabel: string;
   searchPlaceholder: string;
   renderItem: (item: T) => ReactNode;
+  isItemSelected?: (item: T) => boolean;
   emptyMessage: string;
   noMatchesMessage: string;
 };
@@ -19,6 +20,7 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
   searchLabel,
   searchPlaceholder,
   renderItem,
+  isItemSelected,
   emptyMessage,
   noMatchesMessage,
 }: SearchableCatalogListProps<T>): JSX.Element {
@@ -30,6 +32,12 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
       : items.filter(item => item.title.toLocaleLowerCase().includes(normalizedQuery)),
     [items, normalizedQuery],
   );
+  const orderedItems = isItemSelected
+    ? [
+        ...filteredItems.filter(isItemSelected),
+        ...filteredItems.filter(item => !isItemSelected(item)),
+      ]
+    : filteredItems;
 
   return (
     <>
@@ -43,9 +51,9 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
       />
       {items.length === 0
         ? <p className="tag-select__empty">{emptyMessage}</p>
-        : filteredItems.length === 0
+        : orderedItems.length === 0
           ? <p className="tag-select__empty">{noMatchesMessage}</p>
-          : filteredItems.map(renderItem)}
+          : orderedItems.map(renderItem)}
     </>
   );
 }

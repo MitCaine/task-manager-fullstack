@@ -1238,6 +1238,11 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
 
   userEvent.click(screen.getByLabelText(/Tag filter:/));
   const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
+  expect(within(tagMenu).getAllByRole('menuitemradio').map(item => item.textContent)).toEqual([
+    'All',
+    'Car Maintenance',
+    'Deep Work',
+  ]);
   const tagSearch = within(tagMenu).getByRole('searchbox', { name: 'Search tag filters' });
   userEvent.type(tagSearch, 'CAR');
   expect(await within(tagMenu).findByRole('menuitemradio', { name: 'Car Maintenance' })).toBeInTheDocument();
@@ -1335,12 +1340,26 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
 
   userEvent.clear(searchInput);
+  expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
+    'Deep Work',
+    'Errand',
+    'Planning',
+  ]);
+
+  userEvent.type(searchInput, 'work');
+  expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual(['Deep Work']);
+
+  userEvent.clear(searchInput);
+  userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+  expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
+    'Errand',
+    'Deep Work',
+    'Planning',
+  ]);
+  await waitFor(() => expect(createScope.queryByLabelText('Remove tag Deep Work')).not.toBeInTheDocument());
+
   userEvent.type(searchInput, 'missing');
   expect(dropdownScope.getByText('No tags match your search.')).toBeInTheDocument();
-  expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
-
-  userEvent.click(createScope.getByLabelText('Remove tag Deep Work'));
-  await waitFor(() => expect(createScope.queryByLabelText('Remove tag Deep Work')).not.toBeInTheDocument());
 });
 
 test('create date selection updates the preview immediately', async () => {
@@ -3369,8 +3388,8 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
     { projectID: 12, title: 'Work' },
   ]);
   mockGetTags.mockResolvedValue([
-    { tagID: 8, title: 'Errand', color: '#22c55e' },
     { tagID: 9, title: 'Focus', color: '#6366f1' },
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
   ]);
   render(<App />);
   await screen.findByText('Metadata task');
@@ -3406,6 +3425,7 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   expect(tagDropdown).toBeVisible();
   expect(editCard.closest('.item')).toHaveClass('item--editing');
   const tagOptions = within(tagDropdown).getAllByRole('checkbox');
+  expect(tagOptions.map(input => input.closest('label')?.textContent)).toEqual(['Errand', 'Focus']);
   await act(async () => {
     userEvent.click(tagOptions[0]);
     userEvent.click(tagOptions[1]);

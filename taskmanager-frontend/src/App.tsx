@@ -2231,6 +2231,7 @@ function App() {
                   searchPlaceholder="Search tags..."
                   emptyMessage="No tags yet."
                   noMatchesMessage="No tags match your search."
+                  isItemSelected={tag => editTaskTagIDs.includes(tag.tagID)}
                   renderItem={tag => {
                     const selected = editTaskTagIDs.includes(tag.tagID);
                     return (
@@ -2508,6 +2509,7 @@ function App() {
                     searchPlaceholder="Search tags..."
                     emptyMessage="No tags yet."
                     noMatchesMessage="No tags match your search."
+                    isItemSelected={tag => newTaskTagIDs.includes(tag.tagID)}
                     renderItem={tag => {
                       const selected = newTaskTagIDs.includes(tag.tagID);
                       return (
@@ -2950,6 +2952,7 @@ function App() {
                         searchPlaceholder="Search tags..."
                         emptyMessage="No tags yet."
                         noMatchesMessage="No tags match your search."
+                        isItemSelected={tag => editTaskTagIDs.includes(tag.tagID)}
                         renderItem={tag => {
                           const selected = editTaskTagIDs.includes(tag.tagID);
                           return (
