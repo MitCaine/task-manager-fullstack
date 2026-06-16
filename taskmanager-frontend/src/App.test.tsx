@@ -4120,24 +4120,28 @@ test('project management searches creates renames and confirms deletion with usa
   await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
+  expect(dialog.parentElement?.parentElement).toBe(document.body);
 
   expect(scope.getByRole('button', { name: /^projects$/i })).toHaveClass('catalog-manager__tab');
   expect(scope.getByRole('button', { name: /^tags$/i })).toHaveClass('catalog-manager__tab');
-  expect(scope.getByRole('button', { name: /^create$/i })).toHaveClass('catalog-manager__create-button');
+  expect(scope.getByRole('button', { name: /^create projects$/i })).toHaveClass('catalog-manager__create-button');
   expect(dialog.querySelector('.catalog-manager__body')).toBeInTheDocument();
+  expect(scope.queryByLabelText('New project name')).not.toBeInTheDocument();
   expect(scope.getByText('1 task')).toBeInTheDocument();
   userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
   expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
   expect(scope.queryByText('Home')).not.toBeInTheDocument();
   userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
 
-  userEvent.type(scope.getByLabelText('New project name'), 'Office');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create$/i })); });
+  userEvent.type(scope.getByLabelText('Project names'), 'Office');
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
   expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
 
   const homeRow = scope.getByText('Home').closest('.catalog-manager__item');
   if (!(homeRow instanceof HTMLElement)) throw new Error('Home project row not found');
-  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /rename/i })); });
+  expect(within(homeRow).queryByRole('button', { name: /rename/i })).not.toBeInTheDocument();
+  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
+  expect(within(homeRow).queryByText('1 task')).not.toBeInTheDocument();
   const renameInput = within(homeRow).getByLabelText('Rename project Home');
   userEvent.clear(renameInput);
   userEvent.type(renameInput, 'House');
@@ -4153,6 +4157,54 @@ test('project management searches creates renames and confirms deletion with usa
   expect(mockDeleteProject).toHaveBeenCalledWith(7);
   await act(async () => { userEvent.keyboard('{Escape}'); });
   expect(screen.queryByRole('dialog', { name: /manage projects and tags/i })).not.toBeInTheDocument();
+});
+
+test('project management multiline add creates multiple projects and summarizes skipped duplicates', async () => {
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+  ]);
+  mockCreateProject.mockImplementation(async project => {
+    if (project.title === 'Task Manager') throw new Error('failed');
+    return { projectID: project.title === 'Office' ? 201 : 202, title: project.title };
+  });
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  userEvent.type(scope.getByLabelText('Project names'), ' Office \nHome\nOffice\n\nTask Manager\nhome ');
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
+
+  expect(mockCreateProject).toHaveBeenCalledTimes(2);
+  expect(mockCreateProject).toHaveBeenNthCalledWith(1, { title: 'Office' });
+  expect(mockCreateProject).toHaveBeenNthCalledWith(2, { title: 'Task Manager' });
+  expect(scope.getByRole('status')).toHaveTextContent('Created 1 projects. Skipped 3 duplicates: Home, Office. Failed 1.');
+  expect(scope.getByText('Office')).toBeInTheDocument();
+});
+
+test('project management multiline add truncates long skipped duplicate lists', async () => {
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Alpha' },
+    { projectID: 8, title: 'Beta' },
+    { projectID: 9, title: 'Gamma' },
+    { projectID: 10, title: 'Delta' },
+  ]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  userEvent.type(scope.getByLabelText('Project names'), 'Alpha\nBeta\nGamma\nDelta\nalpha');
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
+
+  expect(mockCreateProject).not.toHaveBeenCalled();
+  expect(scope.getByRole('status')).toHaveTextContent('Created 0 projects. Skipped 5 duplicates: Alpha, Beta, Gamma, +1 more. Failed 0.');
 });
 
 test('tag management creates edits color and confirms deletion with usage count', async () => {
@@ -4174,19 +4226,27 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(scope.queryByText('Errand')).not.toBeInTheDocument();
   userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
 
-  userEvent.type(scope.getByLabelText('New tag name'), 'Docs');
+  expect(scope.queryByLabelText('New tag name')).not.toBeInTheDocument();
+  userEvent.type(scope.getByLabelText('Tag names'), 'Docs');
   const newTagColor = scope.getByLabelText('New tag color');
   expect(newTagColor).toHaveClass('catalog-manager__color-input');
+  expect(newTagColor.closest('.catalog-manager__create-actions')).toBeInTheDocument();
+  expect(newTagColor.closest('.catalog-manager__color-control')).toHaveTextContent('Tag Color');
   fireEvent.change(newTagColor, { target: { value: '#f97316' } });
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create$/i })); });
+  expect(newTagColor.closest('.catalog-manager__color-control')?.querySelector('.catalog-manager__color-swatch')).toHaveStyle({ background: '#f97316' });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
   expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Docs', color: '#f97316' });
 
   const errandRow = scope.getByText('Errand').closest('.catalog-manager__item');
   if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
   expect(within(errandRow).getByText('1 task')).toBeInTheDocument();
   await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  expect(within(errandRow).queryByText('1 task')).not.toBeInTheDocument();
+  expect(errandRow.querySelector('.tag-dot')).not.toBeInTheDocument();
   const renameInput = within(errandRow).getByLabelText('Rename tag Errand');
   expect(within(errandRow).getByLabelText('Color for tag Errand')).toHaveClass('catalog-manager__color-input');
+  expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__main')).toBeInTheDocument();
+  expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__color-control')).toHaveTextContent('Tag Color');
   userEvent.clear(renameInput);
   userEvent.type(renameInput, 'Chores');
   fireEvent.change(within(errandRow).getByLabelText('Color for tag Errand'), { target: { value: '#ef4444' } });
@@ -4202,24 +4262,117 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
 });
 
+test('tag management multiline add uses selected color and skips existing or repeated names', async () => {
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
+  ]);
+  mockCreateTag.mockImplementation(async tag => ({
+    tagID: tag.title === 'Docs' ? 301 : 302,
+    title: tag.title,
+    color: tag.color,
+  }));
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
+  userEvent.type(scope.getByLabelText('Tag names'), 'Docs\nErrand\ndocs\nFocus\n');
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
+
+  expect(mockCreateTag).toHaveBeenCalledTimes(2);
+  expect(mockCreateTag).toHaveBeenNthCalledWith(1, { title: 'Docs', color: '#f97316' });
+  expect(mockCreateTag).toHaveBeenNthCalledWith(2, { title: 'Focus', color: '#f97316' });
+  expect(scope.getByRole('status')).toHaveTextContent('Created 2 tags. Skipped 2 duplicates: Errand, docs. Failed 0.');
+  expect(scope.getByText('Docs')).toBeInTheDocument();
+  expect(scope.getByText('Focus')).toBeInTheDocument();
+});
+
 test('catalog management modal keeps navigation spacing and color swatch focus styling scoped', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const tabsRule = css.match(/\.catalog-manager__tabs\s*\{[^}]*\}/)?.[0] ?? '';
   const tabRule = css.match(/\.catalog-manager__tab\s*\{[^}]*\}/)?.[0] ?? '';
   const managerRule = css.match(/\.catalog-manager\s*\{[^}]*\}/)?.[0] ?? '';
+  const createRule = css.match(/\.catalog-manager__create\s*\{[^}]*\}/)?.[0] ?? '';
+  const createInputRule = css.match(/\.catalog-manager__create-input\s*\{[^}]*\}/)?.[0] ?? '';
+  const createActionsRule = css.match(/\.catalog-manager__create-actions\s*\{[^}]*\}/)?.[0] ?? '';
   const createButtonRule = css.match(/\.catalog-manager__create-button\s*\{[^}]*\}/)?.[0] ?? '';
   const colorInputRule = css.match(/\.catalog-manager__color-input\s*\{[^}]*\}/)?.[0] ?? '';
-  const colorFocusRule = css.match(/\.catalog-manager__color-input:focus-visible\s*\{[^}]*\}/)?.[0] ?? '';
+  const colorControlRule = css.match(/\.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
+  const colorFocusRule = css.match(/\.catalog-manager__color-control:focus-within\s*\{[^}]*\}/)?.[0] ?? '';
   const bodyRule = css.match(/\.catalog-manager__body\s*\{[^}]*\}/)?.[0] ?? '';
+  const createSummaryRule = css.match(/\.catalog-manager__create-summary\s*\{[^}]*\}/)?.[0] ?? '';
+  const tagCreateActionsRule = css.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
+  const tagCreateActionControlsRule = css.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n\.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
+  const actionsButtonRule = css.match(/\.catalog-manager__actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__item--editing \.catalog-manager__actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileTagCreateActionsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileTagCreateActionControlsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n  \.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileItemRule = mobileManagerRules.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileEditingItemRule = mobileManagerRules.match(/\.catalog-manager__item--editing\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(tabsRule).toContain('margin-bottom: 1rem');
   expect(tabRule).toContain('min-height: 2.4rem');
   expect(managerRule).toContain('padding-top: 1.75rem');
-  expect(createButtonRule).toContain('min-height: 2.35rem');
-  expect(colorInputRule).toContain('border-radius: 50%');
+  expect(managerRule).toContain('width: min(40rem, calc(100vw - 2rem))');
+  expect(managerRule).toContain('overflow: hidden');
+  expect(managerRule).toContain('--catalog-create-action-height: 2rem');
+  expect(managerRule).toContain('--catalog-row-control-height: 1.85rem');
+  expect(createRule).toContain('display: grid');
+  expect(createRule).toContain('grid-template-columns: minmax(0, 1fr) max-content');
+  expect(createRule).toContain('gap: var(--catalog-create-stack-gap)');
+  expect(createInputRule).toContain('width: 100%');
+  expect(createInputRule).toContain('height: var(--catalog-create-input-height)');
+  expect(createInputRule).toContain('max-height: var(--catalog-create-input-height)');
+  expect(createInputRule).toContain('resize: none');
+  expect(createActionsRule).toContain('min-width: 0');
+  expect(createButtonRule).toContain('height: var(--catalog-create-action-height)');
+  expect(colorInputRule).toContain('opacity: 0');
+  expect(colorControlRule).toContain('height: var(--catalog-create-action-height)');
+  expect(colorControlRule).toContain('white-space: nowrap');
   expect(colorFocusRule).toContain('outline: 2px solid var(--accent)');
+  expect(bodyRule).toContain('flex: 1 1 auto');
   expect(bodyRule).toContain('height: clamp(10rem, 36vh, 20rem)');
   expect(bodyRule).toContain('overflow-y: auto');
+  expect(createSummaryRule).toContain('width: 100%');
+  expect(createSummaryRule).toContain('overflow-wrap: anywhere');
+  expect(tagCreateActionsRule).toContain('flex-direction: column');
+  expect(tagCreateActionsRule).toContain('align-items: flex-start');
+  expect(tagCreateActionsRule).toContain('gap: 0.5rem');
+  expect(tagCreateActionControlsRule).toContain('width: 100%');
+  expect(actionsButtonRule).toContain('height: var(--catalog-row-control-height)');
+  expect(actionsButtonRule).toContain('font-size: 0.78rem');
+  expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
+  expect(mobileManagerRules).toContain('--catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))');
+  expect(mobileManagerRules).toContain('--catalog-mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem)');
+  expect(mobileManagerRules).toContain('--catalog-mobile-bottom-edge: max(1rem, env(safe-area-inset-bottom))');
+  expect(mobileManagerRules).toContain('--catalog-mobile-surface-bottom-radius: max(30px, calc(var(--catalog-mobile-phone-corner-radius) - var(--catalog-mobile-edge)))');
+  expect(mobileManagerRules).toContain('padding-inline: 0');
+  expect(mobileManagerRules).toContain('padding-top: var(--catalog-mobile-top-offset)');
+  expect(mobileManagerRules).toContain('padding-bottom: var(--catalog-mobile-bottom-edge)');
+  expect(mobileManagerRules).toContain('width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge))');
+  expect(mobileManagerRules).toContain('max-width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge))');
+  expect(mobileManagerRules).toContain('height: min(75dvh, calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge))');
+  expect(mobileManagerRules).toContain('max-height: calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge))');
+  expect(mobileManagerRules).toContain('margin: 0 auto');
+  expect(mobileManagerRules).toContain('border-radius: 18px');
+  expect(mobileTagCreateActionsRule).toContain('flex-direction: row');
+  expect(mobileTagCreateActionsRule).toContain('justify-content: flex-start');
+  expect(mobileTagCreateActionsRule).not.toContain('column');
+  expect(mobileTagCreateActionControlsRule).toContain('width: auto');
+  expect(mobileTagCreateActionControlsRule).toContain('flex: 0 0 auto');
+  expect(mobileManagerRules).not.toContain('order: 0');
+  expect(mobileManagerRules).not.toContain('order: 1');
+  expect(mobileItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
+  expect(mobileItemRule).toContain('align-items: center');
+  expect(mobileEditingItemRule).toContain('grid-template-columns: 1fr');
+  expect(mobileEditingItemRule).toContain('align-items: stretch');
+  expect(mobileManagerRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+  expect(mobileManagerRules).toContain('min-width: 0');
+  expect(mobileManagerRules).toContain('overflow-x: clip');
 });
 
 // Task move behavior.
