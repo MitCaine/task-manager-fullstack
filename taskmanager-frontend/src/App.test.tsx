@@ -4311,6 +4311,8 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__item--editing \.catalog-manager__actions\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileTagCreateActionsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileTagCreateActionControlsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n  \.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileTagColorOrderRule = Array.from(mobileManagerRules.matchAll(/\.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/g)).map(match => match[0]).find(rule => rule.includes('order: 0')) ?? '';
+  const mobileTagCreateButtonOrderRule = Array.from(mobileManagerRules.matchAll(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button\s*\{[^}]*\}/g)).map(match => match[0]).find(rule => rule.includes('order: 1')) ?? '';
   const mobileItemRule = mobileManagerRules.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileEditingItemRule = mobileManagerRules.match(/\.catalog-manager__item--editing\s*\{[^}]*\}/)?.[0] ?? '';
 
@@ -4364,8 +4366,8 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(mobileTagCreateActionsRule).not.toContain('column');
   expect(mobileTagCreateActionControlsRule).toContain('width: auto');
   expect(mobileTagCreateActionControlsRule).toContain('flex: 0 0 auto');
-  expect(mobileManagerRules).not.toContain('order: 0');
-  expect(mobileManagerRules).not.toContain('order: 1');
+  expect(mobileTagColorOrderRule).toContain('order: 0');
+  expect(mobileTagCreateButtonOrderRule).toContain('order: 1');
   expect(mobileItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
   expect(mobileItemRule).toContain('align-items: center');
   expect(mobileEditingItemRule).toContain('grid-template-columns: 1fr');
