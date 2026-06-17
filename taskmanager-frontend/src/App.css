@@ -3479,14 +3479,6 @@ input[type="datetime-local"] {
     flex: 0 0 auto;
   }
 
-  .catalog-manager__create-actions--tags > .catalog-manager__color-control {
-    order: 0;
-  }
-
-  .catalog-manager__create-actions--tags > .catalog-manager__create-button {
-    order: 1;
-  }
-
   .catalog-manager__create-actions .catalog-manager__color-control {
     align-self: flex-start;
   }
