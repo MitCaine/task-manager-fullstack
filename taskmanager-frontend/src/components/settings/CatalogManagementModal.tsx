@@ -4,6 +4,7 @@ import type { Project, Tag } from '../../types/task';
 
 type CatalogSection = 'projects' | 'tags';
 type PendingDelete = { kind: CatalogSection; id: number; title: string; usageCount: number } | null;
+type PendingBulkDelete = { kind: CatalogSection; ids: number[] } | null;
 
 const usageLabel = (count: number) => `${count} task${count === 1 ? '' : 's'}`;
 const normalizeCatalogTitle = (value: string) => value.trim().toLocaleLowerCase();
@@ -13,6 +14,11 @@ const formatDuplicateSummary = (skipped: number, duplicates: string[]) => {
   const remaining = duplicates.length - visibleDuplicates.length;
   const suffix = remaining > 0 ? `, +${remaining} more` : '';
   return `Skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}: ${visibleDuplicates.join(', ')}${suffix}.`;
+};
+const formatSelectedNames = (names: string[]) => {
+  const visibleNames = names.slice(0, 3);
+  const remaining = names.length - visibleNames.length;
+  return `${visibleNames.join(', ')}${remaining > 0 ? `, +${remaining} more` : ''}`;
 };
 
 type CatalogManagementModalProps = {
@@ -51,6 +57,9 @@ export default function CatalogManagementModal({
   const [editingTitle, setEditingTitle] = useState('');
   const [editingColor, setEditingColor] = useState('#6366f1');
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
+  const [pendingBulkDelete, setPendingBulkDelete] = useState<PendingBulkDelete>(null);
+  const [selectedProjectIDs, setSelectedProjectIDs] = useState<Set<number>>(() => new Set());
+  const [selectedTagIDs, setSelectedTagIDs] = useState<Set<number>>(() => new Set());
   const [addText, setAddText] = useState('');
   const [addSummary, setAddSummary] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -68,6 +77,9 @@ export default function CatalogManagementModal({
     setQuery('');
     setEditingID(null);
     setPendingDelete(null);
+    setPendingBulkDelete(null);
+    setSelectedProjectIDs(new Set());
+    setSelectedTagIDs(new Set());
     setAddText('');
     setAddSummary('');
   };
@@ -84,7 +96,84 @@ export default function CatalogManagementModal({
     if (!pendingDelete) return;
     if (pendingDelete.kind === 'projects') await onDeleteProject(pendingDelete.id);
     else await onDeleteTag(pendingDelete.id);
+    if (pendingDelete.kind === 'projects') {
+      setSelectedProjectIDs(prev => {
+        const next = new Set(prev);
+        next.delete(pendingDelete.id);
+        return next;
+      });
+    } else {
+      setSelectedTagIDs(prev => {
+        const next = new Set(prev);
+        next.delete(pendingDelete.id);
+        return next;
+      });
+    }
     setPendingDelete(null);
+  };
+
+  const selectedIDs = section === 'projects' ? selectedProjectIDs : selectedTagIDs;
+  const selectedCount = selectedIDs.size;
+  const selectedProjects = projects.filter(project => selectedProjectIDs.has(project.projectID));
+  const selectedTags = tags.filter(tag => selectedTagIDs.has(tag.tagID));
+  const selectedNames = section === 'projects'
+    ? selectedProjects.map(project => project.title)
+    : selectedTags.map(tag => tag.title);
+  const selectedUsageTotal = section === 'projects'
+    ? selectedProjects.reduce((sum: number, project) => sum + (projectUsage.get(project.projectID) ?? 0), 0)
+    : selectedTags.reduce((sum: number, tag) => sum + (tagUsage.get(tag.tagID) ?? 0), 0);
+  const sectionSingular = section === 'projects' ? 'project' : 'tag';
+  const sectionPlural = section === 'projects' ? 'projects' : 'tags';
+
+  const clearAllSelection = () => {
+    setSelectedProjectIDs(new Set());
+    setSelectedTagIDs(new Set());
+  };
+
+  const clearSelection = () => {
+    if (section === 'projects') setSelectedProjectIDs(new Set());
+    else setSelectedTagIDs(new Set());
+    setPendingBulkDelete(null);
+  };
+
+  const toggleSelection = (id: number) => {
+    setEditingID(null);
+    setQuery('');
+    setPendingDelete(null);
+    setPendingBulkDelete(null);
+    const setSelected = section === 'projects' ? setSelectedProjectIDs : setSelectedTagIDs;
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const beginEdit = (id: number, title: string, color?: string) => {
+    setEditingID(id);
+    setEditingTitle(title);
+    if (color) setEditingColor(color);
+    setQuery('');
+    clearAllSelection();
+    setPendingBulkDelete(null);
+  };
+
+  const beginSearchMode = () => {
+    setEditingID(null);
+    clearAllSelection();
+    setPendingBulkDelete(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!pendingBulkDelete) return;
+    for (const id of pendingBulkDelete.ids) {
+      if (pendingBulkDelete.kind === 'projects') await onDeleteProject(id);
+      else await onDeleteTag(id);
+    }
+    if (pendingBulkDelete.kind === 'projects') setSelectedProjectIDs(new Set());
+    else setSelectedTagIDs(new Set());
+    setPendingBulkDelete(null);
   };
 
   const createItems = async () => {
@@ -173,10 +262,36 @@ export default function CatalogManagementModal({
           type="search"
           className="input catalog-manager__search"
           value={query}
-          onChange={event => setQuery(event.currentTarget.value)}
+          onFocus={beginSearchMode}
+          onChange={event => { beginSearchMode(); setQuery(event.currentTarget.value); }}
           placeholder={`Search ${section}`}
           aria-label={`Search managed ${section}`}
         />
+
+        {selectedCount > 0 && (
+          <div className="catalog-manager__bulk-bar" role="status">
+            <span className="catalog-manager__bulk-count">{selectedCount} {sectionSingular}{selectedCount === 1 ? '' : 's'} selected</span>
+            <div className="catalog-manager__bulk-actions">
+              <button className="btn btn--danger btn--sm" onClick={() => { setPendingDelete(null); setPendingBulkDelete({ kind: section, ids: Array.from(selectedIDs) }); }}>
+                Delete selected {sectionPlural}
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={clearSelection}>Clear selection</button>
+            </div>
+          </div>
+        )}
+
+        {pendingBulkDelete && (
+          <div className="catalog-manager__confirm catalog-manager__confirm--bulk" role="alert">
+            <span>
+              Delete {selectedCount} {sectionSingular}{selectedCount === 1 ? '' : 's'}: {formatSelectedNames(selectedNames)}?{' '}
+              {section === 'projects'
+                ? `${selectedUsageTotal} affected task${selectedUsageTotal === 1 ? '' : 's'} will become unassigned.`
+                : `These ${sectionPlural} will be removed from ${selectedUsageTotal} task assignment${selectedUsageTotal === 1 ? '' : 's'}.`}
+            </span>
+            <button className="btn btn--danger btn--sm" onClick={confirmBulkDelete}>Delete selected {sectionPlural}</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => setPendingBulkDelete(null)}>Cancel</button>
+          </div>
+        )}
 
         <div className="catalog-manager__body">
           {items.length === 0 ? (
@@ -188,6 +303,15 @@ export default function CatalogManagementModal({
                     const editing = editingID === project.projectID;
                     return (
                       <li key={project.projectID} className={`catalog-manager__item catalog-manager__item--project${editing ? ' catalog-manager__item--editing' : ''}`}>
+                        {!editing && (
+                          <input
+                            type="checkbox"
+                            className="catalog-manager__select"
+                            checked={selectedProjectIDs.has(project.projectID)}
+                            onChange={() => toggleSelection(project.projectID)}
+                            aria-label={`Select project ${project.title}`}
+                          />
+                        )}
                         <div className="catalog-manager__main">
                           {editing
                             ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
@@ -197,8 +321,8 @@ export default function CatalogManagementModal({
                         <div className="catalog-manager__actions">
                           {editing
                             ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                            : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(project.projectID); setEditingTitle(project.title); }}>Edit</button>}
-                          <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 })}>Delete</button>
+                            : <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(project.projectID, project.title)}>Edit</button>}
+                          <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 }); }}>Delete</button>
                         </div>
                       </li>
                     );
@@ -207,6 +331,15 @@ export default function CatalogManagementModal({
                     const editing = editingID === tag.tagID;
                     return (
                       <li key={tag.tagID} className={`catalog-manager__item catalog-manager__item--tag${editing ? ' catalog-manager__item--editing' : ''}`}>
+                        {!editing && (
+                          <input
+                            type="checkbox"
+                            className="catalog-manager__select"
+                            checked={selectedTagIDs.has(tag.tagID)}
+                            onChange={() => toggleSelection(tag.tagID)}
+                            aria-label={`Select tag ${tag.title}`}
+                          />
+                        )}
                         <div className="catalog-manager__main">
                           {!editing && <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />}
                           {editing
@@ -218,8 +351,8 @@ export default function CatalogManagementModal({
                         <div className="catalog-manager__actions">
                           {editing
                             ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                            : <button className="btn btn--ghost btn--sm" onClick={() => { setEditingID(tag.tagID); setEditingTitle(tag.title); setEditingColor(tag.color ?? '#6366f1'); }}>Edit</button>}
-                          <button className="btn btn--danger btn--sm" onClick={() => setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 })}>Delete</button>
+                            : <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}>Edit</button>}
+                          <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 }); }}>Delete</button>
                         </div>
                       </li>
                     );

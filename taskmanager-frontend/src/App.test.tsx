@@ -4207,6 +4207,98 @@ test('project management multiline add truncates long skipped duplicate lists', 
   expect(scope.getByRole('status')).toHaveTextContent('Created 0 projects. Skipped 5 duplicates: Alpha, Beta, Gamma, +1 more. Failed 0.');
 });
 
+test('project management bulk delete confirms affected tasks and clears selection', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, projectID: 7 }]);
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 9, title: 'Wedding Planning' },
+  ]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { userEvent.click(scope.getByLabelText('Select project Wedding Planning')); });
+  expect(scope.getByText('2 projects selected')).toBeInTheDocument();
+
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
+  const confirm = scope.getByRole('alert');
+  expect(confirm).toHaveTextContent('Delete 2 projects: Home, Wedding Planning?');
+  expect(confirm).toHaveTextContent('1 affected task will become unassigned.');
+
+  await act(async () => { userEvent.click(within(confirm).getByRole('button', { name: /^delete selected projects$/i })); });
+  expect(mockDeleteProject).toHaveBeenCalledWith(7);
+  expect(mockDeleteProject).toHaveBeenCalledWith(9);
+  expect(scope.queryByText('2 projects selected')).not.toBeInTheDocument();
+  expect(scope.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('catalog management edit search and selection modes are mutually exclusive', async () => {
+  mockGetProjects.mockResolvedValue([
+    { projectID: 7, title: 'Home' },
+    { projectID: 9, title: 'Wedding Planning' },
+  ]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+  const search = scope.getByRole('searchbox', { name: /search managed projects/i });
+
+  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  expect(scope.getByText('1 project selected')).toBeInTheDocument();
+
+  const weddingRow = scope.getByText('Wedding Planning').closest('.catalog-manager__item');
+  if (!(weddingRow instanceof HTMLElement)) throw new Error('Wedding Planning project row not found');
+  await act(async () => { userEvent.click(within(weddingRow).getByRole('button', { name: /^edit$/i })); });
+  expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
+  expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
+  expect(scope.getByLabelText('Rename project Wedding Planning')).toBeInTheDocument();
+
+  await act(async () => { userEvent.type(search, 'home'); });
+  expect(scope.queryByLabelText('Rename project Wedding Planning')).not.toBeInTheDocument();
+  expect(search).toHaveValue('home');
+  expect(scope.getByText('Home')).toBeInTheDocument();
+  expect(scope.queryByText('Wedding Planning')).not.toBeInTheDocument();
+
+  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  expect(search).toHaveValue('');
+  expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
+  expect(scope.getByText('1 project selected')).toBeInTheDocument();
+
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
+  expect(scope.getByRole('alert')).toHaveTextContent('Delete 1 project: Home?');
+  await act(async () => { fireEvent.focus(search); });
+  expect(scope.queryByRole('alert')).not.toBeInTheDocument();
+  expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
+  expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
+});
+
+test('catalog management selection clears when switching between project and tag tabs', async () => {
+  mockGetProjects.mockResolvedValue([{ projectID: 7, title: 'Home' }]);
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  expect(scope.getByText('1 project selected')).toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^tags$/i })); });
+  expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
+  expect(scope.getByText('Errand')).toBeInTheDocument();
+  expect(scope.getByLabelText('Select tag Errand')).not.toBeChecked();
+});
+
 test('tag management creates edits color and confirms deletion with usage count', async () => {
   mockGetTasks.mockResolvedValue([{ ...sampleTask, tags: [{ tagID: 8, title: 'Errand', color: '#22c55e' }] }]);
   mockGetTags.mockResolvedValue([
@@ -4262,6 +4354,36 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
 });
 
+test('tag management bulk delete confirms assignment removal and clears selection', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, tags: [{ tagID: 8, title: 'Errand', color: '#22c55e' }] }]);
+  mockGetTags.mockResolvedValue([
+    { tagID: 8, title: 'Errand', color: '#22c55e' },
+    { tagID: 9, title: 'Focus', color: '#6366f1' },
+  ]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const scope = within(dialog);
+
+  await act(async () => { userEvent.click(scope.getByLabelText('Select tag Errand')); });
+  await act(async () => { userEvent.click(scope.getByLabelText('Select tag Focus')); });
+  expect(scope.getByText('2 tags selected')).toBeInTheDocument();
+
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected tags$/i })); });
+  const confirm = scope.getByRole('alert');
+  expect(confirm).toHaveTextContent('Delete 2 tags: Errand, Focus?');
+  expect(confirm).toHaveTextContent('These tags will be removed from 1 task assignment.');
+
+  await act(async () => { userEvent.click(within(confirm).getByRole('button', { name: /^delete selected tags$/i })); });
+  expect(mockDeleteTag).toHaveBeenCalledWith(8);
+  expect(mockDeleteTag).toHaveBeenCalledWith(9);
+  expect(scope.queryByText('2 tags selected')).not.toBeInTheDocument();
+  expect(scope.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 test('tag management multiline add uses selected color and skips existing or repeated names', async () => {
   mockGetTags.mockResolvedValue([
     { tagID: 8, title: 'Errand', color: '#22c55e' },
@@ -4307,12 +4429,20 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const createSummaryRule = css.match(/\.catalog-manager__create-summary\s*\{[^}]*\}/)?.[0] ?? '';
   const tagCreateActionsRule = css.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
   const tagCreateActionControlsRule = css.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n\.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
+  const itemRule = css.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
+  const editingItemRule = css.match(/\.catalog-manager__item--editing\s*\{[^}]*\}/)?.[0] ?? '';
   const actionsButtonRule = css.match(/\.catalog-manager__actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__item--editing \.catalog-manager__actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const bulkBarRule = css.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
+  const bulkActionsRule = css.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const bulkConfirmRule = css.match(/\.catalog-manager__confirm--bulk\s*\{[^}]*\}/)?.[0] ?? '';
+  const selectRule = css.match(/\.catalog-manager__select\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileTagCreateActionsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileTagCreateActionControlsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n  \.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileItemRule = mobileManagerRules.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileEditingItemRule = mobileManagerRules.match(/\.catalog-manager__item--editing\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileBulkBarRule = mobileManagerRules.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileBulkActionsRule = mobileManagerRules.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(tabsRule).toContain('margin-bottom: 1rem');
   expect(tabRule).toContain('min-height: 2.4rem');
@@ -4343,8 +4473,16 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(tagCreateActionsRule).toContain('align-items: flex-start');
   expect(tagCreateActionsRule).toContain('gap: 0.5rem');
   expect(tagCreateActionControlsRule).toContain('width: 100%');
+  expect(itemRule).toContain('grid-template-columns: auto minmax(0, 1fr) auto');
+  expect(editingItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
   expect(actionsButtonRule).toContain('height: var(--catalog-row-control-height)');
   expect(actionsButtonRule).toContain('font-size: 0.78rem');
+  expect(bulkBarRule).toContain('display: flex');
+  expect(bulkBarRule).toContain('background: var(--surface-2)');
+  expect(bulkActionsRule).toContain('display: flex');
+  expect(bulkActionsRule).toContain('gap: 0.5rem');
+  expect(bulkConfirmRule).toContain('margin: -0.25rem 0 0.75rem');
+  expect(selectRule).toContain('accent-color: var(--accent)');
   expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
   expect(mobileManagerRules).toContain('--catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))');
   expect(mobileManagerRules).toContain('--catalog-mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem)');
@@ -4366,11 +4504,14 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(mobileTagCreateActionControlsRule).toContain('flex: 0 0 auto');
   expect(mobileManagerRules).not.toContain('order: 0');
   expect(mobileManagerRules).not.toContain('order: 1');
-  expect(mobileItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
+  expect(mobileItemRule).toContain('grid-template-columns: auto minmax(0, 1fr) auto');
   expect(mobileItemRule).toContain('align-items: center');
   expect(mobileEditingItemRule).toContain('grid-template-columns: 1fr');
   expect(mobileEditingItemRule).toContain('align-items: stretch');
   expect(mobileManagerRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+  expect(mobileBulkBarRule).toContain('flex-direction: column');
+  expect(mobileBulkBarRule).toContain('align-items: stretch');
+  expect(mobileBulkActionsRule).toContain('justify-content: flex-start');
   expect(mobileManagerRules).toContain('min-width: 0');
   expect(mobileManagerRules).toContain('overflow-x: clip');
 });
