@@ -35,11 +35,10 @@ import type { RepeatFrequency } from './components/create-task/RecurrenceControl
 import { SelectedTagChips } from './components/create-task/TagProjectChips';
 import TaskEditorFields from './components/create-task/TaskEditorFields';
 import StatsModal from './components/settings/StatsModal';
-import CatalogManagementModal from './components/settings/CatalogManagementModal';
 import StatusMoveDialog from './components/dialogs/StatusMoveDialog';
-import SettingsPanel from './components/settings/SettingsPanel';
 import TaskListControls from './components/task-list/TaskListControls';
 import type { FilterStatus, SortBy, ViewTab } from './components/task-list/TaskListControls';
+import TaskListToolbar from './components/task-list/TaskListToolbar';
 import AddTaskPreview from './components/create-task/AddTaskPreview';
 import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
@@ -59,7 +58,7 @@ import { DetailLinksPanel, DetailNotesPanel, DetailSubtasksPanel } from './compo
 import ErrorBanner from './components/shared/ErrorBanner';
 import SelectedProjectChip from './components/create-task/SelectedProjectChip';
 import TaskCardMain from './components/task-list/TaskCardMain';
-import { DoneDivider, TaskListDateLabel, TaskListEmptyState, TaskListLoading } from './components/task-list/TaskListPresentation';
+import { DoneDivider, TaskListEmptyState, TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
 import useProjectTagCatalog from './hooks/useProjectTagCatalog';
 import useTaskListViewModel from './hooks/useTaskListViewModel';
@@ -2620,61 +2619,36 @@ function App() {
       <section className="mobile-page mobile-page--tasks" data-active={mobilePage === 'tasks'}>
       <div className={`card app__list${selectedTaskId !== null && detailEditingTaskId === selectedTaskId ? ' app__list--narrow' : ''}`}>
 
-        <div ref={settingsRef}>
-        <div className="task-card-toolbar">
-          <TaskListDateLabel isEuropeanDate={isEuropeanDate} />
-          <div className="header-actions">
-            <button
-              ref={statsTriggerRef}
-              className="btn btn--ghost btn--sm"
-              onClick={toggleStatsPanel}
-            >
-              ▤ Stats
-            </button>
-            <button
-              ref={settingsTriggerRef}
-              className="btn btn--ghost btn--sm"
-              aria-expanded={showSettings}
-              aria-controls="task-card-settings-panel"
-              onClick={toggleSettingsPanel}
-            >
-              ⚙ Settings
-            </button>
-          </div>
-        </div>
-
-        {showSettings && (
-          <SettingsPanel
-            is24Hour={is24Hour}
-            isEuropeanDate={isEuropeanDate}
-            theme={theme}
-            themeLabel={themeLabel}
-            themeOptions={['system', 'light', 'dark'] as Theme[]}
-            onToggleTimeFormat={() => setIs24Hour(p => !p)}
-            onToggleDateFormat={() => setIsEuropeanDate(p => !p)}
-            onThemeChange={setTheme}
-            onManageProjects={() => { setShowSettings(false); setCatalogManagerSection('projects'); }}
-            onManageTags={() => { setShowSettings(false); setCatalogManagerSection('tags'); }}
-          />
-        )}
-        </div>
-
-        {catalogManagerSection && (
-          <CatalogManagementModal
-            initialSection={catalogManagerSection}
-            projects={projects}
-            tags={tags}
-            projectUsage={projectUsage}
-            tagUsage={tagUsage}
-            onClose={() => setCatalogManagerSection(null)}
-            onCreateProject={async title => Boolean(await createProjectInCatalog(title))}
-            onCreateTag={async (title, color) => Boolean(await createTagInCatalog(title, color))}
-            onRenameProject={updateProjectTitle}
-            onUpdateTag={updateManagedTag}
-            onDeleteProject={removeProject}
-            onDeleteTag={removeTag}
-          />
-        )}
+        <TaskListToolbar
+          isEuropeanDate={isEuropeanDate}
+          settingsRef={settingsRef}
+          statsTriggerRef={statsTriggerRef}
+          settingsTriggerRef={settingsTriggerRef}
+          showSettings={showSettings}
+          is24Hour={is24Hour}
+          theme={theme}
+          themeLabel={themeLabel}
+          themeOptions={['system', 'light', 'dark'] as Theme[]}
+          catalogManagerSection={catalogManagerSection}
+          projects={projects}
+          tags={tags}
+          projectUsage={projectUsage}
+          tagUsage={tagUsage}
+          onToggleStats={toggleStatsPanel}
+          onToggleSettings={toggleSettingsPanel}
+          onToggleTimeFormat={() => setIs24Hour(p => !p)}
+          onToggleDateFormat={() => setIsEuropeanDate(p => !p)}
+          onThemeChange={setTheme}
+          onManageProjects={() => { setShowSettings(false); setCatalogManagerSection('projects'); }}
+          onManageTags={() => { setShowSettings(false); setCatalogManagerSection('tags'); }}
+          onCloseCatalogManager={() => setCatalogManagerSection(null)}
+          onCreateProject={async title => Boolean(await createProjectInCatalog(title))}
+          onCreateTag={async (title, color) => Boolean(await createTagInCatalog(title, color))}
+          onRenameProject={updateProjectTitle}
+          onUpdateTag={updateManagedTag}
+          onDeleteProject={removeProject}
+          onDeleteTag={removeTag}
+        />
 
         <TaskListControls
           viewTab={viewTab}
