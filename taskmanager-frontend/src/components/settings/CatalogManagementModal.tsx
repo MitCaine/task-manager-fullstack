@@ -3,11 +3,14 @@ import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 
 type CatalogSection = 'projects' | 'tags';
+type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
+type CatalogUsageFilter = 'all' | 'used' | 'unused';
 type PendingDelete = { kind: CatalogSection; id: number; title: string; usageCount: number } | null;
 type PendingBulkDelete = { kind: CatalogSection; ids: number[] } | null;
 
 const usageLabel = (count: number) => `${count} task${count === 1 ? '' : 's'}`;
 const normalizeCatalogTitle = (value: string) => value.trim().toLocaleLowerCase();
+const compareCatalogTitles = (left: string, right: string) => left.localeCompare(right, undefined, { sensitivity: 'base' });
 const formatDuplicateSummary = (skipped: number, duplicates: string[]) => {
   if (skipped === 0) return 'Skipped 0 duplicates.';
   const visibleDuplicates = duplicates.slice(0, 3);
@@ -62,19 +65,60 @@ export default function CatalogManagementModal({
   const [selectedTagIDs, setSelectedTagIDs] = useState<Set<number>>(() => new Set());
   const [addText, setAddText] = useState('');
   const [addSummary, setAddSummary] = useState('');
+  const [sortMode, setSortMode] = useState<CatalogSortMode>('name-asc');
+  const [usageFilter, setUsageFilter] = useState<CatalogUsageFilter>('all');
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const filteredProjects = useMemo(
-    () => projects.filter(project => project.title.toLocaleLowerCase().includes(normalizedQuery)),
-    [normalizedQuery, projects],
-  );
-  const filteredTags = useMemo(
-    () => tags.filter(tag => tag.title.toLocaleLowerCase().includes(normalizedQuery)),
-    [normalizedQuery, tags],
-  );
+
+  const visibleProjects = useMemo(() => {
+    return projects
+      .filter(project => project.title.toLocaleLowerCase().includes(normalizedQuery))
+      .filter(project => {
+        const usage = projectUsage.get(project.projectID) ?? 0;
+        if (usageFilter === 'used') return usage > 0;
+        if (usageFilter === 'unused') return usage === 0;
+        return true;
+      })
+      .sort((left, right) => {
+        const titleOrder = compareCatalogTitles(left.title, right.title);
+        if (sortMode === 'usage-desc') {
+          const usageOrder = (projectUsage.get(right.projectID) ?? 0) - (projectUsage.get(left.projectID) ?? 0);
+          return usageOrder || titleOrder;
+        }
+        if (sortMode === 'usage-asc') {
+          const usageOrder = (projectUsage.get(left.projectID) ?? 0) - (projectUsage.get(right.projectID) ?? 0);
+          return usageOrder || titleOrder;
+        }
+        return titleOrder;
+      });
+  }, [normalizedQuery, projectUsage, projects, sortMode, usageFilter]);
+  const visibleTags = useMemo(() => {
+    return tags
+      .filter(tag => tag.title.toLocaleLowerCase().includes(normalizedQuery))
+      .filter(tag => {
+        const usage = tagUsage.get(tag.tagID) ?? 0;
+        if (usageFilter === 'used') return usage > 0;
+        if (usageFilter === 'unused') return usage === 0;
+        return true;
+      })
+      .sort((left, right) => {
+        const titleOrder = compareCatalogTitles(left.title, right.title);
+        if (sortMode === 'usage-desc') {
+          const usageOrder = (tagUsage.get(right.tagID) ?? 0) - (tagUsage.get(left.tagID) ?? 0);
+          return usageOrder || titleOrder;
+        }
+        if (sortMode === 'usage-asc') {
+          const usageOrder = (tagUsage.get(left.tagID) ?? 0) - (tagUsage.get(right.tagID) ?? 0);
+          return usageOrder || titleOrder;
+        }
+        return titleOrder;
+      });
+  }, [normalizedQuery, sortMode, tags, tagUsage, usageFilter]);
 
   const changeSection = (next: CatalogSection) => {
     setSection(next);
     setQuery('');
+    setSortMode('name-asc');
+    setUsageFilter('all');
     setEditingID(null);
     setPendingDelete(null);
     setPendingBulkDelete(null);
@@ -165,6 +209,12 @@ export default function CatalogManagementModal({
     setPendingBulkDelete(null);
   };
 
+  const beginListControlMode = () => {
+    setEditingID(null);
+    clearAllSelection();
+    setPendingBulkDelete(null);
+  };
+
   const confirmBulkDelete = async () => {
     if (!pendingBulkDelete) return;
     for (const id of pendingBulkDelete.ids) {
@@ -210,7 +260,7 @@ export default function CatalogManagementModal({
     setAddSummary(`Created ${created} ${sectionLabel}. ${formatDuplicateSummary(skipped, Array.from(duplicateNames.values()))} Failed ${failed}.`);
   };
 
-  const items = section === 'projects' ? filteredProjects : filteredTags;
+  const items = section === 'projects' ? visibleProjects : visibleTags;
   const addPlaceholder = section === 'projects'
     ? 'Add project names, one per line'
     : 'Add tag names, one per line';
@@ -222,6 +272,21 @@ export default function CatalogManagementModal({
       <span className="catalog-manager__color-swatch" style={{ background: value }} aria-hidden="true" />
       <span>Tag Color</span>
     </label>
+  );
+  const renderEditActions = (kind: CatalogSection, id: number, title: string, usageCount: number) => (
+    <div className="catalog-manager__actions">
+      <button className="btn btn--sm" onClick={saveEdit}>Save</button>
+      <button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button>
+      <button
+        className="btn btn--danger btn--sm"
+        onClick={() => {
+          setPendingBulkDelete(null);
+          setPendingDelete({ kind, id, title, usageCount });
+        }}
+      >
+        Delete
+      </button>
+    </div>
   );
 
   return createPortal(
@@ -268,6 +333,33 @@ export default function CatalogManagementModal({
           aria-label={`Search managed ${section}`}
         />
 
+        <div className="catalog-manager__list-controls">
+          <label className="catalog-manager__control">
+            <span className="catalog-manager__control-label">Sort</span>
+            <select
+              className="input input--sm"
+              value={sortMode}
+              onChange={event => { beginListControlMode(); setSortMode(event.currentTarget.value as CatalogSortMode); }}
+            >
+              <option value="name-asc">Name A-Z</option>
+              <option value="usage-desc">Usage High-Low</option>
+              <option value="usage-asc">Usage Low-High</option>
+            </select>
+          </label>
+          <label className="catalog-manager__control">
+            <span className="catalog-manager__control-label">Filter</span>
+            <select
+              className="input input--sm"
+              value={usageFilter}
+              onChange={event => { beginListControlMode(); setUsageFilter(event.currentTarget.value as CatalogUsageFilter); }}
+            >
+              <option value="all">All</option>
+              <option value="used">Used only</option>
+              <option value="unused">Unused only</option>
+            </select>
+          </label>
+        </div>
+
         {selectedCount > 0 && (
           <div className="catalog-manager__bulk-bar" role="status">
             <span className="catalog-manager__bulk-count">{selectedCount} {sectionSingular}{selectedCount === 1 ? '' : 's'} selected</span>
@@ -299,7 +391,7 @@ export default function CatalogManagementModal({
           ) : (
             <ul className="catalog-manager__list">
               {section === 'projects'
-                ? filteredProjects.map(project => {
+                ? visibleProjects.map(project => {
                     const editing = editingID === project.projectID;
                     return (
                       <li key={project.projectID} className={`catalog-manager__item catalog-manager__item--project${editing ? ' catalog-manager__item--editing' : ''}`}>
@@ -314,20 +406,22 @@ export default function CatalogManagementModal({
                         )}
                         <div className="catalog-manager__main">
                           {editing
-                            ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
+                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
                             : <span className="catalog-manager__name">{project.title}</span>}
                           {!editing && <span className="catalog-manager__usage">{usageLabel(projectUsage.get(project.projectID) ?? 0)}</span>}
                         </div>
-                        <div className="catalog-manager__actions">
-                          {editing
-                            ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                            : <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(project.projectID, project.title)}>Edit</button>}
-                          <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 }); }}>Delete</button>
-                        </div>
+                        {editing
+                          ? renderEditActions('projects', project.projectID, project.title, projectUsage.get(project.projectID) ?? 0)
+                          : (
+                            <div className="catalog-manager__actions">
+                              <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(project.projectID, project.title)}>Edit</button>
+                              <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 }); }}>Delete</button>
+                            </div>
+                          )}
                       </li>
                     );
                   })
-                : filteredTags.map(tag => {
+                : visibleTags.map(tag => {
                     const editing = editingID === tag.tagID;
                     return (
                       <li key={tag.tagID} className={`catalog-manager__item catalog-manager__item--tag${editing ? ' catalog-manager__item--editing' : ''}`}>
@@ -343,17 +437,19 @@ export default function CatalogManagementModal({
                         <div className="catalog-manager__main">
                           {!editing && <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />}
                           {editing
-                            ? <input className="input input--sm" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename tag ${tag.title}`} />
+                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename tag ${tag.title}`} />
                             : <span className="catalog-manager__name">{tag.title}</span>}
                           {editing && renderColorControl(editingColor, setEditingColor, `Color for tag ${tag.title}`)}
                           {!editing && <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>}
                         </div>
-                        <div className="catalog-manager__actions">
-                          {editing
-                            ? <><button className="btn btn--sm" onClick={saveEdit}>Save</button><button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button></>
-                            : <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}>Edit</button>}
-                          <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 }); }}>Delete</button>
-                        </div>
+                        {editing
+                          ? renderEditActions('tags', tag.tagID, tag.title, tagUsage.get(tag.tagID) ?? 0)
+                          : (
+                            <div className="catalog-manager__actions">
+                              <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}>Edit</button>
+                              <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 }); }}>Delete</button>
+                            </div>
+                          )}
                       </li>
                     );
                   })}
