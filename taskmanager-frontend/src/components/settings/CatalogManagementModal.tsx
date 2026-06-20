@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { type TouchEvent, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 
@@ -22,6 +22,44 @@ const formatSelectedNames = (names: string[]) => {
   const visibleNames = names.slice(0, 3);
   const remaining = names.length - visibleNames.length;
   return `${visibleNames.join(', ')}${remaining > 0 ? `, +${remaining} more` : ''}`;
+};
+const shouldUseCatalogRenameFocusAssist = () => (
+  typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && Boolean(window.matchMedia('(max-width: 720px), (pointer: coarse)')?.matches)
+);
+const focusCatalogRenameWithoutViewportPull = (input: HTMLInputElement) => {
+  const rect = input.getBoundingClientRect();
+  const safeWidth = rect.width > 0 ? `${rect.width}px` : 'calc(100vw - 96px)';
+  const safeHeight = rect.height > 0 ? `${rect.height}px` : '2rem';
+  const proxy = document.createElement('input');
+  proxy.type = 'text';
+  proxy.setAttribute('aria-hidden', 'true');
+  proxy.tabIndex = -1;
+  proxy.style.setProperty('position', 'fixed', 'important');
+  proxy.style.setProperty('top', '204px', 'important');
+  proxy.style.setProperty('left', '48px', 'important');
+  proxy.style.setProperty('width', safeWidth, 'important');
+  proxy.style.setProperty('height', safeHeight, 'important');
+  proxy.style.setProperty('opacity', '0.01', 'important');
+  proxy.style.setProperty('z-index', '99999', 'important');
+  proxy.style.setProperty('pointer-events', 'none', 'important');
+  document.body.appendChild(proxy);
+
+  try {
+    proxy.focus({ preventScroll: true });
+  } catch {
+    proxy.focus();
+  }
+
+  window.setTimeout(() => {
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+    proxy.remove();
+  }, 250);
 };
 
 type CatalogManagementModalProps = {
@@ -215,6 +253,14 @@ export default function CatalogManagementModal({
     setPendingBulkDelete(null);
   };
 
+  const handleCatalogRenameTouchStart = (event: TouchEvent<HTMLInputElement>) => {
+    if (!shouldUseCatalogRenameFocusAssist()) return;
+    if (event.currentTarget !== event.target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    focusCatalogRenameWithoutViewportPull(event.currentTarget);
+  };
+
   const confirmBulkDelete = async () => {
     if (!pendingBulkDelete) return;
     for (const id of pendingBulkDelete.ids) {
@@ -406,7 +452,7 @@ export default function CatalogManagementModal({
                         )}
                         <div className="catalog-manager__main">
                           {editing
-                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename project ${project.title}`} />
+                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} onTouchStart={handleCatalogRenameTouchStart} aria-label={`Rename project ${project.title}`} />
                             : <span className="catalog-manager__name">{project.title}</span>}
                           {!editing && <span className="catalog-manager__usage">{usageLabel(projectUsage.get(project.projectID) ?? 0)}</span>}
                         </div>
@@ -437,7 +483,7 @@ export default function CatalogManagementModal({
                         <div className="catalog-manager__main">
                           {!editing && <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />}
                           {editing
-                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} aria-label={`Rename tag ${tag.title}`} />
+                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} onTouchStart={handleCatalogRenameTouchStart} aria-label={`Rename tag ${tag.title}`} />
                             : <span className="catalog-manager__name">{tag.title}</span>}
                           {editing && renderColorControl(editingColor, setEditingColor, `Color for tag ${tag.title}`)}
                           {!editing && <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>}

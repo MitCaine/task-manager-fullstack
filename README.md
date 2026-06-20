@@ -317,8 +317,11 @@ Mobile/coarse-pointer edit descriptions intentionally use the title-style `input
 
 The final production fix avoids Capacitor Keyboard plugin hooks, shell transforms, broad viewport-height calculations, and pre-focus blocking. It relies on focused-field touchmove prevention, bounded textarea overscroll prevention, stable focus transition tracking, and the mobile edit panel structure. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
 
+The Project/Tag Management rename fields also use a narrow iOS focus-assist shim for the case where WKWebView visually pulls low modal text fields above the keyboard even though DOM scroll and visual viewport metrics remain stable. Details and reuse rules are documented in `docs/mobile-focus-system.md`.
+
 ## Recent Improvements
 
+- Added a scoped iOS WKWebView focus assist for Project/Tag Management rename fields and documented the diagnostic evidence in `docs/mobile-focus-system.md`.
 - Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
 - Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
 - Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.

@@ -260,26 +260,46 @@ function mockElementScrollRange(element: HTMLElement, scrollHeight: number, clie
   Object.defineProperty(element, 'scrollTop', { configurable: true, writable: true, value: scrollTop });
 }
 
+function mockMediaQueryList(query: string, matches: boolean) {
+  return {
+    matches,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  };
+}
+
+function restoreOrInstallSafeMatchMedia(originalMatchMedia: typeof window.matchMedia) {
+  let canRestoreOriginal = false;
+  try {
+    canRestoreOriginal = typeof originalMatchMedia === 'function'
+      && typeof originalMatchMedia('(pointer: coarse)')?.matches === 'boolean';
+  } catch {
+    canRestoreOriginal = false;
+  }
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: canRestoreOriginal
+      ? originalMatchMedia
+      : jest.fn().mockImplementation(query => mockMediaQueryList(query, false)),
+  });
+}
+
 function mockMobileTouchEnvironment() {
   const originalMatchMedia = window.matchMedia;
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: jest.fn().mockImplementation(query => ({
-      matches: query.includes('pointer: coarse') || query.includes('max-width: 720px'),
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    })),
+    value: jest.fn().mockImplementation(query => mockMediaQueryList(
+      query,
+      query.includes('pointer: coarse') || query.includes('max-width: 720px'),
+    )),
   });
   return () => {
-    Object.defineProperty(window, 'matchMedia', {
-      configurable: true,
-      value: originalMatchMedia,
-    });
+    restoreOrInstallSafeMatchMedia(originalMatchMedia);
   };
 }
 
@@ -287,22 +307,10 @@ function mockDesktopMediaEnvironment() {
   const originalMatchMedia = window.matchMedia;
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: jest.fn().mockImplementation(query => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    })),
+    value: jest.fn().mockImplementation(query => mockMediaQueryList(query, false)),
   });
   return () => {
-    Object.defineProperty(window, 'matchMedia', {
-      configurable: true,
-      value: originalMatchMedia,
-    });
+    restoreOrInstallSafeMatchMedia(originalMatchMedia);
   };
 }
 
@@ -4323,6 +4331,160 @@ test('catalog management edit search and selection modes are mutually exclusive'
   expect(scope.queryByRole('alert')).not.toBeInTheDocument();
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
+});
+
+test('catalog rename touch focus uses a proxy input and leaves the real input in the row', async () => {
+  const restoreMobile = mockMobileTouchEnvironment();
+  jest.useFakeTimers();
+  mockGetProjects.mockResolvedValue([{ projectID: 7, title: 'Home' }]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const homeRow = within(dialog).getByText('Home').closest('.catalog-manager__item');
+  if (!(homeRow instanceof HTMLElement)) throw new Error('Home project row not found');
+  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
+  const renameInput = within(homeRow).getByLabelText('Rename project Home') as HTMLInputElement;
+  renameInput.style.position = 'absolute';
+  renameInput.style.top = '12px';
+  renameInput.style.left = '16px';
+  renameInput.style.width = '180px';
+  renameInput.style.zIndex = '3';
+  renameInput.style.background = 'rgb(1, 2, 3)';
+  jest.spyOn(renameInput, 'getBoundingClientRect').mockReturnValue({
+    x: 0,
+    y: 498,
+    top: 498,
+    bottom: 530,
+    left: 0,
+    right: 180,
+    width: 180,
+    height: 32,
+    toJSON: () => ({}),
+  });
+  const focus = jest.spyOn(renameInput, 'focus');
+  const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
+  const stopPropagation = jest.spyOn(Event.prototype, 'stopPropagation');
+  const bodyChildrenBeforeTouch = document.body.children.length;
+
+  await act(async () => {
+    fireEvent.touchStart(renameInput);
+  });
+
+  expect(preventDefault).toHaveBeenCalled();
+  expect(stopPropagation).toHaveBeenCalled();
+  expect(focus).not.toHaveBeenCalled();
+  expect(document.body.children.length).toBe(bodyChildrenBeforeTouch + 1);
+  const proxy = document.body.lastElementChild;
+  expect(proxy).toBeInstanceOf(HTMLInputElement);
+  expect(proxy).not.toBe(renameInput);
+  expect(proxy).toHaveAttribute('aria-hidden', 'true');
+  expect(proxy).toHaveStyle({ position: 'fixed', top: '204px', left: '48px', width: '180px', height: '32px', opacity: '0.01', zIndex: '99999', pointerEvents: 'none' });
+  expect(renameInput.style.position).toBe('absolute');
+  expect(renameInput.style.top).toBe('12px');
+  expect(renameInput.style.left).toBe('16px');
+  expect(renameInput.style.right).toBe('');
+  expect(renameInput.style.width).toBe('180px');
+  expect(renameInput.style.zIndex).toBe('3');
+  expect(renameInput.style.background).toBe('rgb(1, 2, 3)');
+
+  act(() => {
+    jest.advanceTimersByTime(250);
+  });
+
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  expect(document.body.children.length).toBe(bodyChildrenBeforeTouch);
+  expect(renameInput.style.position).toBe('absolute');
+  expect(renameInput.style.top).toBe('12px');
+  expect(renameInput.style.left).toBe('16px');
+  expect(renameInput.style.right).toBe('');
+  expect(renameInput.style.width).toBe('180px');
+  expect(renameInput.style.zIndex).toBe('3');
+  expect(renameInput.style.background).toBe('rgb(1, 2, 3)');
+  focus.mockRestore();
+  preventDefault.mockRestore();
+  stopPropagation.mockRestore();
+  jest.useRealTimers();
+  restoreMobile();
+});
+
+test('catalog rename focus assist does not run for tag color or edit actions', async () => {
+  const restoreMobile = mockMobileTouchEnvironment();
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const errandRow = within(dialog).getByText('Errand').closest('.catalog-manager__item');
+  if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
+  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  const renameInput = within(errandRow).getByLabelText('Rename tag Errand') as HTMLInputElement;
+  const focus = jest.spyOn(renameInput, 'focus');
+  const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
+  const stopPropagation = jest.spyOn(Event.prototype, 'stopPropagation');
+  const colorInput = within(errandRow).getByLabelText('Color for tag Errand');
+  const colorControl = colorInput.closest('.catalog-manager__color-control');
+  if (!(colorControl instanceof HTMLElement)) throw new Error('Tag color control not found');
+
+  await act(async () => {
+    fireEvent.touchStart(colorControl);
+  });
+  expect(preventDefault).not.toHaveBeenCalled();
+  expect(stopPropagation).not.toHaveBeenCalled();
+  expect(focus).not.toHaveBeenCalled();
+
+  await act(async () => {
+    fireEvent.change(colorInput, { target: { value: '#ef4444' } });
+  });
+  expect(colorInput).toHaveValue('#ef4444');
+
+  for (const buttonName of [/^save$/i, /^cancel$/i, /^delete$/i]) {
+    preventDefault.mockClear();
+    stopPropagation.mockClear();
+    focus.mockClear();
+    fireEvent.touchStart(within(errandRow).getByRole('button', { name: buttonName }));
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(stopPropagation).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+  }
+
+  focus.mockRestore();
+  preventDefault.mockRestore();
+  stopPropagation.mockRestore();
+  restoreMobile();
+});
+
+test('catalog rename touch focus assist does not intercept desktop pointer input', async () => {
+  const restoreDesktop = mockDesktopMediaEnvironment();
+  mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
+  render(<App />);
+  await screen.findByRole('button', { name: /settings/i });
+
+  await act(async () => { openSettings(); });
+  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
+  const errandRow = within(dialog).getByText('Errand').closest('.catalog-manager__item');
+  if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
+  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  const renameInput = within(errandRow).getByLabelText('Rename tag Errand') as HTMLInputElement;
+  const focus = jest.spyOn(renameInput, 'focus');
+  const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
+
+  await act(async () => {
+    fireEvent.touchStart(renameInput);
+  });
+
+  expect(preventDefault).not.toHaveBeenCalled();
+  expect(focus).not.toHaveBeenCalled();
+  expect(renameInput.style.position).toBe('');
+  expect(renameInput.style.width).toBe('');
+  focus.mockRestore();
+  preventDefault.mockRestore();
+  restoreDesktop();
 });
 
 test('catalog management selection clears when switching between project and tag tabs', async () => {

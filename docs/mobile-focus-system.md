@@ -302,6 +302,83 @@ Debug logging is enabled through the existing
 `taskManagerTextFocusDebug` mechanism. Diagnostic logging must remain disabled
 by default.
 
+## Catalog Rename Focus Assist
+
+Project and tag renaming inside the Catalog Management modal has one
+additional iOS/WKWebView-specific focus assist. This applies only to the
+Project/Tag Management rename textboxes, not to create-task fields, task edit
+fields, search fields, create textareas, or general modal controls.
+
+### Symptom
+
+On iOS/WKWebView, focusing a catalog rename textbox while it is low in the
+modal can visually pull the app shell and expose a white gap. Web Inspector
+showed that the focused input's `getBoundingClientRect()` remained stable,
+`window.scrollY`, `document.documentElement.scrollTop`, and
+`document.body.scrollTop` remained `0`, and `visualViewport.offsetTop` and
+`visualViewport.pageTop` remained `0`. The visible motion therefore did not
+present as normal DOM scroll, element movement, or reported visual viewport
+offset drift.
+
+### Cause
+
+The observed behavior is WKWebView's focused-input visibility adjustment. When
+the input is too low relative to the keyboard, iOS attempts to keep the focused
+caret visible by recomposing or panning the visible app surface. This movement
+can occur even when DOM geometry and scroll metrics report no movement.
+
+Web Inspector isolated the threshold: the inline catalog rename input around
+`top: 498px` triggered the pull, while the same input temporarily moved to
+fixed positions around `top: 180px`, `240px`, `300px`, or `360px` did not.
+Moving the edit row higher in the modal, near `top: 204px`, also avoided the
+pull.
+
+### Failed Normal Fixes
+
+The following fixes addressed adjacent issues or proved insufficient for this
+specific path:
+
+- setting the rename input to `16px` fixed input zoom but not the pull;
+- adding focus scopes did not stop WKWebView's visibility adjustment;
+- edit-entry scroll reset did not help because document scroll was already
+  stable;
+- modal overlay height, overflow, and scroll-owner changes did not move the
+  reported geometry;
+- changing native or DOM background colors could mask the exposed color but did
+  not stop the motion.
+
+### Actual Fix
+
+`CatalogManagementModal.tsx` intercepts touch focus for catalog rename inputs
+on mobile/coarse-pointer devices only. The handler:
+
+1. prevents the default touch focus;
+2. stops propagation so the same touch sequence cannot fall through to nearby
+   edit-row controls;
+3. appends a temporary proxy `input` to `document.body`;
+4. positions the proxy as `fixed` near the safe top portion of the viewport;
+5. focuses the proxy with `preventScroll` when supported;
+6. after a short delay, focuses the real rename input with `preventScroll`;
+7. removes the proxy.
+
+The real rename input remains in the edit row for the entire sequence. An
+earlier production attempt temporarily moved the real input itself; that avoided
+the viewport pull, but it also let the adjacent Tag Color control occupy the row
+and receive the later tap/click target. The proxy-input approach satisfies
+WKWebView's focus geometry without creating a layout vacancy in the edit row.
+The global `visualViewport` logic is not changed.
+
+### Future Reuse Rule
+
+Use this focus assist only for iOS/WKWebView text fields that pull because they
+focus too low in the viewport. First verify the diagnosis with Web Inspector by
+temporarily moving the same input to a safe fixed `top` before focus. If moving
+the real editor higher is acceptable, prefer that normal layout fix instead.
+
+This is an iOS focus-assist shim, not a general layout pattern. Do not apply it
+globally and do not modify the global text-focus guard unless that global
+system itself regresses.
+
 ## Invariants
 
 The following invariants define the working mobile focus architecture:

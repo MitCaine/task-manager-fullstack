@@ -75,6 +75,11 @@ type Theme = 'system' | 'light' | 'dark';
 type MobilePage = 'add' | 'tasks' | 'calendar';
 type CreateOpenControl = string | null;
 
+function mediaQueryMatches(query: string): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return Boolean(window.matchMedia(query)?.matches);
+}
+
 function toggleOpenControl(
   setOpenControl: Dispatch<SetStateAction<string | null>>,
   control: string,
@@ -324,11 +329,7 @@ function App() {
   const toastIdRef = useRef(0);
 
   const [mobilePage, setMobilePage] = useState<MobilePage>('tasks');
-  const [mobileEditLayout, setMobileEditLayout] = useState(() =>
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(max-width: 720px), (pointer: coarse)').matches
-  );
+  const [mobileEditLayout, setMobileEditLayout] = useState(() => mediaQueryMatches('(max-width: 720px), (pointer: coarse)'));
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
   const taskLongPressTimer = useRef<number | null>(null);
@@ -441,6 +442,7 @@ function App() {
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
     const query = window.matchMedia('(max-width: 720px), (pointer: coarse)');
+    if (!query) return;
     const update = () => setMobileEditLayout(query.matches);
     update();
     if (typeof query.addEventListener === 'function') {
@@ -474,7 +476,7 @@ function App() {
       return `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ''}${className}${label ? `[${label}]` : ''}`;
     };
     const isMobileTouchEnvironment = () =>
-      (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) ||
+      mediaQueryMatches('(pointer: coarse)') ||
       'ontouchstart' in window ||
       navigator.maxTouchPoints > 0;
     const getScrollSnapshot = () => {
