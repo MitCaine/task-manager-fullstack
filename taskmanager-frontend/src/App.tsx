@@ -43,18 +43,16 @@ import AddTaskPreview from './components/create-task/AddTaskPreview';
 import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
 import ConfirmDelete from './components/shared/ConfirmDelete';
-import DetailSectionShell from './components/shared/DetailSectionShell';
 import SearchableCatalogList from './components/shared/SearchableCatalogList';
 import TagColorPicker from './components/forms/TagColorPicker';
 import InlineProjectForm from './components/forms/InlineProjectForm';
 import InlineTagForm from './components/forms/InlineTagForm';
-import RemindersSection from './components/detail-panel/RemindersSection';
 import DetailStatusBadges from './components/detail-panel/DetailStatusBadges';
 import DetailHeader from './components/detail-panel/DetailHeader';
 import DetailRepeatRow from './components/detail-panel/DetailRepeatRow';
 import DetailDescriptionField from './components/detail-panel/DetailDescriptionField';
 import DetailScheduleFields from './components/detail-panel/DetailScheduleFields';
-import { DetailLinksPanel, DetailNotesPanel, DetailSubtasksPanel } from './components/detail-panel/DetailAuxiliaryPanels';
+import DetailResourcePanels from './components/detail-panel/DetailResourcePanels';
 import ErrorBanner from './components/shared/ErrorBanner';
 import SelectedProjectChip from './components/create-task/SelectedProjectChip';
 import TaskCardMain from './components/task-list/TaskCardMain';
@@ -3030,44 +3028,34 @@ function App() {
 
             </div>
 
-            <DetailSubtasksPanel
-              isOpen={openSections.has('subtasks')}
-              onToggle={() => togglePanelSection('subtasks')}
-              subtasks={panelSubtasks}
-              doneCount={panelDone}
-              newSubtaskTitle={newSubtaskTitle}
-              editingSubtaskId={editingSubtaskId}
-              editingSubtaskTitle={editingSubtaskTitle}
-              onNewSubtaskTitleChange={setNewSubtaskTitle}
-              onAddSubtask={() => addSubtask(selectedTaskId)}
-              onToggleSubtask={subtask => toggleSubtask(selectedTaskId, subtask)}
-              onRemoveSubtask={subtaskId => removeSubtask(selectedTaskId, subtaskId)}
-              onStartEditSubtask={subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); }}
-              onEditingSubtaskTitleChange={setEditingSubtaskTitle}
-              onSaveSubtaskTitle={subtask => updateSubtaskTitle(selectedTaskId, subtask)}
-              onCancelEditSubtask={() => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); }}
-            />
-
-            <DetailNotesPanel
-              isOpen={openSections.has('notes')}
-              onToggle={() => togglePanelSection('notes')}
-              notes={panelNotes}
-              newNoteContent={newNoteContent}
-              onNoteContentChange={setNewNoteContent}
-              onAddNote={() => addNote(selectedTaskId)}
-              onRemoveNote={noteId => removeNote(selectedTaskId, noteId)}
-              formatDateTime={formatDateTime}
-            />
-
-            <DetailSectionShell
-              title="Reminders"
-              isOpen={openSections.has('reminders')}
-              onToggle={() => togglePanelSection('reminders')}
-              badgeContent={panelReminders.length > 0 ? panelReminders.length : null}
-            >
-              <RemindersSection
-                reminders={panelReminders}
-                dateTimeRowProps={{
+            <DetailResourcePanels
+              openSections={openSections}
+              onToggleSection={togglePanelSection}
+              subtasksPanel={{
+                subtasks: panelSubtasks,
+                doneCount: panelDone,
+                newSubtaskTitle,
+                editingSubtaskId,
+                editingSubtaskTitle,
+                onNewSubtaskTitleChange: setNewSubtaskTitle,
+                onAddSubtask: () => addSubtask(selectedTaskId),
+                onToggleSubtask: subtask => toggleSubtask(selectedTaskId, subtask),
+                onRemoveSubtask: subtaskId => removeSubtask(selectedTaskId, subtaskId),
+                onStartEditSubtask: subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); },
+                onEditingSubtaskTitleChange: setEditingSubtaskTitle,
+                onSaveSubtaskTitle: subtask => updateSubtaskTitle(selectedTaskId, subtask),
+                onCancelEditSubtask: () => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); },
+              }}
+              notesPanel={{
+                notes: panelNotes,
+                newNoteContent,
+                onNoteContentChange: setNewNoteContent,
+                onAddNote: () => addNote(selectedTaskId),
+                onRemoveNote: noteId => removeNote(selectedTaskId, noteId),
+              }}
+              remindersPanel={{
+                reminders: panelReminders,
+                dateTimeRowProps: {
                   editorScope: `reminder-${selectedTaskId}`,
                   openTimeEditorScope,
                   setOpenTimeEditorScope,
@@ -3082,25 +3070,22 @@ function App() {
                   onHour: setNewReminderHour,
                   onMinute: setNewReminderMinute,
                   onAmpm: setNewReminderAmpm,
-                }}
-                newReminderMessage={newReminderMessage}
-                onReminderMessageChange={setNewReminderMessage}
-                onAddReminder={() => addReminder(selectedTaskId)}
-                onRemoveReminder={reminderId => removeReminder(selectedTaskId, reminderId)}
-                formatDateTime={formatDateTime}
-              />
-            </DetailSectionShell>
-
-            <DetailLinksPanel
-              isOpen={openSections.has('attachments')}
-              onToggle={() => togglePanelSection('attachments')}
-              attachments={attachments[selectedTaskId] ?? []}
-              newAttachmentUrl={newAttachmentUrl}
-              newAttachmentLabel={newAttachmentLabel}
-              onAttachmentUrlChange={setNewAttachmentUrl}
-              onAttachmentLabelChange={setNewAttachmentLabel}
-              onAddAttachment={() => addAttachment(selectedTaskId)}
-              onRemoveAttachment={attachmentId => removeAttachment(selectedTaskId, attachmentId)}
+                },
+                newReminderMessage,
+                onReminderMessageChange: setNewReminderMessage,
+                onAddReminder: () => addReminder(selectedTaskId),
+                onRemoveReminder: reminderId => removeReminder(selectedTaskId, reminderId),
+              }}
+              linksPanel={{
+                attachments: attachments[selectedTaskId] ?? [],
+                newAttachmentUrl,
+                newAttachmentLabel,
+                onAttachmentUrlChange: setNewAttachmentUrl,
+                onAttachmentLabelChange: setNewAttachmentLabel,
+                onAddAttachment: () => addAttachment(selectedTaskId),
+                onRemoveAttachment: attachmentId => removeAttachment(selectedTaskId, attachmentId),
+              }}
+              formatDateTime={formatDateTime}
             />
 
           </div>
