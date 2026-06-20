@@ -437,9 +437,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     return null;
   };
 
-  const fmtDate = (dt: string) =>
-    new Date(dt).toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
-
   const fmtShortDate = (dt: string) =>
     new Date(dt).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 

@@ -173,10 +173,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Workspace label is persisted locally because it is UI-only.
-  const [workspaceName, setWorkspaceName] = useState(() => localStorage.getItem('workspaceName') ?? 'Task Manager');
-  const [editingWorkspaceName, setEditingWorkspaceName] = useState(false);
-
   // Draft values for the task creation form.
   const [input, setInput] = useState('');
   const [titleError, setTitleError] = useState(false);
@@ -393,7 +389,6 @@ function App() {
 
   // Element refs used for shortcuts, dropdown positioning, and focus return.
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const workspaceInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
@@ -1914,31 +1909,6 @@ function App() {
     setEditTaskTagIDs(prev => [...prev, saved.tagID]);
     setShowInlineEditTag(false);
     scheduleAutoSave(0);
-  };
-
-  const addTagToTaskHandler = async (taskId: number, tagId: number) => {
-    try {
-      await addTagToTask(taskId, tagId);
-      setTasks(prev => prev.map(t => {
-        if (t.taskID !== taskId) return t;
-        const tag = tags.find(tg => tg.tagID === tagId);
-        if (!tag || t.tags?.some(tg => tg.tagID === tagId)) return t;
-        return { ...t, tags: [...(t.tags ?? []), tag] };
-      }));
-    } catch {
-      setError('Failed to add tag.');
-    }
-  };
-
-  const removeTagFromTaskHandler = async (taskId: number, tagId: number) => {
-    try {
-      await removeTagFromTask(taskId, tagId);
-      setTasks(prev => prev.map(t =>
-        t.taskID !== taskId ? t : { ...t, tags: (t.tags ?? []).filter(tg => tg.tagID !== tagId) }
-      ));
-    } catch {
-      setError('Failed to remove tag.');
-    }
   };
 
   // Task duplication preserves metadata that belongs to the task itself.

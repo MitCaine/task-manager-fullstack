@@ -578,10 +578,6 @@ select {
   width: clamp(340px, 24vw, 420px);
 }
 
-.app__list--board {
-  width: clamp(760px, 48vw, 980px);
-}
-
 /* ── Detail panel ───────────────────────────────────────── */
 @keyframes slideInRight {
   from { opacity: 0; transform: translateX(24px); }
@@ -636,10 +632,6 @@ select {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 1rem;
-}
-
-.detail__save-btn {
-  align-self: flex-start;
 }
 
 .detail__section {
@@ -740,68 +732,6 @@ select {
 
 .view-tab:hover { background: var(--surface); color: var(--text); }
 .view-tab--active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-/* ── Side tabs ──────────────────────────────────────────── */
-.side-tabs {
-  position: absolute;
-  left: 0;
-  top: 64px;
-  transform: translateX(-100%);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 10;
-}
-
-.side-tab {
-  padding: 10px 14px;
-  border-radius: 10px 0 0 10px;
-  border: 1px solid var(--border);
-  border-right: none;
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-family: inherit;
-  font-weight: 500;
-  white-space: nowrap;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-
-.side-tab:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.side-tab--active {
-  background: var(--card-bg);
-  color: var(--text);
-  border-color: var(--border);
-}
-
-/* ── Side panel (Projects / Tags) ───────────────────────── */
-.side-panel {
-  border-bottom: 1px solid var(--border);
-  padding: 0.75rem 0 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.side-panel__hdr {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.side-panel__title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
 
 /* ── Typography ─────────────────────────────────────────── */
 .app__title {
@@ -1683,18 +1613,6 @@ input[type="datetime-local"] {
   background: color-mix(in srgb, var(--accent) 22%, var(--card-bg));
   border-color: var(--accent);
   color: var(--text);
-}
-
-/* ── Inline edit form ───────────────────────────────────── */
-.item__edit-form {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.item__edit-form .input {
-  width: 100%;
 }
 
 .item__edit-card {
@@ -2706,62 +2624,6 @@ input[type="datetime-local"] {
   opacity: 1;
 }
 
-/* ── Project manager panel ──────────────────────────────── */
-.project-manager {
-  border-top: 1.5px solid var(--border);
-  padding-top: 0.75rem;
-}
-
-.project-manager__hdr {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.project-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.4rem;
-}
-
-.project-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  padding: 0.25rem 0.4rem;
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.project-row > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-/* ── Calendar wrapper ───────────────────────────────────── */
-.cal-wrapper__hdr {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
-}
-
-/* ── Color picker ───────────────────────────────────────── */
-.color-picker {
-  width: 2.2rem;
-  height: 2.2rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  padding: 1px;
-  flex-shrink: 0;
-}
-
 /* ── Checkbox ───────────────────────────────────────────── */
 .item__checkbox {
   width: 17px;
@@ -3001,20 +2863,6 @@ input[type="datetime-local"] {
   flex-direction: column;
   gap: 0.55rem;
   margin-top: 0.75rem;
-}
-
-.quick-date-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.35rem;
-}
-
-.quick-date-chip {
-  min-width: 0;
-  justify-content: center;
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
-  white-space: nowrap;
 }
 
 .add-preview {
@@ -3706,114 +3554,6 @@ input[type="datetime-local"] {
   flex-shrink: 0;
 }
 
-/* ── Kanban board ───────────────────────────────────────── */
-.kanban {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(190px, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-  align-items: start;
-  overflow-x: auto;
-  min-width: 0;
-  padding-bottom: 0.35rem;
-}
-
-.kanban__col {
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem;
-  min-height: 120px;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.kanban__col:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-}
-
-.kanban__col-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.kanban__col-title {
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-.kanban__col-count {
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: var(--border);
-  color: var(--text-faint);
-  padding: 0.1em 0.55em;
-  border-radius: 999px;
-}
-
-.kanban__card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.65rem 0.75rem;
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  transition: box-shadow 0.15s, opacity 0.15s;
-  user-select: none;
-}
-
-.kanban__card:hover {
-  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
-}
-
-.kanban__card--dragging {
-  opacity: 0.45;
-}
-
-.kanban__card--overdue {
-  border-left: 3px solid var(--overdue);
-}
-
-.kanban__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 72px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  color: var(--text-faint);
-  font-size: 0.8rem;
-}
-
-.kanban__card-top {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.3rem;
-}
-
-.kanban__card-title {
-  font-size: 0.88rem;
-  font-weight: 500;
-  color: var(--text);
-  word-break: break-word;
-}
-
-.kanban__card-date {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-faint);
-  margin-bottom: 0.3rem;
-}
-
-.kanban__card-chips {
-  margin-top: 0.3rem;
-}
-
 /* ── Long-press status move ─────────────────────────────── */
 .status-move {
   position: fixed;
@@ -4090,7 +3830,6 @@ input[type="datetime-local"] {
   .app__add,
   .app__list,
   .app__list--narrow,
-  .app__list--board,
   .app__detail {
     width: 100%;
     max-width: 100%;
@@ -4570,14 +4309,6 @@ input[type="datetime-local"] {
     margin-top: 0.65rem;
   }
 
-  .app__add .quick-date-chip {
-    min-height: 1.8rem;
-    padding-top: 0.28rem;
-    padding-bottom: 0.28rem;
-    font-size: 0.72rem;
-    border-radius: 7px;
-  }
-
   .app__add .add-preview {
     padding: 0.58rem 0.65rem;
     min-height: 4.6rem;
@@ -4957,36 +4688,6 @@ input[type="datetime-local"] {
 
   .stats__row {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .kanban {
-    grid-template-columns: minmax(240px, 1fr);
-    gap: 0.55rem;
-    margin-top: 0.55rem;
-    overflow-x: visible;
-    padding-bottom: 0;
-  }
-
-  .kanban__col {
-    padding: 0.55rem;
-    min-height: 96px;
-  }
-
-  .kanban__col-header {
-    margin-bottom: 0.5rem;
-  }
-
-  .kanban__card {
-    padding: 0.55rem 0.6rem;
-    margin-bottom: 0.4rem;
-  }
-
-  .kanban__card-title {
-    font-size: 0.82rem;
-  }
-
-  .kanban__empty {
-    min-height: 52px;
   }
 
   .toasts {
