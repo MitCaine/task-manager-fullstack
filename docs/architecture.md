@@ -406,6 +406,40 @@ interfaces.
 
 ## Extraction Guidance
 
+### Current `App.tsx` Extraction Boundary
+
+A follow-up architecture audit after the `TaskListToolbar` and
+`DetailResourcePanels` extractions found no remaining low-risk "extract now"
+candidates in `App.tsx`. Those components are appropriate presentation
+islands: state ownership stays in `App.tsx`, their prop surfaces are bounded,
+and they do not move protected mobile, focus, or autosave behavior.
+
+Further extraction should be deferred until a specific feature or bug requires
+touching the affected region. Large JSX alone is not sufficient justification.
+Extract presentation islands only when state ownership remains in `App.tsx`, the
+prop surface is bounded, and protected mobile/focus behavior is untouched.
+
+The following regions remain in `App.tsx` intentionally:
+
+- iOS focus, `visualViewport`, and text-focus debug infrastructure;
+- Escape, outside-click, and focus restoration coordination;
+- add, update, complete, delete, and duplicate task flows;
+- recurrence handling;
+- selected-task open/close lifecycle;
+- autosave ownership;
+- project/tag deletion reconciliation;
+- bulk task actions;
+- swipe and pager handlers;
+- mobile edit row placement.
+
+The following large regions are medium- or high-risk extraction targets and
+should not be extracted casually:
+
+- `renderInlineEditForm`;
+- the create-task panel;
+- the task-list row shell;
+- detail metadata and editor controls.
+
 ### Appropriate Boundaries
 
 Appropriate boundaries include:
