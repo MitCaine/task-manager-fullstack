@@ -262,6 +262,7 @@ Directory: `taskmanager-frontend/src/components/task-list/`
 
 These components render:
 
+- task-list toolbar actions and app-level modal mounts;
 - search, filter, sort, and view controls;
 - task cards;
 - status, project, priority, date, tag, and subtask summaries;
@@ -270,7 +271,8 @@ These components render:
 
 Task-list components emit user intent through callbacks. They do not mutate
 tasks or own status movement, selection, editing, duplication, deletion,
-long-press orchestration, or mobile edit placement.
+long-press orchestration, settings/statistics state, catalog-management state, or
+mobile edit placement.
 
 ### Detail-Panel Components
 
@@ -281,6 +283,7 @@ These components render:
 - detail header and description;
 - scheduling and quick-shift controls;
 - recurrence and status information;
+- resource-panel composition;
 - subtasks, notes, reminders, and links;
 - collapsible section shells and badges.
 

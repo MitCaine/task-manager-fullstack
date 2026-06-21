@@ -109,10 +109,10 @@ Major component groups are:
 
 - `components/create-task/`: create and edit field presentation, recurrence
   controls, and project/tag chips;
-- `components/task-list/`: list controls, task cards, list labels, dividers,
-  and empty states;
+- `components/task-list/`: task-list toolbar, list controls, task cards, list
+  labels, dividers, and empty states;
 - `components/detail-panel/`: detail header, scheduling fields, status badges,
-  and task-associated resource panels;
+  detail-resource panel composition, and task-associated resource panels;
 - `components/shared/`: reusable date/time controls, section shells, banners,
   confirmations, and toasts;
 - `components/dialogs/` and `components/settings/`: status movement, settings,

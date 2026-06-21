@@ -285,7 +285,7 @@ The backend exposes REST endpoints for:
 - `/tags`
 - `/attachments`
 
-The backend currently uses a simplified controller/repository structure without a dedicated service layer. This kept iteration speed high while building the task, calendar, recurrence, and mobile interaction flows. A future backend refactor could move business logic into service classes as the API grows.
+The backend currently uses a simplified controller/repository structure without a dedicated service layer. This kept iteration speed high while building the task, calendar, recurrence, and mobile interaction flows. A service owner should be introduced only when a workflow needs reusable business rules or transactions across several repositories.
 
 ## Validation
 
@@ -322,6 +322,7 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 ## Recent Improvements
 
 - Added a scoped iOS WKWebView focus assist for Project/Tag Management rename fields and documented the diagnostic evidence in `docs/mobile-focus-system.md`.
+- Extracted `TaskListToolbar` and `DetailResourcePanels` as bounded presentation components while keeping task state, autosave, focus, and mobile ownership in `App.tsx`.
 - Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
 - Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
 - Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
@@ -347,7 +348,6 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 - Push or local notifications for reminders.
 - Drag-and-drop status movement.
 - Offline-first persistence or a local cache.
-- Service-layer extraction for backend business logic.
 - More explicit database migration tooling.
 - Authentication and deployment hardening.
 - Import/export support.
@@ -356,7 +356,8 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 
 ## Notes
 
-- The frontend source is centered around `taskmanager-frontend/src/App.tsx` with the calendar in `taskmanager-frontend/src/components/Calendar.tsx`.
+- The frontend composition root is `taskmanager-frontend/src/App.tsx`; current extraction boundaries are documented in `docs/architecture.md` and `docs/ownership-map.md`.
+- Recent bounded presentation extractions include `taskmanager-frontend/src/components/task-list/TaskListToolbar.tsx` and `taskmanager-frontend/src/components/detail-panel/DetailResourcePanels.tsx`.
 - Shared frontend API helpers are in `taskmanager-frontend/src/api/tasks.ts`.
 - Shared frontend types are in `taskmanager-frontend/src/types/task.ts`.
 - The MySQL schema is kept in `SQL Files/databasemodel.sql`.
