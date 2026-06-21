@@ -725,7 +725,8 @@ Display task schedules consistently in list, preview, calendar, and detail views
 
 **Purpose**
 
-Configure tasks to repeat daily, weekly, monthly, or not at all.
+Configure tasks to repeat on constrained day, week, month, or year intervals,
+or not at all.
 
 **Entry points**
 

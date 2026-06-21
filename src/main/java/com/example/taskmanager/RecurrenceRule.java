@@ -11,8 +11,14 @@ public class RecurrenceRule {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long recurrenceRuleID;
 
-    @Column(name = "frequency", nullable = false)
+    @Column(name = "frequency")
     private String frequency;
+
+    @Column(name = "intervalUnit", nullable = false)
+    private String intervalUnit;
+
+    @Column(name = "intervalValue", nullable = false)
+    private int intervalValue = 1;
 
     @Column(name = "timesOfRecurrence", nullable = false)
     private int timesOfRecurrence = 0;
@@ -27,6 +33,10 @@ public class RecurrenceRule {
     public void setRecurrenceRuleID(Long recurrenceRuleID) { this.recurrenceRuleID = recurrenceRuleID; }
     public String getFrequency() { return frequency; }
     public void setFrequency(String frequency) { this.frequency = frequency; }
+    public String getIntervalUnit() { return intervalUnit; }
+    public void setIntervalUnit(String intervalUnit) { this.intervalUnit = intervalUnit; }
+    public int getIntervalValue() { return intervalValue; }
+    public void setIntervalValue(int intervalValue) { this.intervalValue = intervalValue; }
     public int getTimesOfRecurrence() { return timesOfRecurrence; }
     public void setTimesOfRecurrence(int timesOfRecurrence) { this.timesOfRecurrence = timesOfRecurrence; }
     public LocalDateTime getStartDateTime() { return startDateTime; }

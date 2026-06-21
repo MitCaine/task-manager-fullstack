@@ -458,6 +458,8 @@ class TaskControllerTest {
         RecurrenceRule rule = new RecurrenceRule();
         rule.setRecurrenceRuleID(10L);
         rule.setFrequency("weekly");
+        rule.setIntervalUnit("week");
+        rule.setIntervalValue(1);
         rule.setTimesOfRecurrence(0);
         rule.setStartDateTime(LocalDateTime.of(2026, 1, 1, 0, 0));
         rule.setEndDateTime(LocalDateTime.of(2036, 1, 1, 0, 0));
@@ -469,7 +471,9 @@ class TaskControllerTest {
 
         mockMvc.perform(get("/tasks/1/recurrence"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.frequency").value("weekly"));
+                .andExpect(jsonPath("$.frequency").value("weekly"))
+                .andExpect(jsonPath("$.intervalUnit").value("week"))
+                .andExpect(jsonPath("$.intervalValue").value(1));
     }
 
     @Test
@@ -493,34 +497,44 @@ class TaskControllerTest {
     // PATCH /tasks/{id}/repeat
 
     @Test
-    void setRepeat_withFrequency_createsRule() throws Exception {
+    void setRepeat_withInterval_createsRule() throws Exception {
         Task task = makeTask(1L, "Task", null, LocalDateTime.of(2026, 6, 1, 9, 0));
         task.setRecurrenceRuleID(null);
         RecurrenceRule savedRule = new RecurrenceRule();
         savedRule.setRecurrenceRuleID(5L);
-        savedRule.setFrequency("daily");
+        savedRule.setIntervalUnit("day");
+        savedRule.setIntervalValue(3);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
-        when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenReturn(savedRule);
+        when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenAnswer(inv -> {
+            RecurrenceRule rule = inv.getArgument(0);
+            assert "day".equals(rule.getIntervalUnit()) : "interval unit should be saved";
+            assert rule.getIntervalValue() == 3 : "interval value should be saved";
+            return savedRule;
+        });
         when(taskRepository.save(any(Task.class))).thenReturn(task);
 
         mockMvc.perform(patch("/tasks/1/repeat")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"frequency\":\"daily\"}"))
+                        .content("{\"intervalUnit\":\"day\",\"intervalValue\":3}"))
                 .andExpect(status().isOk());
 
         verify(recurrenceRuleRepository).save(any(RecurrenceRule.class));
     }
 
     @Test
-    void setRepeat_uppercaseFrequency_normalizesBeforeSave() throws Exception {
+    void setRepeat_legacyUppercaseFrequency_normalizesBeforeSave() throws Exception {
         Task task = makeTask(1L, "Task", null, LocalDateTime.of(2026, 6, 1, 9, 0));
         RecurrenceRule savedRule = new RecurrenceRule();
         savedRule.setRecurrenceRuleID(5L);
         savedRule.setFrequency("weekly");
+        savedRule.setIntervalUnit("week");
+        savedRule.setIntervalValue(1);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenAnswer(inv -> {
             RecurrenceRule rule = inv.getArgument(0);
-            assert "weekly".equals(rule.getFrequency()) : "frequency should be normalized";
+            assert "week".equals(rule.getIntervalUnit()) : "legacy frequency should map to interval unit";
+            assert rule.getIntervalValue() == 1 : "legacy frequency should map to interval value";
+            assert "weekly".equals(rule.getFrequency()) : "frequency should be retained for compatibility";
             return savedRule;
         });
         when(taskRepository.save(any(Task.class))).thenReturn(task);
@@ -532,7 +546,35 @@ class TaskControllerTest {
     }
 
     @Test
-    void setRepeat_invalidFrequency_returns400() throws Exception {
+    void setRepeat_invalidIntervalUnit_returns400() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"intervalUnit\":\"hour\",\"intervalValue\":1}"))
+                .andExpect(status().isBadRequest());
+
+        verify(recurrenceRuleRepository, never()).save(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void setRepeat_intervalValueAboveUnitMaximum_returns400() throws Exception {
+        Task task = makeTask(1L, "Task", null, null);
+        when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+
+        mockMvc.perform(patch("/tasks/1/repeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"intervalUnit\":\"week\",\"intervalValue\":5}"))
+                .andExpect(status().isBadRequest());
+
+        verify(recurrenceRuleRepository, never()).save(any());
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void setRepeat_invalidLegacyFrequency_returns400() throws Exception {
         Task task = makeTask(1L, "Task", null, null);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
 
@@ -566,7 +608,7 @@ class TaskControllerTest {
 
         mockMvc.perform(patch("/tasks/99/repeat")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"frequency\":\"daily\"}"))
+                        .content("{\"intervalUnit\":\"day\",\"intervalValue\":1}"))
                 .andExpect(status().isNotFound());
     }
 

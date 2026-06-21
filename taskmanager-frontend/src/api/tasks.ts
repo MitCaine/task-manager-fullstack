@@ -1,4 +1,5 @@
 import type { Attachment, Note, Project, RecurrenceRule, Reminder, Subtask, Tag, Task } from '../types/task';
+import type { RecurrenceInterval } from '../utils/taskRecurrence';
 
 const BASE_URL      = '/tasks';
 const SUBTASKS_URL  = '/subtasks';
@@ -174,8 +175,8 @@ export function getRecurrence(taskId: number): Promise<RecurrenceRule> {
   return apiFetch(`${BASE_URL}/${taskId}/recurrence`);
 }
 
-export function setRepeat(taskId: number, frequency: string | null): Promise<Task> {
-  return apiFetch(`${BASE_URL}/${taskId}/repeat`, json('PATCH', { frequency }));
+export function setRepeat(taskId: number, interval: RecurrenceInterval | null): Promise<Task> {
+  return apiFetch(`${BASE_URL}/${taskId}/repeat`, json('PATCH', interval ?? { intervalUnit: null, intervalValue: null }));
 }
 
 export function patchReminderDate(reminderId: number, dueDate: string): Promise<Reminder> {

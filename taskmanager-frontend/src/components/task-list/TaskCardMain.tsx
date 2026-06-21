@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Task } from '../../types/task';
 import { ProjectBadge } from '../create-task/TagProjectChips';
 import TaskTags from '../create-task/TaskTags';
@@ -84,6 +85,63 @@ function TaskCardToolbar({
   );
 }
 
+type RecurrenceIndicatorProps = {
+  taskId: number;
+  label?: string;
+  onLoadLabel: () => void;
+};
+
+function RecurrenceIndicator({ taskId, label, onLoadLabel }: RecurrenceIndicatorProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const tooltipId = `task-${taskId}-recurrence-tooltip`;
+  const tooltipLabel = label ?? 'Loading recurrence...';
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
+  const showTooltip = () => {
+    onLoadLabel();
+    setOpen(true);
+  };
+
+  return (
+    <span className="repeat-indicator-wrap" ref={rootRef}>
+      <button
+        type="button"
+        className="repeat-indicator repeat-indicator--button"
+        aria-label="Repeats"
+        aria-describedby={open ? tooltipId : undefined}
+        title={label ?? 'Repeats'}
+        onClick={event => {
+          event.stopPropagation();
+          onLoadLabel();
+          setOpen(current => !current);
+        }}
+        onFocus={showTooltip}
+        onBlur={() => setOpen(false)}
+        onMouseEnter={showTooltip}
+        onMouseLeave={() => setOpen(false)}
+        onMouseDown={event => event.stopPropagation()}
+        onTouchStart={event => event.stopPropagation()}
+      >
+        ↻
+      </button>
+      {open && (
+        <span id={tooltipId} role="tooltip" className="repeat-indicator__tooltip">
+          {tooltipLabel}
+        </span>
+      )}
+    </span>
+  );
+}
+
 type TaskCardMainProps = {
   task: Task;
   completed: boolean;
@@ -91,6 +149,7 @@ type TaskCardMainProps = {
   statusID: number | null;
   statusLabel: string;
   dateTimeLabel: string;
+  recurrenceLabel?: string;
   projectTitle: string | null;
   priorityLabel: string | null;
   subtaskDone: number;
@@ -106,6 +165,7 @@ type TaskCardMainProps = {
   onOpenStatusMove: () => void;
   onToggleBulkSelect: () => void;
   onToggleComplete: () => void;
+  onLoadRecurrenceLabel: () => void;
   onToggleTags: (taskId: number) => void;
   onToggleActions: () => void;
   onEdit: () => void;
@@ -120,6 +180,7 @@ function TaskCardMain({
   statusID,
   statusLabel,
   dateTimeLabel,
+  recurrenceLabel,
   projectTitle,
   priorityLabel,
   subtaskDone,
@@ -135,6 +196,7 @@ function TaskCardMain({
   onOpenStatusMove,
   onToggleBulkSelect,
   onToggleComplete,
+  onLoadRecurrenceLabel,
   onToggleTags,
   onToggleActions,
   onEdit,
@@ -200,7 +262,13 @@ function TaskCardMain({
           </div>
           <span className="item__meta item__meta--inline">
             {dateTimeLabel}
-            {task.recurrenceRuleID && <span className="repeat-indicator" role="img" aria-label="Repeats" title="Repeats">↻</span>}
+            {task.recurrenceRuleID && (
+              <RecurrenceIndicator
+                taskId={task.taskID}
+                label={recurrenceLabel}
+                onLoadLabel={onLoadRecurrenceLabel}
+              />
+            )}
           </span>
           <TaskCardBadges
             projectTitle={projectTitle}

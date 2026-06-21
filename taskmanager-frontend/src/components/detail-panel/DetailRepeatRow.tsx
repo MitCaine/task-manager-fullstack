@@ -1,14 +1,31 @@
 import type { ChangeEvent } from 'react';
-import type { RepeatFrequency } from '../create-task/RecurrenceControl';
+import {
+  clampRecurrenceInterval,
+  RECURRENCE_UNIT_LIMITS,
+  RECURRENCE_UNITS,
+} from '../../utils/taskRecurrence';
+import type { RecurrenceUnit, RepeatValue } from '../../utils/taskRecurrence';
 
 type DetailRepeatRowProps = {
-  value: RepeatFrequency;
-  onChange: (value: RepeatFrequency) => void;
+  value: RepeatValue;
+  onChange: (value: RepeatValue) => void;
 };
 
 function DetailRepeatRow({ value, onChange }: DetailRepeatRowProps) {
-  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    onChange(event.target.value as RepeatFrequency);
+  const selected = value ?? { intervalUnit: 'day' as RecurrenceUnit, intervalValue: 1 };
+  const values = Array.from({ length: RECURRENCE_UNIT_LIMITS[selected.intervalUnit] }, (_, index) => index + 1);
+
+  const handleEnabledChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    onChange(event.target.value === 'none' ? null : selected);
+  };
+
+  const handleValueChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    onChange({ ...selected, intervalValue: Number(event.target.value) });
+  };
+
+  const handleUnitChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const intervalUnit = event.target.value as RecurrenceUnit;
+    onChange(clampRecurrenceInterval({ intervalUnit, intervalValue: selected.intervalValue }));
   };
 
   return (
@@ -16,14 +33,26 @@ function DetailRepeatRow({ value, onChange }: DetailRepeatRowProps) {
       <span className="detail__field-label">Repeat</span>
       <select
         className="select select--sm"
-        value={value}
-        onChange={handleChange}
+        value={value ? 'repeat' : 'none'}
+        onChange={handleEnabledChange}
       >
-        <option value="">None</option>
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="monthly">Monthly</option>
+        <option value="none">None</option>
+        <option value="repeat">Every</option>
       </select>
+      {value && (
+        <>
+          <select className="select select--sm" value={selected.intervalValue} onChange={handleValueChange}>
+            {values.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <select className="select select--sm" value={selected.intervalUnit} onChange={handleUnitChange}>
+            {RECURRENCE_UNITS.map(unit => (
+              <option key={unit} value={unit}>{unit}</option>
+            ))}
+          </select>
+        </>
+      )}
     </div>
   );
 }

@@ -225,7 +225,7 @@ A normalized `RecurrenceRule` and `TaskInstance` model would naturally support r
 
 The active application uses a simpler recurrence model:
 
-- Tasks can repeat daily, weekly, or monthly.
+- Tasks can repeat on constrained day, week, month, or year intervals.
 - A task references a recurrence rule.
 - Completing an active recurring task creates the next occurrence.
 - Tags, project, priority, description, and duration are preserved.

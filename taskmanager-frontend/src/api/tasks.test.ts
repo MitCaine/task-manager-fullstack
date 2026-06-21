@@ -34,7 +34,7 @@ const mockReminder: Reminder = { reminderID: 1, dueDate: '2026-06-01T09:00:00', 
 const mockProject: Project = { projectID: 1, title: 'My project' };
 const mockTag: Tag = { tagID: 1, title: 'Urgent', color: '#f87171' };
 const mockAttachment: Attachment = { attachmentID: 1, fileORLink: 'https://example.com', fileSize: 0, taskID: 1 };
-const mockRecurrence: RecurrenceRule = { recurrenceRuleID: 1, frequency: 'weekly', timesOfRecurrence: 0, startDateTime: '2026-01-01T00:00:00', endDateTime: '2036-01-01T00:00:00' };
+const mockRecurrence: RecurrenceRule = { recurrenceRuleID: 1, frequency: 'weekly', intervalUnit: 'week', intervalValue: 1, timesOfRecurrence: 0, startDateTime: '2026-01-01T00:00:00', endDateTime: '2036-01-01T00:00:00' };
 
 // Task endpoint tests.
 
@@ -539,26 +539,26 @@ describe('getRecurrence', () => {
 });
 
 describe('setRepeat', () => {
-  test('makes a PATCH request to /tasks/{id}/repeat with frequency', async () => {
+  test('makes a PATCH request to /tasks/{id}/repeat with interval', async () => {
     const spy = mockFetch(true, mockTask);
-    const result = await setRepeat(1, 'weekly');
+    const result = await setRepeat(1, { intervalUnit: 'week', intervalValue: 2 });
     expect(spy).toHaveBeenCalledWith('/tasks/1/repeat', expect.objectContaining({
       method: 'PATCH',
-      body: JSON.stringify({ frequency: 'weekly' }),
+      body: JSON.stringify({ intervalUnit: 'week', intervalValue: 2 }),
     }));
     expect(result).toEqual(mockTask);
   });
 
-  test('sends null frequency to clear recurrence', async () => {
+  test('sends null interval fields to clear recurrence', async () => {
     const spy = mockFetch(true, mockTask);
     await setRepeat(1, null);
     expect(spy).toHaveBeenCalledWith('/tasks/1/repeat', expect.objectContaining({
-      body: JSON.stringify({ frequency: null }),
+      body: JSON.stringify({ intervalUnit: null, intervalValue: null }),
     }));
   });
 
   test('throws when response is not ok', async () => {
     mockFetch(false, {});
-    await expect(setRepeat(1, 'daily')).rejects.toThrow('500');
+    await expect(setRepeat(1, { intervalUnit: 'day', intervalValue: 1 })).rejects.toThrow('500');
   });
 });

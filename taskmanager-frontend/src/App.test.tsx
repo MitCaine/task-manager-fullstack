@@ -80,14 +80,16 @@ beforeEach(() => {
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-01-01T00:00:00',
     endDateTime: '2036-01-01T00:00:00',
   });
-  mockSetRepeat.mockImplementation(async (taskId, frequency) => ({
+  mockSetRepeat.mockImplementation(async (taskId, interval) => ({
     ...sampleTask,
     taskID: taskId,
-    recurrenceRuleID: frequency ? 11 : null,
+    recurrenceRuleID: interval ? 11 : null,
   }));
 });
 
@@ -461,6 +463,8 @@ test('recurring desktop task card shows a schedule repeat indicator and non-recu
     const repeatIndicator = within(recurringItem).getByLabelText('Repeats');
     expect(repeatIndicator).toHaveClass('repeat-indicator');
     expect(repeatIndicator.closest('.item__meta--inline')).toBeInTheDocument();
+    fireEvent.mouseEnter(repeatIndicator);
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Every week'));
     expect(within(oneTimeItem).queryByLabelText('Repeats')).not.toBeInTheDocument();
   } finally {
     restoreMedia();
@@ -478,6 +482,10 @@ test('recurring mobile task card shows a schedule repeat indicator', async () =>
     const repeatIndicator = within(taskItem).getByLabelText('Repeats');
     expect(repeatIndicator).toHaveClass('repeat-indicator');
     expect(repeatIndicator.closest('.item__meta--inline')).toBeInTheDocument();
+    fireEvent.click(repeatIndicator);
+    await waitFor(() => expect(screen.getByRole('tooltip')).toHaveTextContent('Every week'));
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
   } finally {
     restoreTouchEnvironment();
   }
@@ -1202,7 +1210,7 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toMatch(/\.app__add \.datetime-row__time-summary--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
   expect(css).toContain('.form-row .tag-select.tag-select--create-tags:last-child .tag-select__dropdown');
   expect(css).toMatch(  /\.form-row \.tag-select\.tag-select--create-tags:last-child \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
-  expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*max-content;/);
+  expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
   expect(css).not.toContain('tag-select__dropdown--create-tags');
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
 });
@@ -1444,12 +1452,12 @@ test('create task can select daily recurrence and saves it', async () => {
     userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^daily$/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
   });
-  expect(within(screen.getByLabelText(/task preview/i)).getByText('Daily')).toBeInTheDocument();
+  expect(within(screen.getByLabelText(/task preview/i)).getByText('Every day')).toBeInTheDocument();
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
-  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(45, 'daily'));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(45, { intervalUnit: 'day', intervalValue: 1 }));
 });
 
 test('create task can select weekly and monthly recurrence', async () => {
@@ -1463,10 +1471,16 @@ test('create task can select weekly and monthly recurrence', async () => {
     userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^weekly$/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('option', { name: /^week$/i }));
   });
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
-  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, 'weekly'));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, { intervalUnit: 'week', intervalValue: 1 }));
   await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*do not repeat/i })).toBeInTheDocument());
 
   userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
@@ -1474,10 +1488,16 @@ test('create task can select weekly and monthly recurrence', async () => {
     userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^monthly$/i }));
+    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
-  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(47, 'monthly'));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(47, { intervalUnit: 'month', intervalValue: 1 }));
 });
 
 test('swipe starting on the page area changes mobile view', async () => {
@@ -3640,6 +3660,8 @@ test('inline edit hydrates existing recurrence', async () => {
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-01-01T00:00:00',
     endDateTime: '2036-01-01T00:00:00',
@@ -3654,7 +3676,7 @@ test('inline edit hydrates existing recurrence', async () => {
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
-  await waitFor(() => expect(within(editCard).getByRole('button', { name: /repeat.*weekly/i })).toBeInTheDocument());
+  await waitFor(() => expect(within(editCard).getByRole('button', { name: /repeat.*every week/i })).toBeInTheDocument());
 });
 
 test('inline edit can change recurrence', async () => {
@@ -3669,6 +3691,8 @@ test('inline edit can change recurrence', async () => {
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-01-01T00:00:00',
     endDateTime: '2036-01-01T00:00:00',
@@ -3684,18 +3708,21 @@ test('inline edit can change recurrence', async () => {
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
-  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*weekly/i })).toBeInTheDocument());
+  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*every week/i })).toBeInTheDocument());
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /repeat.*weekly/i }));
+    userEvent.click(editScope.getByRole('button', { name: /repeat.*every week/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('menuitem', { name: /^monthly$/i }));
+    userEvent.click(editScope.getByRole('button', { name: /^unit week$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
-  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(61, 'monthly'));
+  await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(61, { intervalUnit: 'month', intervalValue: 1 }));
 });
 
 test('inline edit can remove recurrence', async () => {
@@ -3710,6 +3737,8 @@ test('inline edit can remove recurrence', async () => {
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'daily',
+    intervalUnit: 'day',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-01-01T00:00:00',
     endDateTime: '2036-01-01T00:00:00',
@@ -3725,9 +3754,9 @@ test('inline edit can remove recurrence', async () => {
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
-  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*daily/i })).toBeInTheDocument());
+  await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*every day/i })).toBeInTheDocument());
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /repeat.*daily/i }));
+    userEvent.click(editScope.getByRole('button', { name: /repeat.*every day/i }));
   });
   await act(async () => {
     userEvent.click(editScope.getByRole('menuitem', { name: /do not repeat/i }));
@@ -4947,6 +4976,8 @@ test('clicking duplicate carries over the recurrence rule', async () => {
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'monthly',
+    intervalUnit: 'month',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-01-01T00:00:00',
     endDateTime: '2036-01-01T00:00:00',
@@ -4963,7 +4994,7 @@ test('clicking duplicate carries over the recurrence rule', async () => {
 
   await waitFor(() => {
     expect(mockGetRecurrence).toHaveBeenCalledWith(1);
-    expect(mockSetRepeat).toHaveBeenCalledWith(99, 'monthly');
+    expect(mockSetRepeat).toHaveBeenCalledWith(99, { intervalUnit: 'month', intervalValue: 1 });
   });
 });
 
@@ -4978,6 +5009,8 @@ test('completing a recurring task with end time creates the next occurrence with
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2026-06-15T14:30:00',
     endDateTime: '2036-06-15T14:30:00',
@@ -4997,7 +5030,7 @@ test('completing a recurring task with end time creates the next occurrence with
     dateTimeScheduled: '2026-06-22T14:30:00',
     endDateTimeScheduled: '2026-06-22T15:30:00',
   })));
-  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'weekly');
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, { intervalUnit: 'week', intervalValue: 1 });
 });
 
 // Bulk action behavior.
@@ -5102,6 +5135,8 @@ test('bulk mark done on a recurring task generates the next occurrence', async (
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2099-06-15T14:30:00',
     endDateTime: '2109-06-15T14:30:00',
@@ -5133,7 +5168,7 @@ test('bulk mark done on a recurring task generates the next occurrence', async (
     }));
   });
   expect(mockAddTagToTask).toHaveBeenCalledWith(99, 4);
-  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'weekly');
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, { intervalUnit: 'week', intervalValue: 1 });
   expect(mockDeleteTask).toHaveBeenCalledWith(recurringTask.taskID);
   expect(mockPatchStatus).not.toHaveBeenCalled();
   expect(await screen.findByText(/06\/22\/2099/)).toBeInTheDocument();
@@ -5172,6 +5207,8 @@ test('bulk mark done on mixed recurring and non-recurring tasks handles both pat
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'daily',
+    intervalUnit: 'day',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2099-06-15T09:00:00',
     endDateTime: '2109-06-15T09:00:00',
@@ -5203,7 +5240,7 @@ test('bulk mark done on mixed recurring and non-recurring tasks handles both pat
       dateTimeScheduled: '2099-06-16T09:00:00',
     }));
   });
-  expect(mockSetRepeat).toHaveBeenCalledWith(99, 'daily');
+  expect(mockSetRepeat).toHaveBeenCalledWith(99, { intervalUnit: 'day', intervalValue: 1 });
   expect(mockDeleteTask).toHaveBeenCalledWith(recurringTask.taskID);
   expect(mockPatchStatus).not.toHaveBeenCalledWith(recurringTask.taskID, 2);
   expect(await screen.findByText(/06\/16\/2099/)).toBeInTheDocument();
@@ -5255,6 +5292,8 @@ test('bulk mark done probes recurrence when selected task data has no recurrence
   mockGetRecurrence.mockResolvedValue({
     recurrenceRuleID: 10,
     frequency: 'weekly',
+    intervalUnit: 'week',
+    intervalValue: 1,
     timesOfRecurrence: 0,
     startDateTime: '2099-06-15T14:30:00',
     endDateTime: '2109-06-15T14:30:00',

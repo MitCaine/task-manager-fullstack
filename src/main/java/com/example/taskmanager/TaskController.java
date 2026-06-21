@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -19,7 +19,17 @@ public class TaskController {
     private final TaskRepository taskRepository;
     private final TagRepository tagRepository;
     private final RecurrenceRuleRepository recurrenceRuleRepository;
-    private static final Set<String> ALLOWED_REPEAT_FREQUENCIES = Set.of("daily", "weekly", "monthly");
+    private static final Map<String, Integer> REPEAT_UNIT_MAX_VALUES = Map.of(
+            "day", 7,
+            "week", 4,
+            "month", 12,
+            "year", 5
+    );
+    private static final Map<String, String> LEGACY_FREQUENCY_UNITS = Map.of(
+            "daily", "day",
+            "weekly", "week",
+            "monthly", "month"
+    );
 
     public TaskController(TaskRepository taskRepository, TagRepository tagRepository,
                           RecurrenceRuleRepository recurrenceRuleRepository) {
@@ -106,7 +116,9 @@ public class TaskController {
 
     // Recurrence endpoints manage the rule referenced by a task.
 
-    private record RepeatRequest(String frequency) {}
+    private record RepeatRequest(String frequency, String intervalUnit, Integer intervalValue) {}
+
+    private record RepeatInterval(String intervalUnit, int intervalValue) {}
 
     @GetMapping("/{id}/recurrence")
     public ResponseEntity<RecurrenceRule> getRecurrence(@PathVariable Long id) {
@@ -121,21 +133,20 @@ public class TaskController {
     @PatchMapping("/{id}/repeat")
     public ResponseEntity<Task> setRepeat(@PathVariable Long id, @RequestBody RepeatRequest req) {
         return taskRepository.findById(id).map(task -> {
-            String frequency = req.frequency() == null ? null : req.frequency().trim().toLowerCase();
-            if (frequency == null || frequency.isBlank()) {
+            RepeatInterval repeatInterval = normalizeRepeatInterval(req);
+            if (repeatInterval == null) {
                 // Detach the task before deleting its now-unused recurrence rule.
                 Long ruleId = task.getRecurrenceRuleID();
                 task.setRecurrenceRuleID(null);
                 taskRepository.save(task);
                 if (ruleId != null) recurrenceRuleRepository.deleteById(ruleId);
             } else {
-                if (!ALLOWED_REPEAT_FREQUENCIES.contains(frequency)) {
-                    throw new ResponseStatusException(BAD_REQUEST, "Frequency must be daily, weekly, or monthly");
-                }
                 RecurrenceRule rule = task.getRecurrenceRuleID() == null
                         ? new RecurrenceRule()
                         : recurrenceRuleRepository.findById(task.getRecurrenceRuleID()).orElseGet(RecurrenceRule::new);
-                rule.setFrequency(frequency);
+                rule.setIntervalUnit(repeatInterval.intervalUnit());
+                rule.setIntervalValue(repeatInterval.intervalValue());
+                rule.setFrequency(toLegacyFrequency(repeatInterval));
                 rule.setTimesOfRecurrence(0);
                 LocalDateTime start = task.getDateTimeScheduled() != null ? task.getDateTimeScheduled() : LocalDateTime.now();
                 rule.setStartDateTime(start);
@@ -146,6 +157,43 @@ public class TaskController {
             }
             return ResponseEntity.ok(task);
         }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private RepeatInterval normalizeRepeatInterval(RepeatRequest req) {
+        String legacyFrequency = req.frequency() == null ? null : req.frequency().trim().toLowerCase();
+        if (legacyFrequency != null) {
+            if (legacyFrequency.isBlank()) return null;
+            String legacyUnit = LEGACY_FREQUENCY_UNITS.get(legacyFrequency);
+            if (legacyUnit == null) {
+                throw new ResponseStatusException(BAD_REQUEST, "Frequency must be daily, weekly, or monthly");
+            }
+            return new RepeatInterval(legacyUnit, 1);
+        }
+
+        String unit = req.intervalUnit() == null ? null : req.intervalUnit().trim().toLowerCase();
+        Integer value = req.intervalValue();
+        if ((unit == null || unit.isBlank()) && value == null) return null;
+        if (unit == null || unit.isBlank() || value == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "Recurrence interval requires intervalUnit and intervalValue");
+        }
+        Integer maxValue = REPEAT_UNIT_MAX_VALUES.get(unit);
+        if (maxValue == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "intervalUnit must be day, week, month, or year");
+        }
+        if (value < 1 || value > maxValue) {
+            throw new ResponseStatusException(BAD_REQUEST, "intervalValue is outside the allowed range for intervalUnit");
+        }
+        return new RepeatInterval(unit, value);
+    }
+
+    private String toLegacyFrequency(RepeatInterval repeatInterval) {
+        if (repeatInterval.intervalValue() != 1) return null;
+        return switch (repeatInterval.intervalUnit()) {
+            case "day" -> "daily";
+            case "week" -> "weekly";
+            case "month" -> "monthly";
+            default -> null;
+        };
     }
 
     @PostMapping("/{id}/tags/{tagId}")

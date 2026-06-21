@@ -1,19 +1,78 @@
-export type RepeatFrequency = '' | 'daily' | 'weekly' | 'monthly';
+import { useEffect, useState } from 'react';
+import AnchoredDropdown from '../shared/AnchoredDropdown';
+import type { AnchoredDropdownOption } from '../shared/AnchoredDropdown';
+import {
+  clampRecurrenceInterval,
+  formatRecurrenceInterval,
+  RECURRENCE_UNIT_LIMITS,
+  RECURRENCE_UNITS,
+} from '../../utils/taskRecurrence';
+import type { RecurrenceUnit, RepeatValue } from '../../utils/taskRecurrence';
 
-const REPEAT_OPTIONS: Array<{ value: RepeatFrequency; label: string }> = [
-  { value: '', label: 'Do not repeat' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-];
+const UNIT_LABELS: Record<RecurrenceUnit, string> = {
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+  year: 'Year',
+};
 
-export function formatRepeatFrequency(value: RepeatFrequency): string {
-  return REPEAT_OPTIONS.find(option => option.value === value)?.label ?? 'Do not repeat';
+function getValueOptions(unit: RecurrenceUnit): number[] {
+  return Array.from({ length: RECURRENCE_UNIT_LIMITS[unit] }, (_, index) => index + 1);
+}
+
+type RecurrenceIntervalMenu = 'value' | 'unit' | null;
+
+type RecurrenceIntervalDropdownProps<T extends number | string> = {
+  id: string;
+  label: string;
+  value: T;
+  options: Array<AnchoredDropdownOption<T>>;
+  open: boolean;
+  boundaryAttrs: Record<string, boolean | undefined>;
+  onToggle: () => void;
+  onClose: () => void;
+  onChange: (value: T) => void;
+};
+
+function RecurrenceIntervalDropdown<T extends number | string>({
+  id,
+  label,
+  value,
+  options,
+  open,
+  boundaryAttrs,
+  onToggle,
+  onClose,
+  onChange,
+}: RecurrenceIntervalDropdownProps<T>): JSX.Element {
+  return (
+    <AnchoredDropdown
+      id={id}
+      label={label}
+      value={value}
+      options={options}
+      open={open}
+      onToggle={onToggle}
+      onClose={onClose}
+      onSelect={onChange}
+      boundarySelectors={['.app__list', '.app__add', '.app__detail', '.card']}
+      minMenuWidth={88}
+      maxMenuHeight={140}
+      portalAttrs={boundaryAttrs}
+      className="recurrence-select__field"
+      triggerClassName="select select--sm recurrence-select__mini-trigger"
+      menuClassName="recurrence-select__mini-menu recurrence-select__mini-menu--portal"
+      optionClassName="recurrence-select__mini-option"
+      selectedOptionClassName="recurrence-select__mini-option--selected"
+      checkClassName="recurrence-select__mini-check"
+      renderCheck={selected => selected ? '✓' : ''}
+    />
+  );
 }
 
 export type RecurrenceControlProps = {
-  value: RepeatFrequency;
-  onChange: (value: RepeatFrequency) => void;
+  value: RepeatValue;
+  onChange: (value: RepeatValue) => void;
   openControl: string | null;
   onToggle: () => void;
   onClose: () => void;
@@ -31,12 +90,21 @@ export default function RecurrenceControl({
   menuScope,
 }: RecurrenceControlProps): JSX.Element {
   const open = openControl === controlId;
+  const [openIntervalMenu, setOpenIntervalMenu] = useState<RecurrenceIntervalMenu>(null);
+  const selected = value ?? { intervalUnit: 'day' as RecurrenceUnit, intervalValue: 1 };
+  const selectedValues = getValueOptions(selected.intervalUnit);
+  const valueOptions = selectedValues.map(option => ({ value: option, label: String(option) }));
+  const unitOptions = RECURRENCE_UNITS.map(unit => ({ value: unit, label: UNIT_LABELS[unit] }));
   const triggerAttrs = menuScope === 'create'
     ? { 'data-create-menu-trigger': true }
     : { 'data-inline-edit-menu-trigger': true };
   const boundaryAttrs = menuScope === 'create'
     ? { 'data-create-menu-boundary': true }
     : { 'data-inline-edit-menu-boundary': true };
+
+  useEffect(() => {
+    if (!open) setOpenIntervalMenu(null);
+  }, [open]);
 
   return (
     <div className="tag-select recurrence-select">
@@ -49,24 +117,53 @@ export default function RecurrenceControl({
         {...triggerAttrs}
       >
         <span className="recurrence-select__label">Repeat</span>
-        <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{formatRepeatFrequency(value)}</span>
+        <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{formatRecurrenceInterval(value)}</span>
       </button>
       {open && (
         <div className="tag-select__dropdown recurrence-select__dropdown recurrence-select__dropdown--value-aligned" role="menu" {...boundaryAttrs}>
-          {REPEAT_OPTIONS.map(option => (
-            <button
-              key={option.value || 'none'}
-              type="button"
-              role="menuitem"
-              className={`tag-select__item${value === option.value ? ' tag-select__item--on' : ''}`}
-              onClick={() => {
-                onChange(option.value);
-                onClose();
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
+          <button
+            type="button"
+            role="menuitem"
+            className={`tag-select__item${value === null ? ' tag-select__item--on' : ''}`}
+            onClick={() => {
+              onChange(null);
+              onClose();
+            }}
+          >
+            Do not repeat
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={`tag-select__item${value ? ' tag-select__item--on' : ''}`}
+            onClick={() => onChange(selected)}
+          >
+            {formatRecurrenceInterval(selected)}
+          </button>
+          <div className="recurrence-select__interval-controls" onClick={event => event.stopPropagation()}>
+            <RecurrenceIntervalDropdown
+              id={`${menuScope}-${controlId}-value`}
+              label="Every"
+              value={selected.intervalValue}
+              options={valueOptions}
+              open={openIntervalMenu === 'value'}
+              boundaryAttrs={boundaryAttrs}
+              onToggle={() => setOpenIntervalMenu(current => current === 'value' ? null : 'value')}
+              onClose={() => setOpenIntervalMenu(null)}
+              onChange={intervalValue => onChange({ ...selected, intervalValue })}
+            />
+            <RecurrenceIntervalDropdown
+              id={`${menuScope}-${controlId}-unit`}
+              label="Unit"
+              value={selected.intervalUnit}
+              options={unitOptions}
+              open={openIntervalMenu === 'unit'}
+              boundaryAttrs={boundaryAttrs}
+              onToggle={() => setOpenIntervalMenu(current => current === 'unit' ? null : 'unit')}
+              onClose={() => setOpenIntervalMenu(null)}
+              onChange={intervalUnit => onChange(clampRecurrenceInterval({ intervalUnit, intervalValue: selected.intervalValue }))}
+            />
+          </div>
         </div>
       )}
     </div>

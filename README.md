@@ -36,7 +36,7 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 - Projects, tags, and priority management.
 - Calendar views for Day, Week, Month, and Quarter planning.
 - Status movement between Active, In Progress, and Done.
-- Recurring tasks with daily, weekly, and monthly frequencies.
+- Recurring tasks with constrained day, week, month, and year intervals.
 - Automatic generation of the next occurrence when recurring tasks are completed.
 - Optional start and end times with start/end range display throughout the application.
 - Sorting and filtering by date, status, priority, project, tag, and search text.
@@ -330,7 +330,7 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 - Allowed blank note titles in the backend flow so note creation matches the current body/content-only frontend note UI.
 - Added child-resource parent-not-found regression coverage and extracted a shared parent task existence guard for attachments, notes, reminders, and subtasks.
 - Added end-time persistence across the frontend, backend, API payloads, task duplication, display surfaces, and recurrence generation.
-- Added recurrence controls to task creation and inline task editing using the existing daily, weekly, and monthly recurrence API.
+- Added recurrence controls to task creation and inline task editing.
 - Added project and tag editing to the inline task edit form.
 - Fixed time formatting so PM values convert correctly to 24-hour display and AM/PM remains consistently uppercase.
 - Added validation that prevents end times before or equal to start times in both frontend and backend flows.

@@ -6,9 +6,9 @@ Accepted
 
 ## Context
 
-The active product supports daily, weekly, and monthly recurrence. A task
-references a recurrence rule, but the original database concept of persistent
-task instances is not active.
+The active product supports constrained day, week, month, and year recurrence
+intervals. A task references a recurrence rule, but the original database
+concept of persistent task instances is not active.
 
 The product still needs clear behavior when a recurring task is completed.
 Simply marking the current task complete would stop recurrence. Retaining a

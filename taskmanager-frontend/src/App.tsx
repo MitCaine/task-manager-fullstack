@@ -19,7 +19,13 @@ import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm'
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
 import { deriveTaskEditDraft } from './utils/taskEditDraft';
-import { buildRecurringTaskSchedule } from './utils/taskRecurrence';
+import {
+  buildRecurringTaskSchedule,
+  formatRecurrenceInterval,
+  normalizeRecurrenceRule,
+  recurrenceIntervalKey,
+} from './utils/taskRecurrence';
+import type { RepeatValue } from './utils/taskRecurrence';
 import { buildTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
 import { calculateTaskTimeShift } from './utils/taskTimeShift';
 import {
@@ -30,8 +36,6 @@ import {
   formatTaskDateRange,
 } from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
-import { formatRepeatFrequency } from './components/create-task/RecurrenceControl';
-import type { RepeatFrequency } from './components/create-task/RecurrenceControl';
 import { SelectedTagChips } from './components/create-task/TagProjectChips';
 import TaskEditorFields from './components/create-task/TaskEditorFields';
 import StatsModal from './components/settings/StatsModal';
@@ -185,7 +189,8 @@ function App() {
   const [endMinute, setEndMinute] = useState('00');
   const [endAmpm, setEndAmpm] = useState<Ampm>('AM');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
-  const [newRepeatFrequency, setNewRepeatFrequency] = useState<RepeatFrequency>('');
+  const [newRepeat, setNewRepeat] = useState<RepeatValue>(null);
+  const [recurrenceLabels, setRecurrenceLabels] = useState<Record<number, string>>({});
 
   // UI preferences and transient dropdown state.
   const [is24Hour, setIs24Hour] = useState(false);
@@ -342,8 +347,8 @@ function App() {
   };
 
   // Repeat editor keeps the persisted value so autosave can detect changes.
-  const [editRepeatFrequency, setEditRepeatFrequency] = useState<RepeatFrequency>('');
-  const [originalRepeatFrequency, setOriginalRepeatFrequency] = useState<string>('');
+  const [editRepeat, setEditRepeat] = useState<RepeatValue>(null);
+  const [originalRepeatKey, setOriginalRepeatKey] = useState('');
 
   // Project lists and selectors shared by create and edit flows.
   const [newProjectID, setNewProjectID] = useState<number | ''>('');
@@ -1444,8 +1449,8 @@ function App() {
     try {
       const saved = await createTask({ title: input.trim(), description: description.trim(), dateTimeScheduled, endDateTimeScheduled, priority: newPriority || null, projectID: newProjectID !== '' ? newProjectID : null });
       let taskForState = saved;
-      if (newRepeatFrequency) {
-        const repeated = await setRepeat(saved.taskID, newRepeatFrequency);
+      if (newRepeat) {
+        const repeated = await setRepeat(saved.taskID, newRepeat);
         taskForState = { ...saved, recurrenceRuleID: repeated.recurrenceRuleID ?? null };
       }
       if (newTaskTagIDs.length > 0) {
@@ -1457,7 +1462,7 @@ function App() {
       setInput('');
       setDescription('');
       setNewPriority('');
-      setNewRepeatFrequency('');
+      setNewRepeat(null);
       setNewProjectID('');
       setNewTaskTagIDs([]);
       setShowAddTime(false);
@@ -1480,7 +1485,7 @@ function App() {
     const nextSchedule = buildRecurringTaskSchedule({
       dateTimeScheduled: task.dateTimeScheduled,
       endDateTimeScheduled: task.endDateTimeScheduled,
-      frequency: rule.frequency,
+      interval: normalizeRecurrenceRule(rule) ?? { intervalUnit: 'day', intervalValue: 1 },
     });
     const nextTask = await createTask({
       title: task.title, description: task.description ?? '',
@@ -1492,7 +1497,7 @@ function App() {
       await Promise.all(task.tags.map(tag => addTagToTask(nextTask.taskID, tag.tagID)));
       nextTask.tags = task.tags;
     }
-    await setRepeat(nextTask.taskID, rule.frequency);
+    await setRepeat(nextTask.taskID, normalizeRecurrenceRule(rule));
     const fresh = await getTask(nextTask.taskID);
     await deleteTask(task.taskID);
     const replacementTask = { ...nextTask, recurrenceRuleID: fresh.recurrenceRuleID };
@@ -1522,6 +1527,17 @@ function App() {
       }
     }
     return getRecurrence(task.taskID);
+  };
+
+  const loadRecurrenceLabel = async (taskId: number) => {
+    if (recurrenceLabels[taskId]) return;
+    try {
+      const rule = await getRecurrence(taskId);
+      const label = formatRecurrenceInterval(normalizeRecurrenceRule(rule));
+      setRecurrenceLabels(prev => prev[taskId] ? prev : { ...prev, [taskId]: label });
+    } catch {
+      setRecurrenceLabels(prev => prev[taskId] ? prev : { ...prev, [taskId]: 'Repeats' });
+    }
   };
 
   const toggleComplete = async (task: Task) => {
@@ -1646,14 +1662,14 @@ function App() {
     }
     // The task only stores a rule ID, so load the rule before editing repeat.
     if (!task.recurrenceRuleID) {
-      setEditRepeatFrequency(''); setOriginalRepeatFrequency('');
+      setEditRepeat(null); setOriginalRepeatKey('');
     } else {
       getRecurrence(task.taskID)
         .then(rule => {
-          const freq = rule.frequency as RepeatFrequency;
-          setEditRepeatFrequency(freq); setOriginalRepeatFrequency(freq);
+          const repeat = normalizeRecurrenceRule(rule);
+          setEditRepeat(repeat); setOriginalRepeatKey(recurrenceIntervalKey(repeat));
         })
-        .catch(() => { setEditRepeatFrequency(''); setOriginalRepeatFrequency(''); });
+        .catch(() => { setEditRepeat(null); setOriginalRepeatKey(''); });
     }
   };
 
@@ -1745,10 +1761,10 @@ function App() {
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...saved, tags: tagObjects } : t));
       if (selectedTaskId === null) setEditingId(null);
       // Save repeat changes separately because recurrence is managed by its own endpoint.
-      if (editRepeatFrequency !== originalRepeatFrequency) {
+      if (recurrenceIntervalKey(editRepeat) !== originalRepeatKey) {
         try {
-          await setRepeat(task.taskID, editRepeatFrequency || null);
-          setOriginalRepeatFrequency(editRepeatFrequency);
+          await setRepeat(task.taskID, editRepeat);
+          setOriginalRepeatKey(recurrenceIntervalKey(editRepeat));
           const freshTask = await getTask(task.taskID);
           setTasks(prev => prev.map(t => t.taskID === task.taskID ? { ...t, recurrenceRuleID: freshTask.recurrenceRuleID } : t));
         } catch { /* non-critical */ }
@@ -1928,7 +1944,7 @@ function App() {
       }
       if (task.recurrenceRuleID) {
         const rule = await getRecurrence(task.taskID);
-        const repeatedTask = await setRepeat(saved.taskID, rule.frequency);
+        const repeatedTask = await setRepeat(saved.taskID, normalizeRecurrenceRule(rule));
         duplicatedTask.recurrenceRuleID = repeatedTask.recurrenceRuleID ?? null;
       }
       setTasks(prev => [...prev, duplicatedTask]);
@@ -2103,8 +2119,8 @@ function App() {
             onEndAmpm: setEditEndAmpm,
           }}
           recurrenceControlProps={{
-            value: editRepeatFrequency,
-            onChange: setEditRepeatFrequency,
+            value: editRepeat,
+            onChange: setEditRepeat,
             openControl: inlineEditOpenControl,
             onToggle: () => toggleInlineEditDropdown('repeat'),
             onClose: () => setInlineEditOpenControl(null),
@@ -2378,8 +2394,8 @@ function App() {
               onEndAmpm: setEndAmpm,
             }}
             recurrenceControlProps={{
-              value: newRepeatFrequency,
-              onChange: setNewRepeatFrequency,
+              value: newRepeat,
+              onChange: setNewRepeat,
               openControl: openCreateControl,
               onToggle: () => toggleCreateDropdown('repeat'),
               onClose: () => setOpenCreateControl(null),
@@ -2602,7 +2618,7 @@ function App() {
             title={input}
             description={description}
             dateTimeLabel={formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}
-            repeatLabel={newRepeatFrequency ? formatRepeatFrequency(newRepeatFrequency) : null}
+            repeatLabel={newRepeat ? formatRecurrenceInterval(newRepeat) : null}
             priority={newPriority || null}
             priorityLabel={newPriority ? formatPriorityLabel(newPriority) : null}
             project={draftProject}
@@ -2736,6 +2752,7 @@ function App() {
                               statusID={statusID}
                               statusLabel={statusLabel}
                               dateTimeLabel={formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}
+                              recurrenceLabel={recurrenceLabels[task.taskID]}
                               projectTitle={taskProjectTitle}
                               priorityLabel={task.priority ? formatPriorityLabel(task.priority) : null}
                               subtaskDone={subtaskDone}
@@ -2751,6 +2768,7 @@ function App() {
                               onOpenStatusMove={() => openStatusMoveDialog(task)}
                               onToggleBulkSelect={() => toggleBulkSelection(task.taskID)}
                               onToggleComplete={() => toggleComplete(task)}
+                              onLoadRecurrenceLabel={() => loadRecurrenceLabel(task.taskID)}
                               onToggleTags={toggleTaskTags}
                               onToggleActions={() => {
                                 const next = openActionTaskId === task.taskID ? null : task.taskID;
@@ -3022,8 +3040,8 @@ function App() {
               )}
 
               <DetailRepeatRow
-                value={editRepeatFrequency}
-                onChange={value => { setEditRepeatFrequency(value); scheduleAutoSave(0); }}
+                value={editRepeat}
+                onChange={value => { setEditRepeat(value); scheduleAutoSave(0); }}
               />
 
             </div>

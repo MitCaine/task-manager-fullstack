@@ -185,7 +185,9 @@ CREATE TABLE `RecurrenceRule` (
   `timesOfRecurrence` int NOT NULL,
   `startDateTime` datetime NOT NULL,
   `endDateTime` datetime NOT NULL,
-  `frequency` varchar(45) NOT NULL,
+  `frequency` varchar(45) DEFAULT NULL,
+  `intervalUnit` varchar(10) NOT NULL,
+  `intervalValue` int NOT NULL DEFAULT '1',
   PRIMARY KEY (`recurrenceRuleID`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

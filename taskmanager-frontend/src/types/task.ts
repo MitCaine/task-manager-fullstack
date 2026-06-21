@@ -63,7 +63,9 @@ export interface Attachment {
 
 export interface RecurrenceRule {
   recurrenceRuleID: number;
-  frequency: string;
+  frequency?: string | null;
+  intervalUnit?: 'day' | 'week' | 'month' | 'year' | string | null;
+  intervalValue?: number | null;
   timesOfRecurrence: number;
   startDateTime: string;
   endDateTime: string;
