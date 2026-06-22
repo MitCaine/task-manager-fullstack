@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
@@ -59,8 +59,8 @@ import DetailScheduleFields from './components/detail-panel/DetailScheduleFields
 import DetailResourcePanels from './components/detail-panel/DetailResourcePanels';
 import ErrorBanner from './components/shared/ErrorBanner';
 import SelectedProjectChip from './components/create-task/SelectedProjectChip';
-import TaskCardMain from './components/task-list/TaskCardMain';
-import { DoneDivider, TaskListEmptyState, TaskListLoading } from './components/task-list/TaskListPresentation';
+import TaskListItems from './components/task-list/TaskListItems';
+import { TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
 import useProjectTagCatalog from './hooks/useProjectTagCatalog';
 import useTaskListViewModel from './hooks/useTaskListViewModel';
@@ -2697,112 +2697,47 @@ function App() {
         {loading ? (
           <TaskListLoading />
         ) : (
-          <ul className="list" aria-label="Task list">
-            {tabTasks.length === 0 && (
-              <TaskListEmptyState
-                title={emptyState.title}
-                body={emptyState.body}
-                showReset={hasActiveListFilters}
-                onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
-              />
-            )}
-
-            {(() => {
-              const firstDoneIdx = filterStatus === 'completed'
-                ? -1
-                : tabTasks.findIndex(t => t.statusID === 2);
-              const doneCount = firstDoneIdx >= 0 ? tabTasks.length - firstDoneIdx : 0;
-
-              return tabTasks.map((task, idx) => {
-                const overdue = isTaskOverdue(task);
-                const completed = task.statusID === 2;
-                const statusID = normalizeTaskStatus(task.statusID);
-                const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
-                const isSelected = selectedTaskId === task.taskID;
-                const isEditingTask =
-                  editingId === task.taskID &&
-                  selectedTaskId === null &&
-                  detailEditingTaskId === null;
-                const taskSubtasks = subtasks[task.taskID] ?? [];
-                const subtaskDone = taskSubtasks.filter(s => s.statusID === 2).length;
-                const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;
-
-                return (
-                  <Fragment key={task.taskID}>
-                    {idx === firstDoneIdx && <DoneDivider doneCount={doneCount} />}
-                    {!(isEditingTask && mobileEditLayout) && (
-                      <li
-                        key={`task-${task.taskID}`}
-                        id={`task-${task.taskID}`}
-                        className={[
-                          'item',
-                          overdue ? 'item--overdue' : '',
-                          completed ? 'item--completed' : '',
-                          isSelected ? 'item--selected' : '',
-                          isEditingTask ? 'item--editing' : '',
-                          bulkMode && bulkSelectedIds.has(task.taskID) ? 'item--bulk-selected' : '',
-                        ].filter(Boolean).join(' ')}
-                      >
-                        <>
-                          {!isEditingTask && (
-                            <TaskCardMain
-                              task={task}
-                              completed={completed}
-                              overdue={overdue}
-                              statusID={statusID}
-                              statusLabel={statusLabel}
-                              dateTimeLabel={formatTaskDateRange(task.dateTimeScheduled, task.endDateTimeScheduled, locale, is24Hour)}
-                              recurrenceLabel={recurrenceLabels[task.taskID]}
-                              projectTitle={taskProjectTitle}
-                              priorityLabel={task.priority ? formatPriorityLabel(task.priority) : null}
-                              subtaskDone={subtaskDone}
-                              subtaskTotal={taskSubtasks.length}
-                              bulkMode={bulkMode}
-                              bulkSelected={bulkSelectedIds.has(task.taskID)}
-                              tagsExpanded={expandedTagTaskIds.has(task.taskID)}
-                              visibleTagCount={VISIBLE_TASK_TAGS}
-                              actionMenuOpen={openActionTaskId === task.taskID}
-                              onOpenTask={() => handleTaskCardClick(task)}
-                              onLongPressStart={() => beginTaskLongPress(task)}
-                              onLongPressCancel={cancelTaskLongPress}
-                              onOpenStatusMove={() => openStatusMoveDialog(task)}
-                              onToggleBulkSelect={() => toggleBulkSelection(task.taskID)}
-                              onToggleComplete={() => toggleComplete(task)}
-                              onLoadRecurrenceLabel={() => loadRecurrenceLabel(task.taskID)}
-                              onToggleTags={toggleTaskTags}
-                              onToggleActions={() => {
-                                const next = openActionTaskId === task.taskID ? null : task.taskID;
-                                closeFloatingControls();
-                                setOpenActionTaskId(next);
-                              }}
-                              onEdit={() => handleEditTaskAction(task)}
-                              onDuplicate={() => handleDuplicateTaskAction(task)}
-                              onDelete={() => handleDeleteTaskAction(task.taskID)}
-                            />
-                          )}
-
-                          {isEditingTask && !mobileEditLayout && renderInlineEditForm(task)}
-
-                          {confirmDeleteId === task.taskID && (
-                            <ConfirmDelete
-                              taskTitle={task.title}
-                              onConfirm={() => removeTask(task.taskID)}
-                              onCancel={() => setConfirmDeleteId(null)}
-                            />
-                          )}
-                        </>
-                      </li>
-                    )}
-                    {isEditingTask && mobileEditLayout && (
-                      <li id={`task-${task.taskID}`} className="mobile-edit-row">
-                        {renderInlineEditForm(task, 'mobile')}
-                      </li>
-                    )}
-                  </Fragment>
-                );
-              });
-            })()}
-          </ul>
+          <TaskListItems
+            tasks={tabTasks}
+            emptyState={emptyState}
+            hasActiveListFilters={hasActiveListFilters}
+            filterStatus={filterStatus}
+            selectedTaskId={selectedTaskId}
+            editingId={editingId}
+            detailEditingTaskId={detailEditingTaskId}
+            mobileEditLayout={mobileEditLayout}
+            bulkMode={bulkMode}
+            bulkSelectedIds={bulkSelectedIds}
+            expandedTagTaskIds={expandedTagTaskIds}
+            openActionTaskId={openActionTaskId}
+            confirmDeleteId={confirmDeleteId}
+            subtasks={subtasks}
+            projects={projects}
+            locale={locale}
+            is24Hour={is24Hour}
+            recurrenceLabels={recurrenceLabels}
+            visibleTagCount={VISIBLE_TASK_TAGS}
+            onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+            onOpenTask={handleTaskCardClick}
+            onLongPressStart={beginTaskLongPress}
+            onLongPressCancel={cancelTaskLongPress}
+            onOpenStatusMove={openStatusMoveDialog}
+            onToggleBulkSelect={toggleBulkSelection}
+            onToggleComplete={toggleComplete}
+            onLoadRecurrenceLabel={loadRecurrenceLabel}
+            onToggleTags={toggleTaskTags}
+            onToggleActions={taskId => {
+              const next = openActionTaskId === taskId ? null : taskId;
+              closeFloatingControls();
+              setOpenActionTaskId(next);
+            }}
+            onEdit={handleEditTaskAction}
+            onDuplicate={handleDuplicateTaskAction}
+            onDelete={handleDeleteTaskAction}
+            onConfirmDelete={removeTask}
+            onCancelDelete={() => setConfirmDeleteId(null)}
+            renderEditForm={renderInlineEditForm}
+          />
         )}
 
         </div>
