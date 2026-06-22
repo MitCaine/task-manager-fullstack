@@ -3497,13 +3497,13 @@ input[type="datetime-local"] {
   .modal-overlay--catalog-manager {
     --catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
     --catalog-mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem);
-    --catalog-mobile-bottom-edge: max(1rem, env(safe-area-inset-bottom));
+    --catalog-mobile-bottom-edge: var(--catalog-mobile-edge);
     --catalog-mobile-phone-corner-radius: 55px;
     --catalog-mobile-surface-bottom-radius: max(30px, calc(var(--catalog-mobile-phone-corner-radius) - var(--catalog-mobile-edge)));
     align-items: flex-start;
     padding-inline: 0;
     padding-top: var(--catalog-mobile-top-offset);
-    padding-bottom: var(--catalog-mobile-bottom-edge);
+    padding-bottom: 0;
     overflow-x: clip;
     overflow-y: auto;
   }
@@ -3511,12 +3511,13 @@ input[type="datetime-local"] {
   .catalog-manager {
     width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge));
     max-width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge));
-    height: min(75dvh, calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge)));
+    height: calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge));
     max-height: calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge));
     min-width: 0;
     margin: 0 auto;
     padding: 1.25rem;
-    border-radius: 18px;
+    padding-bottom: 0;
+    border-radius: 18px 18px var(--catalog-mobile-surface-bottom-radius) var(--catalog-mobile-surface-bottom-radius);
   }
 
   .catalog-manager__create,
@@ -3602,6 +3603,12 @@ input[type="datetime-local"] {
 
   .catalog-manager__list-controls {
     align-items: stretch;
+  }
+
+  .catalog-manager__body {
+    min-height: 0;
+    height: auto;
+    padding-bottom: 1.25rem;
   }
 
   .catalog-manager__control {
