@@ -2624,9 +2624,84 @@ test('mobile edit panel replaces the edited task item in the task list context',
     if (!(editRow instanceof HTMLElement) || !(taskList instanceof HTMLElement)) {
       throw new Error('Mobile edit row not found');
     }
-    expect(document.querySelector(`#task-${sampleTask.taskID}`)).not.toBeInTheDocument();
+    expect(editRow).toHaveAttribute('id', `task-${sampleTask.taskID}`);
+    expect(editRow).not.toHaveClass('item');
     expect(taskList).toContainElement(editRow);
     expect(editRow).toContainElement(editPanel);
+    expect(editRow.querySelector('.item__main')).not.toBeInTheDocument();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('desktop edit switches cleanly between task cards', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const firstTask: Task = { ...sampleTask, taskID: 1, title: 'First task', description: 'First description' };
+  const secondTask: Task = { ...sampleTask, taskID: 2, title: 'Second task', description: 'Second description' };
+  mockGetTasks.mockResolvedValue([firstTask, secondTask]);
+  mockGetTask.mockImplementation(async id => (id === 2 ? secondTask : firstTask));
+  render(<App />);
+  await screen.findByText('First task');
+
+  try {
+    const firstItem = screen.getByText('First task').closest('li');
+    const secondItem = screen.getByText('Second task').closest('li');
+    if (!(firstItem instanceof HTMLElement) || !(secondItem instanceof HTMLElement)) {
+      throw new Error('Task items not found');
+    }
+
+    await openTaskActions(firstItem);
+    await act(async () => {
+      userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
+    });
+    expect(within(firstItem).getByDisplayValue('First task')).toBeInTheDocument();
+
+    await openTaskActions(secondItem);
+    await act(async () => {
+      userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
+    });
+
+    expect(firstItem.querySelector('.item__edit-card')).not.toBeInTheDocument();
+    expect(within(firstItem).getByText('First task')).toBeInTheDocument();
+    expect(within(secondItem).getByDisplayValue('Second task')).toBeInTheDocument();
+    expect(document.querySelectorAll('.item__edit-card')).toHaveLength(1);
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('mobile edit switches cleanly between task replacement rows', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  const firstTask: Task = { ...sampleTask, taskID: 1, title: 'First mobile task' };
+  const secondTask: Task = { ...sampleTask, taskID: 2, title: 'Second mobile task' };
+  mockGetTasks.mockResolvedValue([firstTask, secondTask]);
+  mockGetTask.mockImplementation(async id => (id === 2 ? secondTask : firstTask));
+  render(<App />);
+  await screen.findByText('First mobile task');
+
+  try {
+    const firstItem = screen.getByText('First mobile task').closest('li');
+    const secondItem = screen.getByText('Second mobile task').closest('li');
+    if (!(firstItem instanceof HTMLElement) || !(secondItem instanceof HTMLElement)) {
+      throw new Error('Task items not found');
+    }
+
+    await openTaskActions(firstItem);
+    await act(async () => {
+      userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
+    });
+    expect(document.querySelector('#task-1.mobile-edit-row')).toBeInTheDocument();
+
+    await openTaskActions(secondItem);
+    await act(async () => {
+      userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
+    });
+
+    expect(document.querySelector('#task-1.mobile-edit-row')).not.toBeInTheDocument();
+    expect(document.querySelector('#task-1.item')).toBeInTheDocument();
+    expect(document.querySelector('#task-2.mobile-edit-row')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Second mobile task')).toBeInTheDocument();
+    expect(document.querySelectorAll('.mobile-edit-panel')).toHaveLength(1);
   } finally {
     restoreTouchEnvironment();
   }
@@ -2657,7 +2732,8 @@ test('mobile edit visually replaces the original task card content', async () =>
   try {
     expect(editPanel).toHaveClass('mobile-edit-panel');
     expect(editPanel.closest('li.item')).toBeNull();
-    expect(document.querySelector(`#task-${task.taskID}`)).not.toBeInTheDocument();
+    expect(document.querySelector(`#task-${task.taskID}.item`)).not.toBeInTheDocument();
+    expect(document.querySelector(`#task-${task.taskID}.mobile-edit-row`)).toBeInTheDocument();
     expect(screen.queryByText('Mobile persisted only description')).not.toBeInTheDocument();
     expect(within(editPanel).getByDisplayValue('Mobile persisted only description')).toBeInTheDocument();
   } finally {
@@ -2685,6 +2761,38 @@ test('cancel edit restores the original task card', async () => {
   }
 });
 
+test('desktop edit can be opened and canceled repeatedly without duplicate edit cards', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const task: Task = { ...sampleTask, description: 'Repeat edit description' };
+  mockGetTasks.mockResolvedValue([task]);
+  mockGetTask.mockResolvedValue(task);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const taskItem = document.querySelector(`#task-${task.taskID}`);
+      if (!(taskItem instanceof HTMLElement)) throw new Error('Task item not found');
+      await openTaskActions(taskItem);
+      await act(async () => {
+        userEvent.click(within(taskItem).getByRole('menuitem', { name: /edit/i }));
+      });
+      const editCard = document.querySelector('.item__edit-card');
+      if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
+      expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
+      expect(document.querySelectorAll('.item__edit-card')).toHaveLength(1);
+
+      await act(async () => {
+        userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
+      });
+      expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
+      expect(screen.getByText('Repeat edit description')).toBeInTheDocument();
+    }
+  } finally {
+    restoreMedia();
+  }
+});
+
 test('saving mobile edit restores the updated task card', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const task: Task = { ...sampleTask, title: 'Original mobile title' };
@@ -2707,6 +2815,44 @@ test('saving mobile edit restores the updated task card', async () => {
     expect(within(taskItem).queryByText('Original mobile title')).not.toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
+  }
+});
+
+test('desktop edit opens for a long task near the bottom without scrolling the list', async () => {
+  const restoreMedia = mockDesktopMediaEnvironment();
+  const restoreRects = mockInlineEditRects(845);
+  const tasks = Array.from({ length: 6 }, (_, index): Task => ({
+    ...sampleTask,
+    taskID: index + 1,
+    title: index === 5 ? 'Very long bottom task title that should remain editable without layout jumps' : `Task ${index + 1}`,
+    description: index === 5 ? 'Long bottom description '.repeat(8).trim() : '',
+  }));
+  mockGetTasks.mockResolvedValue(tasks);
+  mockGetTask.mockImplementation(async id => tasks.find(task => task.taskID === id) ?? tasks[0]);
+  render(<App />);
+  await screen.findByText('Very long bottom task title that should remain editable without layout jumps');
+
+  try {
+    const bottomItem = screen
+      .getByText('Very long bottom task title that should remain editable without layout jumps')
+      .closest('li');
+    if (!(bottomItem instanceof HTMLElement)) throw new Error('Bottom task item not found');
+    const taskList = document.querySelector('.app__list');
+    if (!(taskList instanceof HTMLElement)) throw new Error('Task list not found');
+    taskList.scrollTop = 180;
+
+    await openTaskActions(bottomItem);
+    await act(async () => {
+      userEvent.click(within(bottomItem).getByRole('menuitem', { name: /edit/i }));
+    });
+
+    expect(within(bottomItem).getByDisplayValue('Very long bottom task title that should remain editable without layout jumps')).toBeInTheDocument();
+    expect(within(bottomItem).getByDisplayValue(/Long bottom description/)).toBeInTheDocument();
+    expect(taskList.scrollTop).toBe(180);
+    expect(document.querySelectorAll('.item__edit-card')).toHaveLength(1);
+  } finally {
+    restoreRects();
+    restoreMedia();
   }
 });
 

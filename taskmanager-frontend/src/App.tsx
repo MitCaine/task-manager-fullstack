@@ -2794,7 +2794,7 @@ function App() {
                       </li>
                     )}
                     {isEditingTask && mobileEditLayout && (
-                      <li className="mobile-edit-row">
+                      <li id={`task-${task.taskID}`} className="mobile-edit-row">
                         {renderInlineEditForm(task, 'mobile')}
                       </li>
                     )}
