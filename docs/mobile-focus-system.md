@@ -309,6 +309,11 @@ additional iOS/WKWebView-specific focus assist. This applies only to the
 Project/Tag Management rename textboxes, not to create-task fields, task edit
 fields, search fields, create textareas, or general modal controls.
 
+The completed mobile catalog-management surface also includes compact search,
+sort/filter controls, usage counts, bulk creation, row selection, and single or
+bulk delete confirmations. Those behaviors are modal/catalog interactions; the
+focus assist remains scoped to the rename textbox path only.
+
 ### Symptom
 
 On iOS/WKWebView, focusing a catalog rename textbox while it is low in the

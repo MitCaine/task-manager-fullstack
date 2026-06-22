@@ -574,6 +574,37 @@ class TaskControllerTest {
     }
 
     @Test
+    void setRepeat_intervalValueBoundaryMatrix_validatesUnitSpecificLimits() throws Exception {
+        Object[][] cases = {
+                {"day", 0, 400}, {"day", 1, 200}, {"day", 7, 200}, {"day", 8, 400},
+                {"week", 0, 400}, {"week", 1, 200}, {"week", 4, 200}, {"week", 5, 400},
+                {"month", 0, 400}, {"month", 1, 200}, {"month", 12, 200}, {"month", 13, 400},
+                {"year", 0, 400}, {"year", 1, 200}, {"year", 5, 200}, {"year", 6, 400},
+        };
+
+        for (Object[] testCase : cases) {
+            String unit = (String) testCase[0];
+            int value = (Integer) testCase[1];
+            int expectedStatus = (Integer) testCase[2];
+            Task task = makeTask(1L, "Task", null, LocalDateTime.of(2026, 6, 1, 9, 0));
+            RecurrenceRule savedRule = new RecurrenceRule();
+            savedRule.setRecurrenceRuleID(5L);
+            savedRule.setIntervalUnit(unit);
+            savedRule.setIntervalValue(value);
+            when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
+            when(recurrenceRuleRepository.save(any(RecurrenceRule.class))).thenReturn(savedRule);
+            when(taskRepository.save(any(Task.class))).thenReturn(task);
+
+            mockMvc.perform(patch("/tasks/1/repeat")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"intervalUnit\":\"" + unit + "\",\"intervalValue\":" + value + "}"))
+                    .andExpect(status().is(expectedStatus));
+
+            clearInvocations(taskRepository, recurrenceRuleRepository);
+        }
+    }
+
+    @Test
     void setRepeat_invalidLegacyFrequency_returns400() throws Exception {
         Task task = makeTask(1L, "Task", null, null);
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));

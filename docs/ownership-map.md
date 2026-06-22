@@ -208,9 +208,21 @@ Source: `taskmanager-frontend/src/hooks/useProjectTagCatalog.ts`
 | Dependencies | Project/tag API functions and the top-level error setter. |
 | Consumer | `App.tsx`. |
 
-Catalog mutations update catalog state. `App.tsx` updates tasks and active
-draft/filter values after successful catalog mutations because the hook does
-not own those domains.
+Catalog mutations update catalog state. Catalog-management presentation owns
+local search text, sort/filter choices, usage-count display, newline-based bulk
+create text, row selection, single-delete confirmation, and bulk-delete
+confirmation. Its interaction modes stay mutually exclusive so editing,
+creating/searching/list controls, bulk selection, and delete confirmations do not
+compete for the same row state.
+
+`App.tsx` updates tasks, selected-task state, active drafts, and active filters
+after successful catalog mutations because the hook does not own those domains.
+Project deletion reconciliation clears affected task project assignments plus
+active project filters/drafts. Tag deletion reconciliation removes affected
+task-tag relationships plus active tag filters/drafts. App also remains the
+place where recurrence-aware task references are reconciled after catalog
+deletion because recurring replacement and task-card state are task-domain
+workflows, not catalog-hook workflows.
 
 ### `useTaskDetailResources`
 
@@ -422,7 +434,7 @@ Entities own persisted field mappings and validation annotations.
 | `Project` | Project metadata. |
 | `Tag` | Tag title, color, and optional user ID. |
 | `Status` | Status lookup row. |
-| `RecurrenceRule` | Frequency and recurrence start/end metadata. |
+| `RecurrenceRule` | Interval unit/value, legacy frequency compatibility, and recurrence start/end metadata. |
 | `Subtask` | Task-scoped subtask state and optional schedule. |
 | `Note` | Task-scoped note content and timestamp. |
 | `Reminder` | Task-scoped due date, message, and notification method. |
@@ -442,11 +454,23 @@ Entities do not own application workflows.
 | Bulk mutate tasks | `App.tsx` | `useBulkSelection`, frontend API |
 | Load/mutate detail resources | `useTaskDetailResources` | Frontend API, resource controllers/repositories |
 | Load/mutate project/tag catalog | `useProjectTagCatalog` | Frontend API, project/tag controllers |
-| Reconcile catalog changes into tasks | `App.tsx` | `useProjectTagCatalog` |
+| Reconcile catalog changes into tasks, drafts, and filters | `App.tsx` | `useProjectTagCatalog` |
 | Derive visible task views | `useTaskListViewModel` | Filtering/statistics utilities |
 | Render and navigate calendar | `Calendar` | `App.tsx` handles task opening |
 | Poll and snooze reminders | `App.tsx` | `useTaskDetailResources`, `ToastList`, frontend API |
 | Global focus and keyboard behavior | `App.tsx` | Presentation components provide refs and structure |
+
+Recurrence uses a value-plus-unit interval (`intervalValue` and `intervalUnit`)
+with unit-specific ranges: day 1-7, week 1-4, month 1-12, and year 1-5.
+Frontend recurrence helpers clamp values, format user-facing labels such as
+`Every day`, `Every 2 weeks`, and `Every 3 months`, advance dates, preserve
+duration, and normalize existing legacy `daily`, `weekly`, and `monthly`
+frequency data. Task cards expose recurrence through the repeat indicator, which
+loads the formatted label on demand and shows it as a tooltip/popover on hover,
+focus, or click. Recurring completion/replacement remains `App.tsx`-owned
+because it crosses recurrence scheduling, task creation, tag copying, recurrence
+attachment, old-task deletion, selected-task cleanup, scrolling, and
+highlighting.
 
 ## Protected Ownership Boundaries
 

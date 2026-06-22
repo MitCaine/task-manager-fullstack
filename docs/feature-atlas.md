@@ -200,8 +200,12 @@ Save while sharing the same complete save workflow.
 
 ## User Behavior
 
-Users assign or clear a repeat frequency. Completing an active recurring task
-replaces it with the next occurrence while preserving duration and metadata.
+Users assign or clear an interval-based recurrence rule made from
+`intervalValue` and `intervalUnit`. Supported units are day, week, month, and
+year with limits of 1-7 days, 1-4 weeks, 1-12 months, and 1-5 years. Legacy
+`daily`, `weekly`, and `monthly` frequency values normalize to one-day,
+one-week, and one-month intervals. Completing an active recurring task replaces
+it with the next occurrence while preserving duration and metadata.
 
 ## Frontend Owners
 
@@ -219,8 +223,8 @@ replaces it with the next occurrence while preserving duration and metadata.
 ## State Categories
 
 - **Persisted:** task and recurrence rule.
-- **Draft:** selected create/edit recurrence frequency.
-- **Derived:** next schedule and preserved duration.
+- **Draft:** selected create/edit recurrence interval.
+- **Derived:** next schedule, preserved duration, and display labels such as `Every day`, `Every 2 weeks`, and `Every 3 months`.
 - **Transient:** replacement workflow, highlight, and selected-task cleanup.
 
 ## APIs
@@ -261,15 +265,20 @@ replaces it with the next occurrence while preserving duration and metadata.
 
 ## User Behavior
 
-Users create and delete projects, assign a project during task creation or
-editing, display project labels, and filter tasks by project.
+Users create, search, sort/filter, rename, delete, and bulk-create or
+bulk-delete projects in Project Management. They assign a project during task
+creation or editing, display project labels, and filter tasks by project.
+Project rows show usage counts, and create/search/list controls, rename/edit
+mode, bulk selection, and delete confirmations are mutually exclusive
+interaction modes.
 
 ## Frontend Owners
 
-- `useProjectTagCatalog`: project records, project draft, loading, creation,
-  and catalog deletion.
-- `App.tsx`: assignment in task drafts, inline-form/dropdown coordination,
-  project-deletion reconciliation, and active project filter.
+- `useProjectTagCatalog`: project records, loading, catalog-level creation,
+  deletion, and API state.
+- `App.tsx`: assignment in task drafts, dropdown coordination, project-deletion
+  reconciliation into tasks, selected-task state, drafts, and filters, and
+  active project filter.
 - Project chips, inline project form, task-list, and detail components render
   project choices and labels.
 
@@ -281,14 +290,17 @@ editing, display project labels, and filter tasks by project.
 ## State Categories
 
 - **Persisted:** projects and task project assignment.
-- **Draft:** new-project title and task draft project selection.
+- **Draft:** task draft project selection and catalog-management
+  bulk-create/rename text.
 - **Derived:** displayed project lookup and project-filtered task list.
-- **Presentation:** project dropdown and inline form visibility.
+- **Presentation:** project dropdown visibility plus catalog-management search,
+  sort/filter, bulk selection, delete confirmation, and mobile modal state.
 
 ## APIs
 
 - `getProjects`
 - `createProject`
+- `updateProject`
 - `deleteProject`
 - `createTask`
 - `updateTask`
@@ -323,15 +335,19 @@ editing, display project labels, and filter tasks by project.
 
 ## User Behavior
 
-Users create, color, delete, assign, remove, display, expand, and filter by
-tags.
+Users create, color, search, sort/filter, rename, delete, bulk-create,
+bulk-delete, assign, remove, display, expand, and filter by tags. Tag rows show
+usage counts, bulk-created tags share the selected new-tag color, and
+create/search/list controls, rename/edit mode, bulk selection, and delete
+confirmations are mutually exclusive interaction modes.
 
 ## Frontend Owners
 
-- `useProjectTagCatalog`: tag records, tag draft/color, loading, creation,
-  color update, and catalog deletion.
+- `useProjectTagCatalog`: tag records, loading, catalog-level creation,
+  color/title updates, deletion, and API state.
 - `App.tsx`: task/tag assignment, dropdown/focus coordination, tag deletion
-  reconciliation into tasks and drafts, and active tag filter.
+  reconciliation into tasks, selected-task state, drafts, and filters, and
+  active tag filter.
 - `TaskTags`, `TagProjectChips`, `InlineTagForm`, and `TagColorPicker`:
   presentation.
 

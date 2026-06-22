@@ -345,6 +345,27 @@ state, selected-task state, and rendered list behavior.
 4. Detail components render the resources and emit actions.
 5. The hook performs resource-level mutations and updates its resource maps.
 
+### Recurrence Model and Display
+
+Recurrence is stored and transported as `intervalValue` plus `intervalUnit`.
+Supported units are `day`, `week`, `month`, and `year`; allowed values are
+1-7 days, 1-4 weeks, 1-12 months, and 1-5 years. Backend validation and
+frontend recurrence controls use the same limits.
+
+Legacy `daily`, `weekly`, and `monthly` frequency values remain accepted for
+old rows and old clients. The backend normalizes those values into interval
+records, and frontend helpers normalize old recurrence responses before display
+or scheduling. Labels such as `Every day`, `Every 2 weeks`, and `Every 3
+months` are derived from the shared recurrence display helper. Task-card repeat
+indicators load the recurrence rule on demand and show the formatted label in a
+tooltip/popover.
+
+Recurrence UI components own presentation only. `RecurrenceControl` renders the
+create, inline-edit, and mobile-edit recurrence picker; `DetailRepeatRow`
+renders the detail-panel recurrence row. Recurrence scheduling remains in the
+pure recurrence utility, while `App.tsx` owns mutation workflows that attach,
+clear, copy, or replace recurrence rules.
+
 ### Reminders
 
 Reminder ownership is intentionally split:
@@ -360,10 +381,23 @@ hook-owned reminder collection exposed through `setReminders`.
 
 ### Catalog Mutations
 
-`useProjectTagCatalog` owns catalog-level API mutations and catalog state.
+`useProjectTagCatalog` owns catalog-level API mutations and catalog state. The
+catalog-management modal layers project/tag search, name and usage sort modes,
+used/unused filtering, usage counts, newline-based bulk creation, single delete
+confirmation, and bulk selection/deletion over that catalog state.
+
+The modal keeps catalog interaction modes exclusive: entering edit mode clears
+bulk selection and pending bulk deletion; selecting rows exits edit/search/delete
+confirmation flows; search and sort/filter controls clear edit and selection
+state; and single-delete and bulk-delete confirmations clear each other.
+
 `App.tsx` reconciles successful catalog mutations into task state and active
-draft/filter values because the catalog hook does not own tasks or list
-controls.
+draft/filter values because the catalog hook does not own tasks, selected-task
+state, draft fields, filters, recurrence-related task references, or list
+controls. After project deletion, App clears project assignments from affected
+tasks, selected task state, drafts, and filters; after tag deletion, App removes
+those tag relationships from affected tasks, selected task state, drafts, and
+filters.
 
 ## Ownership Principles
 
@@ -395,8 +429,7 @@ important ownership:
 - Autosave depends on selected-task state, current task references, and edit
   drafts.
 - Dropdown closing follows application-wide Escape and outside-click rules.
-- Recurring completion crosses creation, deletion, tags, recurrence,
-  selection, and scrolling.
+- Recurring completion crosses task creation, deletion/replacement, recurrence-rule loading and attachment, tag copying, bulk selection, selected-task state, scrolling, and highlighting.
 - Mobile editing placement is part of the iOS focus-stability system.
 - Reminder snoozing crosses persisted reminder state and transient toast state.
 
@@ -452,7 +485,10 @@ Appropriate boundaries include:
 - component-local interaction state.
 
 Existing examples include the four frontend hooks and the scheduling,
-recurrence, filtering, display, and statistics utilities.
+recurrence, filtering, display, and statistics utilities. Recurrence utilities
+normalize old `daily`/`weekly`/`monthly` values into the current interval shape,
+clamp values to unit-specific ranges, advance dates by interval, preserve task
+duration, and format user-facing labels such as `Every week` or `Every 3 months`.
 
 ### Protected Centralized Responsibilities
 

@@ -5,10 +5,25 @@ import {
   preserveTaskDuration,
   formatRecurrenceInterval,
   legacyFrequencyToInterval,
+  normalizeRecurrenceRule,
+  clampRecurrenceInterval,
 } from './taskRecurrence';
 
 describe('advanceRecurringDate', () => {
-  it('advances interval recurrence dates', () => {
+  it('advances single-interval recurrence dates', () => {
+    expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'day', intervalValue: 1 })).toEqual(new Date(2026, 5, 5, 9, 0));
+    expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'week', intervalValue: 1 })).toEqual(new Date(2026, 5, 11, 9, 0));
+    expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'month', intervalValue: 1 })).toEqual(new Date(2026, 6, 4, 9, 0));
+    expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'year', intervalValue: 1 })).toEqual(new Date(2027, 5, 4, 9, 0));
+  });
+
+  it('documents current month-end and leap-year rollover semantics', () => {
+    expect(advanceRecurringDate(new Date(2026, 0, 31, 9, 0), { intervalUnit: 'month', intervalValue: 1 })).toEqual(new Date(2026, 2, 3, 9, 0));
+    expect(advanceRecurringDate(new Date(2026, 2, 31, 9, 0), { intervalUnit: 'month', intervalValue: 1 })).toEqual(new Date(2026, 4, 1, 9, 0));
+    expect(advanceRecurringDate(new Date(2028, 1, 29, 9, 0), { intervalUnit: 'year', intervalValue: 1 })).toEqual(new Date(2029, 2, 1, 9, 0));
+  });
+
+  it('advances multi-interval recurrences for every supported unit', () => {
     expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'day', intervalValue: 2 })).toEqual(new Date(2026, 5, 6, 9, 0));
     expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'week', intervalValue: 3 })).toEqual(new Date(2026, 5, 25, 9, 0));
     expect(advanceRecurringDate(new Date(2026, 5, 4, 9, 0), { intervalUnit: 'month', intervalValue: 4 })).toEqual(new Date(2026, 9, 4, 9, 0));
@@ -92,5 +107,36 @@ describe('recurrence display and compatibility', () => {
     expect(legacyFrequencyToInterval('daily')).toEqual({ intervalUnit: 'day', intervalValue: 1 });
     expect(legacyFrequencyToInterval('weekly')).toEqual({ intervalUnit: 'week', intervalValue: 1 });
     expect(legacyFrequencyToInterval('monthly')).toEqual({ intervalUnit: 'month', intervalValue: 1 });
+  });
+
+  it('normalizes legacy recurrence rule responses', () => {
+    expect(normalizeRecurrenceRule({
+      recurrenceRuleID: 1,
+      frequency: 'monthly',
+      intervalUnit: null,
+      intervalValue: null,
+      timesOfRecurrence: 0,
+      startDateTime: '2026-01-01T00:00:00',
+      endDateTime: '2036-01-01T00:00:00',
+    })).toEqual({ intervalUnit: 'month', intervalValue: 1 });
+
+    expect(normalizeRecurrenceRule({
+      recurrenceRuleID: 2,
+      frequency: ' WEEKLY ',
+      intervalUnit: null,
+      intervalValue: null,
+      timesOfRecurrence: 0,
+      startDateTime: '2026-01-01T00:00:00',
+      endDateTime: '2036-01-01T00:00:00',
+    })).toEqual({ intervalUnit: 'week', intervalValue: 1 });
+  });
+});
+
+describe('clampRecurrenceInterval', () => {
+  it('clamps values to the selected unit range', () => {
+    expect(clampRecurrenceInterval({ intervalUnit: 'week', intervalValue: 12 })).toEqual({ intervalUnit: 'week', intervalValue: 4 });
+    expect(clampRecurrenceInterval({ intervalUnit: 'day', intervalValue: 9 })).toEqual({ intervalUnit: 'day', intervalValue: 7 });
+    expect(clampRecurrenceInterval({ intervalUnit: 'month', intervalValue: 0 })).toEqual({ intervalUnit: 'month', intervalValue: 1 });
+    expect(clampRecurrenceInterval({ intervalUnit: 'year', intervalValue: -2 })).toEqual({ intervalUnit: 'year', intervalValue: 1 });
   });
 });

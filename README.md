@@ -22,7 +22,7 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 
 | Project Management | Tag Management |
 |-------------------|----------------|
-| <img src="docs/images/project-management.png" alt="Project management dropdown" width="300"> | <img src="docs/images/tag-management.png" alt="Tag management dropdown" width="300"> |
+| <img src="docs/images/project-management.png" alt="Project management modal" width="300"> | <img src="docs/images/tag-management.png" alt="Tag management modal" width="300"> |
 
 ### Additional Features
 
@@ -33,19 +33,19 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 ## Features
 
 - Task creation, editing, copying, deletion, and completion.
-- Projects, tags, and priority management.
+- Projects, tags, and priority management with catalog search, usage counts, sort/filter controls, bulk project/tag creation, and single or bulk deletion.
 - Calendar views for Day, Week, Month, and Quarter planning.
 - Status movement between Active, In Progress, and Done.
-- Recurring tasks with constrained day, week, month, and year intervals.
+- Recurring tasks with an interval model that combines a numeric value and unit, constrained to 1-7 days, 1-4 weeks, 1-12 months, or 1-5 years.
 - Automatic generation of the next occurrence when recurring tasks are completed.
 - Optional start and end times with start/end range display throughout the application.
 - Sorting and filtering by date, status, priority, project, tag, and search text.
 - Interactive task count badges for all, done, and overdue task filters.
-- Task details panel with subtasks, notes, reminders, attachments, projects, tags, and recurrence.
+- Task details panel with subtasks, notes, reminders, attachments, projects, tags, and user-facing recurrence labels.
 - Detail-panel edits autosave after a short debounce.
 - Due-reminder in-app toasts with dismiss and snooze actions.
 - Task statistics dashboard.
-- Bulk task selection and actions.
+- Bulk task selection and actions; catalog management also keeps editing, creating, bulk selection, and delete-confirmation modes mutually exclusive.
 - Mobile-friendly swipe navigation between task, creation, and calendar views.
 - Light, dark, and system theme support.
 - 12-hour / 24-hour time formats.
@@ -78,7 +78,7 @@ Frontend:
 - MySQL persistence for local runtime data.
 - REST API architecture for tasks, projects, tags, recurrence, notes, reminders, attachments, and subtasks.
 - Shared date/time formatting utilities for 12-hour / 24-hour time and US / European date display.
-- Frontend and backend validation for task fields, recurrence frequencies, and start/end time ranges.
+- Frontend and backend validation for task fields, recurrence intervals, and start/end time ranges.
 - Recurrence generation logic that creates the next occurrence when recurring tasks are completed.
 - Responsive mobile-first design refined for iPhone-sized screens.
 - Accessibility-focused implementation with semantic dialogs, focus restoration, keyboard behavior, labels, and touch ergonomics.
@@ -287,6 +287,37 @@ The backend exposes REST endpoints for:
 
 The backend currently uses a simplified controller/repository structure without a dedicated service layer. This kept iteration speed high while building the task, calendar, recurrence, and mobile interaction flows. A service owner should be introduced only when a workflow needs reusable business rules or transactions across several repositories.
 
+## Catalog Management
+
+Project and tag management use dedicated catalog-management surfaces rather than
+destructive actions inside assignment pickers. Projects and tags can be searched
+independently, sorted by name or usage, filtered by used/unused state, and
+displayed with usage counts. The same surface supports newline-separated bulk
+creation, single-item deletion, and bulk deletion with explicit confirmations.
+Creating/searching/list controls, rename/edit mode, bulk selection, and delete
+confirmation mode are kept mutually exclusive so one interaction mode cannot
+leave stale row state behind another.
+
+On mobile, the catalog-management modal uses compact controls and a scoped rename
+focus assist for Project/Tag Management rename fields. The high-level
+architecture is that catalog state and API mutations stay in the catalog hook,
+while the modal owns presentation-mode state and `App.tsx` reconciles successful
+catalog mutations into tasks, selected task state, drafts, and filters.
+
+## Recurrence Model
+
+Recurrence is interval-based. A recurrence rule is represented as
+`intervalValue` plus `intervalUnit`, where supported units are `day`, `week`,
+`month`, and `year`. Unit-specific limits are: day 1–7, week 1–4, month 1–12,
+and year 1–5. Older `daily`, `weekly`, and `monthly` `frequency` values remain
+compatible and are normalized to one-day, one-week, and one-month intervals.
+
+User-facing recurrence labels are formatted from the interval model, including
+labels such as `Every day`, `Every 2 weeks`, and `Every 3 months`. Task cards
+show a repeat indicator for recurring tasks; hovering, focusing, or tapping the
+indicator loads the recurrence rule and opens a tooltip/popover with the
+formatted label.
+
 ## Validation
 
 The backend validates key inputs such as:
@@ -294,7 +325,8 @@ The backend validates key inputs such as:
 - Task title and description limits
 - Tag title and color format
 - Reminder required due date
-- Supported recurrence frequencies: `daily`, `weekly`, `monthly`
+- Recurrence intervals use `intervalValue` + `intervalUnit` with constrained ranges: days 1-7, weeks 1-4, months 1-12, and years 1-5
+- Legacy recurrence frequency values `daily`, `weekly`, and `monthly` are still normalized for existing data
 - End time must be after start time when both are present
 
 Invalid requests return structured validation errors or a bad request response.
@@ -321,6 +353,9 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 
 ## Recent Improvements
 
+- Added Project/Tag Management search, usage counts, sort/filter controls, bulk creation from newline-separated names, single and bulk deletion confirmations, and mode-exclusive editing/creating/selection/delete flows.
+- Polished mobile Project/Tag Management layout and rename focus behavior so catalog management remains usable on iPhone-sized WKWebView screens.
+- Upgraded recurrence documentation and UI behavior around value-plus-unit intervals, constrained unit ranges, formatted labels such as "Every 2 weeks", and task-card repeat tooltips/popovers.
 - Added a scoped iOS WKWebView focus assist for Project/Tag Management rename fields and documented the diagnostic evidence in `docs/mobile-focus-system.md`.
 - Extracted `TaskListToolbar` and `DetailResourcePanels` as bounded presentation components while keeping task state, autosave, focus, and mobile ownership in `App.tsx`.
 - Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.

@@ -2,23 +2,40 @@
 
 ## Purpose
 
-This document proposes a scalable user experience and technical direction for
-project and tag catalogs as they grow beyond the size that simple dropdown
-lists can handle. It is a plan only. It does not change the current application,
-data model, or APIs.
+This document tracks scalable project and tag catalog behavior as catalogs grow
+beyond the size that simple dropdown lists can handle. Some catalog-management
+recommendations in this document have been implemented; remaining
+recommendations are explicitly framed as future scalability work rather than
+current behavior.
 
 The recommended direction separates two responsibilities:
 
 - **Assignment pickers** assign existing projects or tags while creating,
   editing, or filtering tasks.
-- **Catalog management surfaces** create, rename, recolor, delete, bulk-add,
-  bulk-delete, merge, and clean up projects or tags.
+- **Catalog management surfaces** create, rename, recolor tags, delete,
+  bulk-add, bulk-delete, search, sort/filter, and clean up projects or tags.
+  Merge remains future scalability work.
 
 Tag assignment should be addressed first. Tag catalogs are likely to grow
 faster than project catalogs, and multi-select assignment becomes difficult
 sooner than single-select project assignment.
 
 ## Current Behavior Summary
+
+Current Project/Tag Management surfaces support project and tag search, name and
+usage sorting, used/unused filtering, usage counts, newline-separated bulk
+creation, single-item deletion, and bulk deletion. Tag creation and tag editing
+include color selection. Create/search/list controls, rename/edit mode, bulk
+selection, and delete confirmation mode are mutually exclusive so row state does
+not leak between modes. The mobile modal uses compact controls and a scoped
+rename focus assist; low-level iOS details live in
+`docs/mobile-focus-system.md`.
+
+`useProjectTagCatalog` owns catalog API calls and catalog records. `App.tsx`
+owns reconciliation after catalog mutations because tasks, selected task state,
+draft fields, filters, and recurrence-aware task references are outside the
+catalog hook. Project deletion clears affected task project IDs; tag deletion
+removes affected task-tag relationships.
 
 ### Data Model and Constraints
 
@@ -305,68 +322,48 @@ After basic searchable pickers are stable, consider showing a small
 
 ### Manage Projects / Manage Tags
 
-Add dedicated management entry points instead of performing destructive catalog
-actions inside assignment pickers.
+Dedicated management entry points now keep destructive catalog actions out of
+assignment pickers. The implemented modal supports:
 
-Recommended modal or panel capabilities:
+- project and tag search;
+- project and tag sort/filter controls;
+- usage counts;
+- newline-separated bulk project and tag creation;
+- project rename and tag rename/recolor;
+- single and bulk project/tag deletion with explicit confirmation.
 
-- Search and sort the catalog.
-- Show title and tag color where applicable.
-- Create one item.
-- Rename items.
-- Recolor tags.
-- Select multiple items for later bulk actions.
-- Clearly distinguish unused items from in-use items.
-- Show safe delete and merge actions only with explicit confirmation.
-
-This management surface should not own task assignment draft state.
+This management surface does not own task assignment draft state. Merge,
+duplicate cleanup, and server-side large-catalog pagination remain future
+scalability topics.
 
 ### Usage Counts
 
-Add usage counts after the core management surfaces exist. Counts belong most
-naturally in management screens and may also help in larger picker views.
-
-Examples:
-
-- `Wedding Planning (12)`
-- `Docs (4)`
-
-Usage counts must come from an authoritative source and define what they count,
-such as active tasks only or all tasks. They should support management decisions
-without making ordinary assignment results visually noisy.
+Usage counts are now part of Project/Tag Management rows and support
+sort/filter decisions. They are used for management context and delete
+confirmations without replacing ordinary assignment labels.
 
 ## Bulk Operation Plan
 
 ### Bulk Add Projects and Tags
 
-Bulk add should accept a newline-separated or paste-friendly list, trim values,
-reject blanks, identify duplicates, and show a preview before submission.
-
-Bulk add should remain before bulk delete because it does not mutate existing
-task assignments and has a smaller data-integrity risk.
-
-Recommended safeguards:
-
-- Validate every title before submission.
-- Detect duplicates case-insensitively against the submitted batch and current
-  catalog.
-- Let users choose colors for tags or apply a default color.
-- Report created, skipped, and failed items separately.
-- Do not automatically assign every newly created item to the current task.
-
-The current API could create items through repeated individual requests, but
-that would not be atomic and would produce awkward partial-failure handling.
-A true bulk-create endpoint is recommended before bulk add is treated as a
-reliable catalog-management feature.
+Bulk add accepts a newline-separated list, trims values, skips blanks, detects
+duplicates case-insensitively against the current catalog and submitted batch,
+and reports created/skipped/failed counts. Bulk tag creation uses the selected
+new-tag color. Newly created catalog items are not automatically assigned to the
+current task. The frontend performs repeated individual create requests through
+the existing project/tag APIs; a true bulk-create endpoint remains future
+scalability work if atomicity becomes necessary.
 
 ### Bulk Delete Projects and Tags
 
-Bulk delete is high risk because in-use catalog items affect existing tasks.
+Bulk delete is implemented with explicit confirmation because in-use catalog items affect existing tasks.
 
-Current database behavior:
+Current database and reconciliation behavior:
 
-- Deleting a project sets affected task `projectID` values to `NULL`.
-- Deleting a tag cascades deletion of affected `TaskTag` rows.
+- Deleting a project sets affected task `projectID` values to `NULL`, and
+  `App.tsx` clears matching task, selected-task, draft, and filter references.
+- Deleting a tag cascades deletion of affected `TaskTag` rows, and `App.tsx`
+  clears matching task, selected-task, draft, and filter references.
 
 Required safeguards:
 
@@ -508,12 +505,17 @@ Testing:
 
 ### Phase 5: Manage Projects/Tags Surfaces
 
-Deliver:
+Status: mostly implemented for current catalog sizes.
 
-- Searchable, sortable catalog management surfaces.
-- Single-item create, rename, tag recolor, and safe delete.
+Delivered:
+
+- Searchable, sortable/filterable catalog management surfaces.
+- Usage counts.
+- Bulk project and tag creation.
+- Single and bulk project/tag deletion with confirmation.
+- Rename and tag recolor.
 - Assignment pickers link to management surfaces.
-- Assignment pickers no longer own catalog mutation actions.
+- Assignment pickers no longer own destructive catalog mutation actions.
 
 Likely files:
 
