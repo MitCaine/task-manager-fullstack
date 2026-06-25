@@ -2949,7 +2949,7 @@ test('desktop edit remains inline in the task list flow', async () => {
   }
 });
 
-test('desktop task selection highlights the task without opening competing edit panels', async () => {
+test('desktop task selection highlights the task without opening edit panels', async () => {
   const restoreMedia = mockDesktopMediaEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
@@ -2962,9 +2962,6 @@ test('desktop task selection highlights the task without opening competing edit 
     });
 
     await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
-    const pager = document.querySelector<HTMLElement>('.mobile-pager');
-    expect(pager).not.toHaveClass('mobile-pager--detail-open');
-    expect(document.querySelector('.app__detail')).not.toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
@@ -3092,7 +3089,7 @@ test('mobile edit project search filters and selects without changing panel or s
   }
 });
 
-test('mobile task tap selects without opening legacy detail or edit panels', async () => {
+test('mobile task tap selects without opening edit panels', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
@@ -3105,7 +3102,6 @@ test('mobile task tap selects without opening legacy detail or edit panels', asy
     });
 
     await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
-    expect(document.querySelector('.app__detail')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();

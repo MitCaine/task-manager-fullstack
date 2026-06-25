@@ -61,8 +61,7 @@ orchestration owner.
 - create-task draft values;
 - edit-task draft values;
 - search, filter, sort, and view-tab controls;
-- selected-task and detail-panel state;
-- expanded detail sections;
+- selected-task state;
 - active inline or mobile editor;
 - delete confirmation state;
 - status-move dialog state;
@@ -286,21 +285,12 @@ tasks or own status movement, selection, editing, duplication, deletion,
 long-press orchestration, settings/statistics state, catalog-management state, or
 mobile edit placement.
 
-### Detail-Panel Components
+### Legacy Detail-Panel Components
 
-Directory: `taskmanager-frontend/src/components/detail-panel/`
-
-These components render:
-
-- detail header and description;
-- scheduling and quick-shift controls;
-- recurrence and status information;
-- resource-panel composition;
-- subtasks, notes, reminders, and links;
-- collapsible section shells and badges.
-
-Selected-task state and task autosave remain in `App.tsx`. Resource collections
-and resource-level mutations remain in `useTaskDetailResources`.
+The legacy detail-panel component directory has been removed from the active
+frontend. Resource collections and resource-level mutation helpers remain in
+`useTaskDetailResources` for future or ambiguous resource functionality, but no
+resource editor panel is currently mounted.
 
 ### Shared Date and Time Controls
 
@@ -452,7 +442,7 @@ Entities do not own application workflows.
 | Complete recurring task | `App.tsx` | Recurrence utilities, frontend API, `TaskController` |
 | Bulk select tasks | `useBulkSelection` | Task-list components |
 | Bulk mutate tasks | `App.tsx` | `useBulkSelection`, frontend API |
-| Load/mutate detail resources | `useTaskDetailResources` | Frontend API, resource controllers/repositories |
+| Retain/mutate task resources | `useTaskDetailResources` | Frontend API, resource controllers/repositories |
 | Load/mutate project/tag catalog | `useProjectTagCatalog` | Frontend API, project/tag controllers |
 | Reconcile catalog changes into tasks, drafts, and filters | `App.tsx` | `useProjectTagCatalog` |
 | Derive visible task views | `useTaskListViewModel` | Filtering/statistics utilities |

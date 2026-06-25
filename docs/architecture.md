@@ -10,8 +10,8 @@ The architecture reflects implementation constraints that are important to the
 working application:
 
 - task mutations often cross multiple API resources;
-- task editing is shared by inline, mobile, and detail-panel interfaces;
-- debounced autosave depends on current task and selection state;
+- task editing is shared by inline and mobile interfaces;
+- explicit edit saves coordinate task fields, tags, and recurrence;
 - mobile editing must preserve iOS WKWebView focus and viewport stability;
 - dropdowns, dialogs, keyboard behavior, and focus restoration interact;
 - reminder records and reminder-toast delivery have different owners.
@@ -30,9 +30,10 @@ The application consists of:
 - a Capacitor iOS wrapper around the frontend.
 
 The frontend treats the task collection as the primary application state.
-Projects and tags are loaded as shared catalogs. Task-associated resources,
-including subtasks, notes, reminders, and attachments, are loaded when task
-details are opened.
+Projects and tags are loaded as shared catalogs. Task-associated resource API
+contracts remain available for subtasks, notes, reminders, and attachments, but
+the legacy detail-panel resource UI is no longer part of the active task-editing
+path.
 
 ```text
 User interaction
@@ -70,11 +71,11 @@ multiple domains.
 - the primary task collection;
 - top-level loading and error state;
 - create-task and edit-task drafts;
-- selected-task and detail-panel lifecycle;
+- selected-task highlighting;
 - task creation, editing, deletion, duplication, completion, and status moves;
 - recurring-task completion and next-occurrence replacement;
 - task/project/tag reconciliation;
-- debounced task autosave;
+- explicit task edit saves;
 - global dropdown, dialog, outside-click, and keyboard coordination;
 - reminder polling, duplicate-toast suppression, and snoozing;
 - mobile page navigation, swipe behavior, and mobile edit placement;
@@ -111,8 +112,6 @@ Major component groups are:
   controls, and project/tag chips;
 - `components/task-list/`: task-list toolbar, list controls, task cards, list
   labels, dividers, and empty states;
-- `components/detail-panel/`: detail header, scheduling fields, status badges,
-  detail-resource panel composition, and task-associated resource panels;
 - `components/shared/`: reusable date/time controls, section shells, banners,
   confirmations, and toasts;
 - `components/dialogs/` and `components/settings/`: status movement, settings,
@@ -298,15 +297,14 @@ project, validation, draft-reset, and toast responsibilities.
 
 1. `startEdit` derives edit values from the selected task.
 2. Current tag ordering and recurrence data are loaded.
-3. The same edit draft drives inline, mobile, and detail-panel editing.
-4. `scheduleAutoSave` debounces saves.
+3. The same edit draft drives inline and mobile editing.
+4. The active editors save explicitly through `saveEdit`.
 5. `saveEdit` updates the base task.
 6. Tag relationships are reconciled.
 7. Recurrence changes are saved through their separate endpoint.
-8. Closing or switching detail panels flushes pending edits.
 
-Autosave remains colocated with selected-task and edit-draft ownership because
-it depends on all three.
+Legacy detail-panel autosave has been removed from the active UX. Edit-draft
+ownership remains colocated with task mutation ownership in `App.tsx`.
 
 ### Recurring Task Completion
 
@@ -339,11 +337,13 @@ state, selected-task state, and rendered list behavior.
 
 ### Detail Resources
 
-1. `App.tsx` selects and opens a task.
-2. `useTaskDetailResources` loads subtasks, notes, reminders, and attachments.
-3. Resources are cached by task ID.
-4. Detail components render the resources and emit actions.
-5. The hook performs resource-level mutations and updates its resource maps.
+1. `useTaskDetailResources` owns retained resource state for subtasks, notes,
+   reminders, and attachments.
+2. Resources are cached by task ID when a resource entry point loads them.
+3. The old task detail side panel and its resource UI are not part of the
+   current active UX.
+4. The hook still contains resource-level mutation helpers for future or
+   ambiguous resource functionality.
 
 ### Recurrence Model and Display
 
@@ -361,10 +361,9 @@ indicators load the recurrence rule on demand and show the formatted label in a
 tooltip/popover.
 
 Recurrence UI components own presentation only. `RecurrenceControl` renders the
-create, inline-edit, and mobile-edit recurrence picker; `DetailRepeatRow`
-renders the detail-panel recurrence row. Recurrence scheduling remains in the
-pure recurrence utility, while `App.tsx` owns mutation workflows that attach,
-clear, copy, or replace recurrence rules.
+create, inline-edit, and mobile-edit recurrence picker. Recurrence scheduling
+remains in the pure recurrence utility, while `App.tsx` owns mutation workflows
+that attach, clear, copy, or replace recurrence rules.
 
 ### Reminders
 
@@ -425,9 +424,8 @@ A responsibility remains centralized when it:
 Several sections of `App.tsx` appear individually extractable but share
 important ownership:
 
-- Edit state is shared by inline, mobile, and detail-panel editors.
-- Autosave depends on selected-task state, current task references, and edit
-  drafts.
+- Edit state is shared by inline and mobile editors.
+- Explicit saves depend on current task references and edit drafts.
 - Dropdown closing follows application-wide Escape and outside-click rules.
 - Recurring completion crosses task creation, deletion/replacement, recurrence-rule loading and attachment, tag copying, bulk selection, selected-task state, scrolling, and highlighting.
 - Mobile editing placement is part of the iOS focus-stability system.
@@ -441,11 +439,11 @@ interfaces.
 
 ### Current `App.tsx` Extraction Boundary
 
-A follow-up architecture audit after the `TaskListToolbar` and
-`DetailResourcePanels` extractions found no remaining low-risk "extract now"
-candidates in `App.tsx`. Those components are appropriate presentation
-islands: state ownership stays in `App.tsx`, their prop surfaces are bounded,
-and they do not move protected mobile, focus, or autosave behavior.
+A follow-up architecture audit after the `TaskListToolbar`, `TaskListItems`,
+`CreateTaskCard`, and `PrioritySelector` extractions identified the legacy
+detail side panel as cleanup work rather than an active presentation boundary.
+State ownership stays in `App.tsx`; the active extracted components do not move
+protected mobile or focus behavior.
 
 Further extraction should be deferred until a specific feature or bug requires
 touching the affected region. Large JSX alone is not sufficient justification.
@@ -471,7 +469,7 @@ should not be extracted casually:
 - `renderInlineEditForm`;
 - the create-task panel;
 - the task-list row shell;
-- detail metadata and editor controls.
+- task-list metadata and editor controls.
 
 ### Appropriate Boundaries
 

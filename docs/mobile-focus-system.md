@@ -78,15 +78,14 @@ white-gap failures.
 
 ## Shared Edit Draft
 
-Inline, mobile, and detail-panel editing use the same edit-draft state owned by
-`App.tsx`.
+Inline and mobile editing use the same edit-draft state owned by `App.tsx`.
 
 The shared draft ensures that:
 
 - moving between edit presentations does not create competing task state;
-- autosave observes the same values regardless of presentation;
+- explicit saves observe the same values regardless of presentation;
 - tag, project, recurrence, and schedule mutations remain coordinated;
-- closing or switching selected tasks can flush one authoritative draft.
+- closing or switching editors leaves one authoritative draft owner.
 
 Mobile edit placement differs from desktop placement, but edit ownership does
 not.
@@ -99,8 +98,7 @@ Current scopes include:
 
 - create-task fields;
 - inline task editors;
-- mobile task editors;
-- detail-panel task editing.
+- mobile task editors.
 
 The focus guard uses the nearest scope to understand transitions between text
 fields and to associate diagnostic information with the active editing
@@ -182,8 +180,7 @@ It handles cases including:
 - stale blur events firing after another field becomes active;
 - an edited field unmounting during a transition;
 - repeated `focusin` events for the same field;
-- transitions between create, inline edit, mobile edit, detail edit, and
-  search;
+- transitions between create, inline edit, mobile edit, and search;
 - entering edit mode while the task list is scrolled.
 
 A focus sequence counter prevents delayed work from an older transition from
@@ -262,10 +259,9 @@ Escape closes the highest-priority active layer in this order:
 1. status-move dialog;
 2. statistics modal;
 3. settings panel;
-4. selected task/detail panel;
-5. floating controls and action menus;
-6. search text;
-7. bulk mode.
+4. floating controls and action menus;
+5. search text;
+6. bulk mode.
 
 This ordering prevents hidden overlays from remaining active and keeps focus
 restoration aligned with the layer that closed.
@@ -396,11 +392,11 @@ The following invariants define the working mobile focus architecture:
 - The mobile edit panel does not own nested vertical scrolling.
 - Mobile edit descriptions use title-style inputs.
 - Create-task and desktop edit descriptions use textareas.
-- Text focus scopes remain attached to create, edit, and detail surfaces.
+- Text focus scopes remain attached to create and edit surfaces.
 - A stale blur cannot disable protection for the current active field.
 - Swipe navigation cannot begin from protected interactive controls.
 - Focus restoration cannot steal focus from a newer valid interaction.
-- Inline, mobile, and detail editing share one authoritative edit draft.
+- Inline and mobile editing share one authoritative edit draft.
 
 ## Protected Areas
 
@@ -418,7 +414,7 @@ Do not casually refactor or relocate:
 - keyboard guards and Escape ordering;
 - swipe and pager behavior;
 - `renderInlineEditForm`;
-- autosave behavior associated with mobile/detail editing.
+- autosave behavior associated with mobile editing.
 
 These areas form one cross-cutting system even though their implementation is
 spread across TypeScript, JSX, CSS, and tests.

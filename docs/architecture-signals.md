@@ -65,7 +65,7 @@ that cross outside the hook's domain.
 | `useTaskListViewModel` | Derives visible tasks, calendar tasks, counts, statistics, and empty-state data from tasks and controls | It does not persist tasks, own controls, select tasks, or mutate calendar state |
 | `useBulkSelection` | Owns bulk mode, selected IDs, toggling, and clearing as one transient-selection lifecycle | Bulk task mutations and recurrence-aware completion remain in `App.tsx` |
 | `useProjectTagCatalog` | Owns project/tag records, catalog drafts, loading, and catalog-level CRUD | Task assignments, filters, dropdowns, focus, and post-deletion task reconciliation remain external |
-| `useTaskDetailResources` | Owns task-keyed subtasks, notes, reminders, attachments, drafts, loading, and resource CRUD | It does not select tasks, own panels, poll reminders, deliver toasts, or autosave tasks |
+| `useTaskDetailResources` | Retains task-keyed subtasks, notes, reminders, attachments, drafts, loading, and resource CRUD helpers | It does not select tasks, own panels, poll reminders, deliver toasts, or autosave tasks |
 
 These hooks improve discoverability because their names match the concepts they
 own and their exclusions are as clear as their responsibilities.
@@ -106,7 +106,7 @@ setters, refs, callbacks, and state fragments from `App.tsx`.
 | Responsibility | Why extraction would hide ownership |
 | --- | --- |
 | Autosave | It depends on the selected task, shared edit draft, current-task refs, timer lifecycle, close/switch flushing, base task updates, tag reconciliation, recurrence reconciliation, and primary task state |
-| Selected-task lifecycle | Selection coordinates detail loading, panel visibility, autosave flushing, focus, task deletion, calendar opening, and mobile navigation |
+| Selected-task lifecycle | Selection coordinates task highlighting, focus, task deletion, calendar opening, and mobile navigation |
 | Recurring completion | Completion is a replacement workflow across recurrence calculation, task creation, tags, recurrence attachment, deletion, local replacement, selection, scrolling, and highlighting |
 | Mobile focus guard | The guard must observe global focus transitions, `visualViewport`, document scroll, touch behavior, DOM scopes, mobile edit placement, and keyboard behavior |
 | Catalog deletion reconciliation | `useProjectTagCatalog` can delete the catalog record, but only `App.tsx` can reconcile tasks, create/edit drafts, and active filters |
@@ -145,7 +145,6 @@ without becoming a second domain owner.
 | Area | Healthy component ownership |
 | --- | --- |
 | Task list | `TaskListControls`, `TaskListPresentation`, and `TaskCardMain` render list controls, list structure, and task-card content while emitting actions upward |
-| Detail panel | Detail header, description, schedule, repeat, status, and auxiliary-panel components render selected-task and resource state without owning selected-task lifecycle or autosave |
 | Create task | Create-task components render fields, recurrence controls, chips, and preview while `App.tsx` owns the create draft and creation workflow |
 | Shared date/time controls | `DateTimeRow` and `TimeSelect` own bounded selector behavior, including active internal selectors and selected-option scrolling |
 | Dialogs and overlays | Status, statistics, settings, confirmation, and toast components render bounded surfaces; visibility and application-wide focus coordination remain external |
@@ -188,11 +187,11 @@ become accidental state authorities merely because they render a workflow.
 
 | Area | Hidden ownership risk |
 | --- | --- |
-| `renderInlineEditForm` | Inline, mobile, and detail editing share one authoritative draft and save behavior. Moving the render function can imply a false independent editor owner |
+| `renderInlineEditForm` | Inline and mobile editing share one authoritative draft and save behavior. Moving the render function can imply a false independent editor owner |
 | Mobile edit row placement | Placement is part of list scroll ownership and the iOS focus-stability system, not merely task-card presentation |
 | Dropdown and focus ownership | A local dropdown component cannot observe application-wide outside-click, Escape ordering, placement, and focus restoration |
 | Task mutation callbacks | Letting a presentation component call task APIs directly would bypass primary task state and cross-domain reconciliation |
-| Shared edit draft consumers | Giving inline, mobile, or detail components separate drafts creates competing authorities and stale autosave risks |
+| Shared edit draft consumers | Giving inline or mobile components separate drafts creates competing authorities and stale autosave risks |
 
 ### Decision Signal
 
@@ -229,7 +228,7 @@ placement and lifecycle.
 | Complete recurring task | Coordinates next-schedule calculation, replacement creation, metadata/tags/recurrence copying, old-task deletion, local replacement, selection, scroll, and highlight |
 | Reminder snooze | Crosses transient toast delivery and hook-owned persisted reminder state |
 | Delete tag and reconcile tasks | Catalog deletion belongs to `useProjectTagCatalog`, while `App.tsx` reconciles tasks, drafts, and filters |
-| Open task from calendar | Crosses calendar intent, filters, task visibility, mobile page transition, selection, detail loading, scrolling, and focus preparation |
+| Open task from calendar | Crosses calendar intent, filters, task visibility, mobile page transition, selection, scrolling, and focus preparation |
 
 The presence of several operations in one workflow is not itself unhealthy.
 The important signal is whether the coordinator is the smallest owner able to
@@ -348,7 +347,7 @@ workflow state, or platform observations.
   hook owners.
 - The shared edit draft remains with selected-task and autosave ownership.
 - Filtered tasks, calendar tasks, counts, and statistics remain derived.
-- Selected task is transient workflow state, not merely a detail-panel prop.
+- Selected task is transient workflow state, not merely a presentation prop.
 - Dropdown visibility may look presentation-local but remains global when
   outside-click, Escape, placement, and focus restoration require it.
 - Reminder records, reminder drafts, reminder toasts, and notification
@@ -381,8 +380,7 @@ owners, and WKWebView behavior jointly preserve the current result.
 - Stale blur events cannot disable protection for the active field.
 - Focus restoration cannot steal focus from a newer interaction.
 - Swipe navigation still excludes protected interactive controls.
-- Inline, mobile, and detail editing continue to share one authoritative
-  draft.
+- Inline and mobile editing continue to share one authoritative draft.
 - Automated regression tests and iOS simulator/device checks cover the
   affected behavior.
 

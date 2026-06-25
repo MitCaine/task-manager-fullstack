@@ -574,104 +574,6 @@ select {
   scrollbar-color: var(--border) transparent;
 }
 
-.detail__header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.detail__status-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
-}
-
-.detail__title-input {
-  flex: 1;
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
-.detail__close {
-  font-size: 1.3rem;
-  line-height: 1;
-  padding: 0 0.4rem;
-  flex-shrink: 0;
-}
-
-.detail__fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
-}
-
-.detail__section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 1rem;
-}
-
-.detail__section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
-.detail__section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.detail__section-toggle {
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.3rem 0;
-  border-radius: 6px;
-  justify-content: space-between;
-  color: inherit;
-}
-
-.detail__section-toggle:hover {
-  background: var(--surface);
-}
-
-.detail__section-header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.detail__chevron {
-  font-size: 0.6rem;
-  color: var(--text-faint);
-}
-
-.detail__section-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-}
-
-.sec-row__edit-input {
-  flex: 1;
-  font-size: 0.9rem;
-  padding: 0.2rem 0.4rem;
-}
-
-
 /* selected task card highlight */
 .item--selected {
   border-left: 3px solid var(--accent);
@@ -2676,8 +2578,7 @@ input[type="datetime-local"] {
 }
 
 /* ── Tag color palette ───────────────────────────────────── */
-.project-inline-form--tag,
-.sec-panel__add--tag {
+.project-inline-form--tag {
   flex-direction: column;
   align-items: stretch;
   gap: 0.5rem;
@@ -2844,112 +2745,6 @@ input[type="datetime-local"] {
   padding: 0 5px;
   min-width: 16px;
   height: 16px;
-}
-
-/* ── Section panel ──────────────────────────────────────── */
-.sec-panel {
-  margin-top: 0.6rem;
-  padding: 0.75rem;
-  background: var(--surface);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  animation: fadeDown 0.12s ease-out;
-}
-
-.sec-panel__add {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.sec-panel__add .input {
-  flex: 1;
-}
-
-.sec-panel__add--col {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.sec-panel__empty {
-  font-size: 0.85rem;
-  color: var(--text-faint);
-  font-style: italic;
-  text-align: center;
-  padding: 0.25rem 0;
-}
-
-/* ── Subtask / reminder row ─────────────────────────────── */
-.sec-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-  border-top: 1px solid var(--border);
-}
-
-.sec-row__title {
-  flex: 1;
-  font-size: 0.9rem;
-  color: var(--text);
-  word-break: break-word;
-}
-
-.sec-row__title--done {
-  text-decoration: line-through;
-  color: var(--text-faint);
-}
-
-.sec-row__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.sec-row__sub {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  word-break: break-word;
-}
-
-/* ── Note row ───────────────────────────────────────────── */
-.note-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-  border-top: 1px solid var(--border);
-}
-
-.note-row__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.note-row__title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.note-row__content {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.note-row__time {
-  font-size: 0.75rem;
-  color: var(--text-faint);
 }
 
 /* ── Header actions ─────────────────────────────────────── */
@@ -3796,38 +3591,6 @@ input[type="datetime-local"] {
   margin-top: 2px;
 }
 
-/* ── Detail panel — Repeat row ──────────────────────────── */
-.detail__repeat-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.detail__field-label {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.detail__repeat-row .select {
-  text-align: center;
-  text-align-last: center;
-}
-
-/* ── Attachment links ───────────────────────────────────── */
-.attachment-link {
-  font-size: 0.85rem;
-  color: var(--accent);
-  word-break: break-all;
-  text-decoration: none;
-}
-
-.attachment-link:hover {
-  text-decoration: underline;
-}
-
 @media (max-width: 1260px), (pointer: coarse) {
   .app {
     align-items: stretch;
@@ -4109,7 +3872,6 @@ input[type="datetime-local"] {
   }
 
   .spread,
-  .detail__header,
   .datetime-row__top,
   .form-row,
   .settings-panel,

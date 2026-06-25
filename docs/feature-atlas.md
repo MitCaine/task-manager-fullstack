@@ -77,17 +77,14 @@ optional recurrence, then add the task to the task list.
 
 ## User Behavior
 
-Users open inline, mobile, or detail-panel editing; change task fields,
-project, tags, schedule, or recurrence; then save explicitly or through
-detail-panel autosave.
+Users open inline or mobile editing; change task fields, project, tags,
+schedule, or recurrence; then save explicitly.
 
 ## Frontend Owners
 
 - `App.tsx`: selected-task lifecycle, shared edit draft, `startEdit`,
   `saveEdit`, task/tag and recurrence reconciliation, and primary task update.
 - `renderInlineEditForm`: shared inline/mobile edit presentation.
-- Detail components: `DetailDescriptionField`, `DetailScheduleFields`,
-  `DetailRepeatRow`, `DetailStatusBadges`, and `DetailHeader`.
 - Create-task field components reused as edit presentation controls.
 
 ## Backend Owners
@@ -102,7 +99,7 @@ detail-panel autosave.
 - **Draft:** one shared edit draft.
 - **Transient:** selected task, active editor identity, validation feedback,
   and pending save state.
-- **Presentation:** edit dropdowns and expanded detail sections.
+- **Presentation:** edit dropdowns and inline/mobile edit panels.
 - **Platform:** focus, DOM placement, and mobile edit conditions.
 
 ## APIs
@@ -145,15 +142,13 @@ detail-panel autosave.
 
 ## User Behavior
 
-Detail-panel field changes save after a debounce. Closing or switching task
-panels flushes pending edits. Inline and mobile editors normally use explicit
-Save while sharing the same complete save workflow.
+Inline and mobile editors use explicit Save while sharing the same complete save
+workflow. Legacy detail-panel autosave is no longer part of the active UX.
 
 ## Frontend Owners
 
-- `App.tsx`: autosave timer, current-task/save refs, `scheduleAutoSave`,
-  flushing, `saveEdit`, and reconciliation.
-- Detail-panel field components emit changes that schedule autosave.
+- `App.tsx`: edit draft ownership, `saveEdit`, and reconciliation.
+- Legacy detail-panel field components are inactive.
 
 ## Backend Owners
 
@@ -212,7 +207,7 @@ it with the next occurrence while preserving duration and metadata.
 - `App.tsx`: recurrence selection during create/edit, `toggleComplete`,
   `completeRecurringTask`, replacement ordering, local replacement, selection,
   scrolling, and highlighting.
-- `RecurrenceControl` and `DetailRepeatRow`: recurrence presentation.
+- `RecurrenceControl`: recurrence presentation.
 
 ## Backend Owners
 
@@ -463,8 +458,8 @@ calendar presentations; hide completed tasks; navigate dates; and open tasks.
 - `Calendar`: calendar rendering, local selected date/view, picker visibility,
   navigation, and desktop-layout detection.
 - `useTaskListViewModel`: derived calendar task subset.
-- `App.tsx`: calendar task opening, task visibility, selection, detail loading,
-  and mobile page transition.
+- `App.tsx`: calendar task opening, task visibility, selection, and mobile page
+  transition.
 
 ## Backend Owners
 
@@ -480,8 +475,8 @@ calendar presentations; hide completed tasks; navigate dates; and open tasks.
 
 ## APIs
 
-- No calendar-specific API. Opening a mobile task may use `getTask`,
-  `getRecurrence`, and detail-resource reads.
+- No calendar-specific API. Opening a mobile task uses the loaded task
+  collection and may use task or recurrence reads.
 
 ## Utilities
 
@@ -554,14 +549,14 @@ current task collection.
 
 ## User Behavior
 
-Users open a task detail panel, add text notes, view notes, and delete notes.
+Legacy detail-panel note UI is inactive. Note APIs and hook-owned resource state
+remain for a separate resource cleanup.
 
 ## Frontend Owners
 
-- `useTaskDetailResources`: task-keyed note records, note draft, loading,
-  creation, deletion, and local reconciliation.
-- `DetailAuxiliaryPanels`: note presentation.
-- `App.tsx`: selected-task and detail-panel lifecycle.
+- `useTaskDetailResources`: retained task-keyed note records, note draft,
+  loading, creation, deletion, and local reconciliation.
+- Legacy detail-panel lifecycle is inactive.
 
 ## Backend Owners
 
@@ -571,8 +566,8 @@ Users open a task detail panel, add text notes, view notes, and delete notes.
 
 - **Persisted:** notes.
 - **Draft:** new-note content.
-- **Transient:** selected task and detail-resource loading.
-- **Presentation:** detail-section expansion.
+- **Transient:** resource loading when a future entry point invokes it.
+- **Presentation:** none active in the current frontend.
 
 ## APIs
 
@@ -597,8 +592,7 @@ Users open a task detail panel, add text notes, view notes, and delete notes.
 
 ## Sequence Diagrams
 
-- None specific. Loading notes participates in
-  [Mobile Edit Entry and Focus Protection](sequence-diagrams.md#8-mobile-edit-entry-and-focus-protection).
+- None specific.
 
 ---
 
@@ -606,15 +600,14 @@ Users open a task detail panel, add text notes, view notes, and delete notes.
 
 ## User Behavior
 
-Users add subtasks, edit subtask titles, mark subtasks active/done, view them,
-and delete them from a task detail panel.
+Legacy detail-panel subtask UI is inactive. Subtask APIs and hook-owned resource
+state remain for a separate resource cleanup.
 
 ## Frontend Owners
 
-- `useTaskDetailResources`: task-keyed subtask records, create/edit drafts,
-  loading, status toggling, title updates, deletion, and reconciliation.
-- `DetailAuxiliaryPanels`: subtask presentation.
-- `App.tsx`: selected-task and detail-panel lifecycle.
+- `useTaskDetailResources`: retained task-keyed subtask records, create/edit
+  drafts, loading, status toggling, title updates, deletion, and reconciliation.
+- Legacy detail-panel lifecycle is inactive.
 
 ## Backend Owners
 
@@ -624,8 +617,9 @@ and delete them from a task detail panel.
 
 - **Persisted:** subtasks.
 - **Draft:** new and editing subtask titles.
-- **Transient:** selected task and active subtask edit identity.
-- **Presentation:** expanded detail section.
+- **Transient:** active subtask edit identity when a future entry point invokes it.
+- **Presentation:** task-card subtask badges remain active; no resource editor is
+  active in the current frontend.
 
 ## APIs
 
@@ -652,8 +646,7 @@ and delete them from a task detail panel.
 
 ## Sequence Diagrams
 
-- None specific. Loading subtasks participates in the mobile edit/detail
-  loading sequence.
+- None specific.
 
 ---
 
@@ -670,7 +663,7 @@ them, and snooze them to a later time.
   loading, creation, deletion, and exposed reminder setter.
 - `App.tsx`: polling, due detection, duplicate suppression, toast queue,
   dismissal, and snoozing.
-- `RemindersSection` and `ToastList`: reminder and toast presentation.
+- `ToastList`: toast presentation.
 
 ## Backend Owners
 
@@ -682,7 +675,7 @@ them, and snooze them to a later time.
 - **Persisted:** reminder records.
 - **Draft:** reminder date/time/message.
 - **Transient:** due polling, fired-reminder suppression, and toast queue.
-- **Presentation:** reminder section and toast rendering.
+- **Presentation:** toast rendering.
 - **Platform:** browser notification permission and timers.
 
 ## APIs
@@ -720,14 +713,14 @@ them, and snooze them to a later time.
 
 ## User Behavior
 
-Users add labeled links to tasks, view them in task details, and remove them.
+Legacy detail-panel link UI is inactive. Attachment APIs and hook-owned resource
+state remain for a separate resource cleanup.
 
 ## Frontend Owners
 
-- `useTaskDetailResources`: task-keyed attachment records, URL/label drafts,
-  loading, creation, deletion, and reconciliation.
-- `DetailAuxiliaryPanels`: link presentation.
-- `App.tsx`: selected-task and detail-panel lifecycle.
+- `useTaskDetailResources`: retained task-keyed attachment records, URL/label
+  drafts, loading, creation, deletion, and reconciliation.
+- Legacy detail-panel lifecycle is inactive.
 
 ## Backend Owners
 
@@ -738,8 +731,8 @@ Users add labeled links to tasks, view them in task details, and remove them.
 
 - **Persisted:** attachment link and metadata records.
 - **Draft:** new attachment URL and label.
-- **Transient:** selected task and detail-resource loading.
-- **Presentation:** expanded detail section.
+- **Transient:** resource loading when a future entry point invokes it.
+- **Presentation:** none active in the current frontend.
 
 ## APIs
 
@@ -764,7 +757,7 @@ Users add labeled links to tasks, view them in task details, and remove them.
 
 ## Sequence Diagrams
 
-- None specific. Loading attachments participates in task detail loading.
+- None specific.
 
 ---
 
@@ -929,15 +922,14 @@ card content while remaining in the task-list scroll context.
   mobile edit row placement, edit entry, save/cancel, focus preparation, and
   list coordination.
 - Task-list components and `renderInlineEditForm`: presentation.
-- `useTaskDetailResources`: loads task detail resources when the task opens.
 
 ## Backend Owners
 
-- Same task and detail-resource owners used by task editing and detail loading.
+- Same task owners used by task editing.
 
 ## State Categories
 
-- **Persisted:** edited task and loaded detail resources.
+- **Persisted:** edited task.
 - **Draft:** shared edit draft.
 - **Transient:** selected task and active editor identity.
 - **Presentation:** mobile edit row and panel.
@@ -945,7 +937,7 @@ card content while remaining in the task-list scroll context.
 
 ## APIs
 
-- Task editing APIs plus detail-resource read APIs.
+- Task editing APIs.
 
 ## Utilities
 
@@ -1184,14 +1176,14 @@ overdue, calendar, or other current views have no matching tasks.
 | Bulk Selection | `useBulkSelection`; `App.tsx` mutations | `TaskController` | Persisted, transient, presentation | Long-press/task-card interaction | ADR-001, ADR-007 |
 | Calendar | `Calendar`; `App.tsx` opening | Existing task backend only | Derived, presentation, transient, platform | Calendar page and task opening | ADR-001 |
 | Statistics | `useTaskListViewModel`; `StatsModal` | None | Derived, presentation, platform | Modal focus only | ADR-001 |
-| Notes | `useTaskDetailResources` | `NoteController` | Persisted, draft, transient, presentation | Detail/mobile task opening | ADR-001, ADR-008 |
-| Subtasks | `useTaskDetailResources` | `SubtaskController` | Persisted, draft, transient, presentation | Detail/mobile task opening | ADR-001, ADR-008 |
-| Reminders | `useTaskDetailResources`; `App.tsx` delivery | `ReminderController` | Persisted, draft, transient, presentation, platform | Toasts and detail opening | ADR-001, ADR-006, ADR-008 |
-| Attachments | `useTaskDetailResources` | `AttachmentController` | Persisted, draft, transient, presentation | Detail/mobile task opening | ADR-001, ADR-008 |
+| Notes | `useTaskDetailResources` | `NoteController` | Persisted, draft, transient | Retained API/hook state; no active resource UI | ADR-001, ADR-008 |
+| Subtasks | `useTaskDetailResources` | `SubtaskController` | Persisted, draft, transient, presentation | Retained API/hook state; task-card badge styling remains | ADR-001, ADR-008 |
+| Reminders | `useTaskDetailResources`; `App.tsx` delivery | `ReminderController` | Persisted, draft, transient, presentation, platform | Toasts; no active reminder editor UI | ADR-001, ADR-006, ADR-008 |
+| Attachments | `useTaskDetailResources` | `AttachmentController` | Persisted, draft, transient | Retained API/hook state; no active resource UI | ADR-001, ADR-008 |
 | Search | `App.tsx`; `useTaskListViewModel` | None | Presentation, derived, platform | Text-focus guard | ADR-005 |
 | Filtering | `App.tsx`; `useTaskListViewModel` | None | Presentation, derived | Calendar opening may reset filters | None specific |
 | Sorting | `App.tsx`; `useTaskListViewModel` | None | Presentation, derived | Task-list ordering | None specific |
-| Mobile Editing | `App.tsx` | Existing task/detail backend | Persisted, draft, transient, presentation, platform | Core feature | ADR-002, ADR-003, ADR-004, ADR-005 |
+| Mobile Editing | `App.tsx` | Existing task backend | Persisted, draft, transient, presentation, platform | Core feature | ADR-002, ADR-003, ADR-004, ADR-005 |
 | Mobile Navigation | `App.tsx` | None | Presentation, transient, platform | Core feature | ADR-001, ADR-004, ADR-005 |
 | Toast Notifications | `App.tsx`; `ToastList` | `ReminderController` for snooze | Persisted, transient, presentation, platform | Global overlay behavior | ADR-006 |
 | Settings | `App.tsx`; `SettingsPanel` | None | Persisted-local, presentation, platform | Display and focus behavior | ADR-001 |

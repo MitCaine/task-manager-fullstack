@@ -177,9 +177,9 @@ resources plus draft reset and transient toast state. This follows
 ### What This Subsystem Does
 
 Task editing initializes one shared draft from a persisted task, refreshes
-task/tag and recurrence data, renders the draft through inline, mobile, or
-detail editors, saves base fields, reconciles tags and recurrence, and updates
-the primary task collection.
+task/tag and recurrence data, renders the draft through inline or mobile
+editors, saves base fields, reconciles tags and recurrence, and updates the
+primary task collection.
 
 ### Why It Exists
 
@@ -189,27 +189,26 @@ crosses selection, task state, recurrence, tags, and autosave.
 
 ### Read In This Order
 
-1. `taskmanager-frontend/src/components/detail-panel/DetailDescriptionField.tsx`
-2. `taskmanager-frontend/src/components/detail-panel/DetailScheduleFields.tsx`
-3. `taskmanager-frontend/src/App.tsx`: `renderInlineEditForm`
-4. `taskmanager-frontend/src/App.tsx`: `startEdit`, edit-draft state, and
+1. `taskmanager-frontend/src/App.tsx`: `renderInlineEditForm`
+2. `taskmanager-frontend/src/components/create-task/TaskEditorFields.tsx`
+3. `taskmanager-frontend/src/App.tsx`: `startEdit`, edit-draft state, and
    `saveEdit`
-5. `taskmanager-frontend/src/utils/taskEditDraft.ts`
-6. `taskmanager-frontend/src/utils/taskScheduling.ts` and `taskForm.ts`
-7. `taskmanager-frontend/src/api/tasks.ts`: `getTask`, `getRecurrence`,
+4. `taskmanager-frontend/src/utils/taskEditDraft.ts`
+5. `taskmanager-frontend/src/utils/taskScheduling.ts` and `taskForm.ts`
+6. `taskmanager-frontend/src/api/tasks.ts`: `getTask`, `getRecurrence`,
    `updateTask`, tag association functions, and `setRepeat`
-8. `src/main/java/com/example/taskmanager/TaskController.java`
-9. `src/main/java/com/example/taskmanager/Task.java`,
+7. `src/main/java/com/example/taskmanager/TaskController.java`
+8. `src/main/java/com/example/taskmanager/Task.java`,
    `TaskRepository.java`, `TagRepository.java`, and
    `RecurrenceRuleRepository.java`
-10. Edit-related cases in `App.test.tsx`, `api/tasks.test.ts`, and
+9. Edit-related cases in `App.test.tsx`, `api/tasks.test.ts`, and
     `TaskControllerTest.java`
 
 ### Key Concepts To Watch For
 
 - Persisted task state and edit draft state are different authorities.
 - `deriveTaskEditDraft` is a pure conversion, not an edit owner.
-- Inline, mobile, and detail editors consume the same draft.
+- Inline and mobile editors consume the same draft.
 - Saving reconciles base fields, tags, and recurrence as separate operations.
 - Selected-task lifecycle affects when edits initialize and flush.
 
@@ -233,10 +232,9 @@ crosses selection, task state, recurrence, tags, and autosave.
 
 ### What This Subsystem Does
 
-Autosave debounces detail-panel changes, resolves the current task and save
-function when the timer fires, and flushes pending edits when task panels
-close or switch. It ultimately uses the same complete save workflow as an
-explicit edit save.
+Autosave remains documented as the legacy detail-panel save lifecycle. The
+active inline and mobile editors use explicit Save while still relying on the
+same complete save workflow.
 
 ### Why It Exists
 
@@ -247,25 +245,22 @@ reconciliation. The decision is recorded in
 
 ### Read In This Order
 
-1. `taskmanager-frontend/src/components/detail-panel/DetailDescriptionField.tsx`
-2. `taskmanager-frontend/src/components/detail-panel/DetailScheduleFields.tsx`
-3. `taskmanager-frontend/src/App.tsx`: autosave refs and timer state
-4. `taskmanager-frontend/src/App.tsx`: `scheduleAutoSave`, `saveEdit`,
+1. `taskmanager-frontend/src/App.tsx`: autosave refs and timer state
+2. `taskmanager-frontend/src/App.tsx`: `scheduleAutoSave`, `saveEdit`,
    panel-close, and task-switch handling
-5. `taskmanager-frontend/src/utils/taskEditDraft.ts`,
+3. `taskmanager-frontend/src/utils/taskEditDraft.ts`,
    `taskScheduling.ts`, and `taskForm.ts`
-6. `taskmanager-frontend/src/api/tasks.ts`: edit-related API functions
-7. `src/main/java/com/example/taskmanager/TaskController.java`
-8. Autosave, edit switching, and panel lifecycle cases in
+4. `taskmanager-frontend/src/api/tasks.ts`: edit-related API functions
+5. `src/main/java/com/example/taskmanager/TaskController.java`
+6. Autosave, edit switching, and panel lifecycle cases in
    `taskmanager-frontend/src/App.test.tsx`
 
 ### Key Concepts To Watch For
 
 - The timer and current-save refs are transient workflow state.
 - Autosave needs the complete save workflow, not only `updateTask`.
-- Detail-panel edits schedule autosave; inline and mobile editors normally use
-  explicit Save.
-- Closing or switching panels must not discard pending draft values.
+- Inline and mobile editors use explicit Save.
+- Switching edit contexts must not discard pending draft values.
 
 ### Common Misunderstandings
 
@@ -301,13 +296,12 @@ cross-domain replacement workflow. See
 ### Read In This Order
 
 1. `taskmanager-frontend/src/components/create-task/RecurrenceControl.tsx`
-2. `taskmanager-frontend/src/components/detail-panel/DetailRepeatRow.tsx`
-3. `taskmanager-frontend/src/App.tsx`: `toggleComplete`,
+2. `taskmanager-frontend/src/App.tsx`: `toggleComplete`,
    `completeRecurringTask`, `addTask`, and recurrence handling in `saveEdit`
-4. `taskmanager-frontend/src/utils/taskRecurrence.ts`
-5. `taskmanager-frontend/src/api/tasks.ts`: `getRecurrence`, `setRepeat`,
+3. `taskmanager-frontend/src/utils/taskRecurrence.ts`
+4. `taskmanager-frontend/src/api/tasks.ts`: `getRecurrence`, `setRepeat`,
    `createTask`, `deleteTask`, and `addTagToTask`
-6. `src/main/java/com/example/taskmanager/TaskController.java`: recurrence
+5. `src/main/java/com/example/taskmanager/TaskController.java`: recurrence
    endpoints
 7. `src/main/java/com/example/taskmanager/RecurrenceRule.java`,
    `RecurrenceRuleRepository.java`, `Task.java`, and `TaskRepository.java`
@@ -450,33 +444,30 @@ acquiring task, filter, dropdown, or focus ownership.
 
 ### What This Subsystem Does
 
-Task detail resources load and mutate task-scoped notes, subtasks, reminders,
-and link attachments. Resources and their drafts are cached by task ID in
-`useTaskDetailResources` and rendered through detail-panel components.
+Task detail resources retain APIs and hook-owned state for task-scoped notes,
+subtasks, reminders, and link attachments. Resources and their drafts are cached
+by task ID in `useTaskDetailResources` when a resource entry point loads them.
 
 ### Why It Exists
 
-These resources share a bounded task-detail lifecycle and can own their CRUD
-without owning task selection, panel visibility, task editing, or reminder
-delivery. This is a healthy hook boundary.
+These resources retain a bounded API and state lifecycle for future or ambiguous
+resource functionality. They can own CRUD helpers without owning task selection,
+task editing, or reminder delivery.
 
 ### Read In This Order
 
-1. `taskmanager-frontend/src/components/detail-panel/DetailAuxiliaryPanels.tsx`
-2. `taskmanager-frontend/src/components/detail-panel/RemindersSection.tsx`
-3. `taskmanager-frontend/src/hooks/useTaskDetailResources.ts`:
+1. `taskmanager-frontend/src/hooks/useTaskDetailResources.ts`:
    `loadTaskSections`, resource drafts, and resource mutation handlers
-4. `taskmanager-frontend/src/App.tsx`: `openPanel`, selection lifecycle, and
-   hook consumption
-5. `taskmanager-frontend/src/api/tasks.ts`: note, subtask, reminder, and
+2. `taskmanager-frontend/src/App.tsx`: retained reminder/subtask hook
+   consumption
+3. `taskmanager-frontend/src/api/tasks.ts`: note, subtask, reminder, and
    attachment functions
-6. `src/main/java/com/example/taskmanager/ParentTaskGuard.java`
-7. `NoteController.java`, `SubtaskController.java`,
+4. `src/main/java/com/example/taskmanager/ParentTaskGuard.java`
+5. `NoteController.java`, `SubtaskController.java`,
    `ReminderController.java`, and `AttachmentController.java`
-8. Matching repositories and entities: `Note`, `Subtask`, `Reminder`, and
+6. Matching repositories and entities: `Note`, `Subtask`, `Reminder`, and
    `Attachment`
-9. `api/tasks.test.ts` and matching backend controller tests
-10. Detail-panel and resource behavior in `App.test.tsx`
+7. `api/tasks.test.ts` and matching backend controller tests
 
 ### Key Concepts To Watch For
 
@@ -489,7 +480,7 @@ delivery. This is a healthy hook boundary.
 
 ### Common Misunderstandings
 
-- The hook does not own the selected task or detail panel.
+- The hook does not own the selected task.
 - Attachments are persisted links and metadata, not uploaded binary files.
 - Reminder CRUD in the hook does not include global polling, toast delivery,
   or snoozing orchestration.
@@ -619,11 +610,10 @@ in [ADR-006](adr/ADR-006-reminder-ownership-split.md).
 
 ### Read In This Order
 
-1. `taskmanager-frontend/src/components/detail-panel/RemindersSection.tsx`
-2. `taskmanager-frontend/src/components/shared/ToastList.tsx`
-3. `taskmanager-frontend/src/hooks/useTaskDetailResources.ts`: reminder state,
+1. `taskmanager-frontend/src/components/shared/ToastList.tsx`
+2. `taskmanager-frontend/src/hooks/useTaskDetailResources.ts`: reminder state,
    draft, creation, and deletion
-4. `taskmanager-frontend/src/App.tsx`: reminder polling, fired-reminder
+3. `taskmanager-frontend/src/App.tsx`: reminder polling, fired-reminder
    suppression, toast queue, dismissal, and `snoozeToast`
 5. `taskmanager-frontend/src/utils/dateTime.ts`
 6. `taskmanager-frontend/src/api/tasks.ts`: reminder functions and
@@ -935,8 +925,8 @@ understood. The goal is to explain the current system, not propose changes.
    every local-state update after the backend operations.
 2. Trace task creation with a project, two tags, and weekly recurrence. Explain
    why the frontend performs several requests and when the create draft resets.
-3. Follow a reminder from creation in the detail panel to toast display, then
-   through snoozing. Classify every state value encountered.
+3. Follow a reminder from retained hook state to toast display, then through
+   snoozing. Classify every state value encountered.
 4. Identify every owner involved in opening a task from the calendar on
    desktop and on mobile.
 5. Follow a tag deletion from the inline catalog action through backend
@@ -1010,9 +1000,8 @@ hook can support a workflow without owning the workflow.
 
 ## Shared Edit Drafts Unify Multiple Presentations
 
-Inline, mobile, and detail-panel editing are different presentations of one
-draft. Once this is understood, autosave, task switching, panel close, and
-mobile edit behavior become easier to trace.
+Inline and mobile editing are different presentations of one draft. Once this
+is understood, task switching and mobile edit behavior become easier to trace.
 
 ## Autosave Is a Workflow Lifecycle
 

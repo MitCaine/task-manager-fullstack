@@ -41,8 +41,8 @@ Representative mobile screenshots from the Capacitor iOS build running on iPhone
 - Optional start and end times with start/end range display throughout the application.
 - Sorting and filtering by date, status, priority, project, tag, and search text.
 - Interactive task count badges for all, done, and overdue task filters.
-- Task details panel with subtasks, notes, reminders, attachments, projects, tags, and user-facing recurrence labels.
-- Detail-panel edits autosave after a short debounce.
+- Inline and mobile task editing with projects, tags, priority, scheduling, and user-facing recurrence labels.
+- Legacy detail-panel resource UI for subtasks, notes, reminders, and attachments is no longer part of the active task editing path.
 - Due-reminder in-app toasts with dismiss and snooze actions.
 - Task statistics dashboard.
 - Bulk task selection and actions; catalog management also keeps editing, creating, bulk selection, and delete-confirmation modes mutually exclusive.
@@ -92,7 +92,7 @@ Frontend:
 - Database schema changes are controlled manually with `spring.jpa.hibernate.ddl-auto=none` to avoid accidental schema mutation.
 - The mobile task creation flow was refined around compact controls, one-tap menu switching, stable date selection, and anchored time pickers.
 - Completing a recurring task regenerates the next occurrence and preserves the scheduled duration when both start and end times exist.
-- The shared task model powers multiple derived views: list, calendar, agenda, status-management, and detail/edit views.
+- The shared task model powers multiple derived views: list, calendar, agenda, status-management, and inline/mobile edit views.
 - Light, dark, and system theme preferences are persisted locally. The 12-hour / 24-hour time and US / European date display formats are configurable per session.
 
 ## Project Structure
@@ -357,7 +357,7 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 - Polished mobile Project/Tag Management layout and rename focus behavior so catalog management remains usable on iPhone-sized WKWebView screens.
 - Upgraded recurrence documentation and UI behavior around value-plus-unit intervals, constrained unit ranges, formatted labels such as "Every 2 weeks", and task-card repeat tooltips/popovers.
 - Added a scoped iOS WKWebView focus assist for Project/Tag Management rename fields and documented the diagnostic evidence in `docs/mobile-focus-system.md`.
-- Extracted `TaskListToolbar` and `DetailResourcePanels` as bounded presentation components while keeping task state, autosave, focus, and mobile ownership in `App.tsx`.
+- Extracted bounded presentation components while keeping task state, focus, and mobile ownership in `App.tsx`; legacy detail-panel resource UI has been removed from the active frontend.
 - Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
 - Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
 - Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
@@ -387,12 +387,12 @@ The Project/Tag Management rename fields also use a narrow iOS focus-assist shim
 - Authentication and deployment hardening.
 - Import/export support.
 - Additional iOS device testing and accessibility review.
-- Dedicated desktop responsive layout refactor for filter controls, form rows, and detail-panel spacing while keeping iOS mobile edit and text-focus code isolated.
+- Dedicated desktop responsive layout refactor for filter controls and form rows while keeping iOS mobile edit and text-focus code isolated.
 
 ## Notes
 
 - The frontend composition root is `taskmanager-frontend/src/App.tsx`; current extraction boundaries are documented in `docs/architecture.md` and `docs/ownership-map.md`.
-- Recent bounded presentation extractions include `taskmanager-frontend/src/components/task-list/TaskListToolbar.tsx` and `taskmanager-frontend/src/components/detail-panel/DetailResourcePanels.tsx`.
+- Recent bounded presentation extractions include `taskmanager-frontend/src/components/task-list/TaskListToolbar.tsx`, `taskmanager-frontend/src/components/task-list/TaskListItems.tsx`, and `taskmanager-frontend/src/components/create-task/CreateTaskCard.tsx`.
 - Shared frontend API helpers are in `taskmanager-frontend/src/api/tasks.ts`.
 - Shared frontend types are in `taskmanager-frontend/src/types/task.ts`.
 - The MySQL schema is kept in `SQL Files/databasemodel.sql`.

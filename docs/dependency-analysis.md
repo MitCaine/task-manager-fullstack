@@ -70,7 +70,7 @@ depend on `App.tsx` or feature components.
 | Major file | Architectural role | Inbound dependencies | Outbound dependencies | Blast radius | Change risk | Why the file exists |
 | --- | --- | --- | --- | --- | --- | --- |
 | `taskmanager-frontend/src/index.tsx` | Browser entry point and React mount | Browser HTML root and build runtime | `App.tsx`, `index.css`, React DOM | Application startup only; failure prevents all rendering | Medium | Creates the React root and mounts the application composition root |
-| `taskmanager-frontend/src/App.tsx` | Composition root, primary task owner, and cross-domain workflow orchestrator | `index.tsx`; user events emitted by nearly every presentation component; results returned by hooks and API calls | All four hooks; frontend API; task types; task/date/form/recurrence/filter/display utilities; Calendar; create, list, detail, form, dialog, settings, and shared components; browser focus, viewport, notification, storage, and scroll APIs | Application-wide: task creation/editing, autosave, recurrence, selection, catalog reconciliation, reminders, mobile behavior, focus, and most rendered surfaces | High | One owner must coordinate workflows that cross primary tasks, bounded domains, drafts, transient state, presentation placement, and platform lifecycles |
+| `taskmanager-frontend/src/App.tsx` | Composition root, primary task owner, and cross-domain workflow orchestrator | `index.tsx`; user events emitted by nearly every presentation component; results returned by hooks and API calls | Hooks; frontend API; task types; task/date/form/recurrence/filter/display utilities; Calendar; create, list, form, dialog, settings, and shared components; browser focus, viewport, notification, storage, and scroll APIs | Application-wide: task creation/editing, recurrence, selection, catalog reconciliation, reminders, mobile behavior, focus, and most rendered surfaces | High | One owner must coordinate workflows that cross primary tasks, bounded domains, drafts, transient state, presentation placement, and platform lifecycles |
 | `taskmanager-frontend/src/components/Calendar.tsx` | Calendar presentation owner with calendar-local navigation and picker state | `App.tsx` supplies derived tasks, projects, settings, and task-open intent | `types/task.ts`, `dateTime.ts`, `taskUtils.ts`, `Calendar.css`, React state/effects | Calendar views, date navigation, calendar task rendering, and task-opening intent | Medium | Keeps calendar-local state and rendering together without becoming a second task owner |
 
 ## Domain Owners
@@ -80,7 +80,7 @@ depend on `App.tsx` or feature components.
 | `src/hooks/useTaskListViewModel.ts` | Owner of derived list, calendar, count, statistics, filter-display, and empty-state data | `App.tsx` supplies primary tasks and current controls | `taskFiltering.ts`, `taskStatistics.ts`, `taskEmptyState.ts`, `taskDisplayHelpers.ts`, `taskUtils.ts`, task types | Every list view, calendar task subset, statistics display, counts, and empty-state selection | High | Provides one derivation path from authoritative task state without storing competing derived state |
 | `src/hooks/useBulkSelection.ts` | Owner of transient bulk-mode and selected-ID lifecycle | `App.tsx` and task-list user intent | React state and callbacks only | Bulk selection state and the inputs consumed by bulk mutation orchestration | Low | Encapsulates a complete, bounded selection concept while leaving task mutations in `App.tsx` |
 | `src/hooks/useProjectTagCatalog.ts` | Owner of project/tag catalogs, catalog drafts, loading, and catalog CRUD | `App.tsx` supplies shared error reporting and consumes catalog actions/results | Project/tag API functions and project/tag types | Project and tag catalogs, inline catalog forms, filters, task draft choices, and deletion reconciliation inputs | Medium | Keeps bounded catalog persistence and drafts together without owning task assignments or primary task reconciliation |
-| `src/hooks/useTaskDetailResources.ts` | Owner of task-keyed subtasks, notes, reminders, attachments, their drafts, and resource CRUD | `App.tsx` supplies time-mode and error handling; detail presentation emits resource intent | Child-resource API functions, child-resource types, `dateTime.ts`, `taskForm.ts`, browser Notification permission | All detail child resources; reminder record state also feeds `App.tsx` delivery/snooze orchestration | High | Gives related task-detail resources one bounded lifecycle while preserving selected-task and reminder-delivery ownership outside the hook |
+| `src/hooks/useTaskDetailResources.ts` | Retained owner of task-keyed subtasks, notes, reminders, attachments, their drafts, and resource CRUD helpers | `App.tsx` supplies time-mode and error handling for retained reminder/subtask plumbing | Child-resource API functions, child-resource types, `dateTime.ts`, `taskForm.ts`, browser Notification permission | Retained child-resource state; reminder record state also feeds `App.tsx` delivery/snooze orchestration when populated | High | Keeps related resource state/API helpers available while the legacy resource UI is inactive |
 | `src/types/task.ts` | Shared frontend domain contract | Imported by API, hooks, utilities, Calendar, and many presentation components | No application modules | Every typed task, catalog, recurrence, and child-resource boundary | High | Defines the common frontend representation of backend records |
 | `src/api/tasks.ts` | Shared HTTP transport owner for every persisted frontend domain | `App.tsx`, `useProjectTagCatalog`, `useTaskDetailResources`, and API tests | Browser `fetch`, environment API base URL, `types/task.ts`, backend endpoint contracts | All frontend persistence, hydration, task mutations, catalogs, recurrence, tags, and child resources | High | Centralizes URL construction, JSON requests, HTTP error conversion, and typed endpoint functions without owning product workflows |
 
@@ -90,7 +90,7 @@ depend on `App.tsx` or feature components.
 | --- | --- | --- | --- | --- | --- | --- |
 | `src/utils/dateTime.ts` | Core local date/time parsing, construction, comparison, and display hub | `App.tsx`, Calendar, detail-resource hook, scheduling/edit/recurrence/filter/statistics/display/task utilities, and tests | JavaScript `Date` only | Nearly every scheduled-task, recurrence, reminder, calendar, filtering, statistics, and display path | High | Gives the application one interpretation of local date/time strings |
 | `src/utils/taskScheduling.ts` and `taskForm.ts` | Task schedule construction and form-time validation/conversion | `App.tsx`, task editor workflows, and tests | `dateTime.ts`; shared `Ampm` type | Creation, editing, autosave validation, default end time, and reminder draft typing | High | Separates deterministic schedule and time-form rules from orchestration and JSX |
-| `src/utils/taskEditDraft.ts` | Persisted-task to shared-edit-draft conversion | `App.tsx` and tests | Task types, `dateTime.ts`, `taskForm.ts` type | Inline, mobile, and detail editing initialization | Medium | Creates one normalized draft shape for all edit presentations |
+| `src/utils/taskEditDraft.ts` | Persisted-task to shared-edit-draft conversion | `App.tsx` and tests | Task types, `dateTime.ts`, `taskForm.ts` type | Inline and mobile editing initialization | Medium | Creates one normalized draft shape for active edit presentations |
 | `src/utils/taskRecurrence.ts` and `taskTimeShift.ts` | Recurrence schedule and time-shift calculations | `App.tsx` and tests | `dateTime.ts`; `taskForm.ts` type | Recurring replacement and schedule movement behavior | High | Keeps recurrence and schedule shifting deterministic while `App.tsx` owns mutations |
 | `src/utils/taskFiltering.ts`, `taskStatistics.ts`, and `taskEmptyState.ts` | Derived list/statistics/empty-state calculation owners | `useTaskListViewModel` and tests | Task types, `dateTime.ts`, `taskUtils.ts` | Visible task ordering, filters, calendar/list counts, statistics, and empty-state messages | High | Ensures derived views are recomputed from authoritative state and controls |
 | `src/utils/taskDisplayHelpers.ts`, `taskDisplay.ts`, and `taskCopyTitle.ts` | Shared display lookup/formatting, status normalization, compact text, and copy-title rules | `App.tsx`, `useTaskListViewModel`, and tests | Task/project/tag types and `dateTime.ts` where needed | Repeated task labels, badges, date ranges, filter display, normalized statuses, and duplicate titles | Medium | Prevents repeated deterministic display rules inside orchestration and presentation |
@@ -102,12 +102,10 @@ depend on `App.tsx` or feature components.
 | --- | --- | --- | --- | --- | --- | --- |
 | `components/create-task/TaskEditorFields.tsx` | Shared create/edit field composition | `App.tsx` supplies drafts, setters, and intent | `DateTimeRow`, `RecurrenceControl` | Create form plus inline/mobile edit rendering that reuses the field surface | Medium | Keeps repeated task-field JSX consistent while workflow ownership remains in `App.tsx` |
 | `components/task-list/TaskListControls.tsx`, `TaskListPresentation.tsx`, `TaskCardMain.tsx` | Task-list controls, structural states, and card content | `App.tsx` supplies derived data, task records, and callbacks | Task/project/tag types; tag/project badge components | Main task list, filters, sorting controls, bulk selection presentation, loading, and empty states | Medium | Splits recognizable list surfaces from task ownership and mutations |
-| `components/detail-panel/DetailHeader.tsx`, `DetailDescriptionField.tsx`, `DetailScheduleFields.tsx`, `DetailRepeatRow.tsx`, `DetailStatusBadges.tsx` | Selected-task editor presentation | `App.tsx` supplies shared edit draft and autosave/mutation intent | Shared date/time controls and project badge where needed | Detail editing presentation; schedule fields also share date/time behavior | Medium | Renders the selected task without creating a second draft or selected-task owner |
-| `components/detail-panel/DetailAuxiliaryPanels.tsx` and `RemindersSection.tsx` | Child-resource presentation | `App.tsx` supplies hook-owned resources, drafts, and actions | Child-resource types, `DetailSectionShell`, `DateTimeRow` | Notes, subtasks, links, and reminder forms/lists | Medium | Presents the bounded detail-resource domain without owning its persistence |
-| `components/shared/DateTimeRow.tsx` and `TimeSelect.tsx` | Shared bounded date/time selector behavior | Create, detail schedule, and reminder presentations | React local state/effects; `taskForm.ts` type; `TimeSelect` from `DateTimeRow` | Every date/time editing surface | Medium | Owns selector-local open state and selected-option scrolling consistently |
+| `components/shared/DateTimeRow.tsx` and `TimeSelect.tsx` | Shared bounded date/time selector behavior | Create and inline/mobile edit presentations | React local state/effects; `taskForm.ts` type; `TimeSelect` from `DateTimeRow` | Active date/time editing surfaces | Medium | Owns selector-local open state and selected-option scrolling consistently |
 | `components/settings/SettingsPanel.tsx`, `StatsModal.tsx`, `dialogs/StatusMoveDialog.tsx` | Bounded settings, statistics, and status-dialog surfaces | `App.tsx` supplies visibility, values, refs, and intent | React types only | One overlay or settings surface each | Low | Keeps bounded overlay and settings markup outside orchestration |
 | `components/forms/InlineProjectForm.tsx`, `InlineTagForm.tsx`, `TagColorPicker.tsx` | Inline catalog-entry presentation | `App.tsx` supplies catalog drafts, focus refs, and actions | React types; `InlineTagForm` uses `TagColorPicker` | Project/tag creation surfaces and tag color selection | Low | Renders catalog form intent while catalog persistence remains in its hook |
-| `components/shared/ToastList.tsx`, `ConfirmDelete.tsx`, `ErrorBanner.tsx`, `DetailSectionShell.tsx` | Shared feedback and structural presentation | `App.tsx` and detail-resource panels | React effects/types only | Reused feedback, confirmation, and section rendering | Low | Provides small reusable presentation contracts without domain ownership |
+| `components/shared/ToastList.tsx`, `ConfirmDelete.tsx`, `ErrorBanner.tsx` | Shared feedback presentation | `App.tsx` | React effects/types only | Reused feedback and confirmation rendering | Low | Provides small reusable presentation contracts without domain ownership |
 
 # Backend Dependency Graph
 
@@ -159,7 +157,7 @@ service layer between controllers and repositories.
 | `TaskRepository.java` | Central task persistence and ordered/user-filtered query owner | `TaskController`, all child-resource controllers through `ParentTaskGuard`, and repository tests | Spring Data JPA and `Task` | Primary task persistence, task list ordering, user filtering, and every child-resource parent check | High | Exposes the shared durable task access required by task and child-resource endpoints |
 | `TagRepository.java` and `RecurrenceRuleRepository.java` | Related task-domain persistence owners | `TaskController`; `TagController` also uses `TagRepository` | Spring Data JPA and matching entities | Tag catalog plus task-tag associations; recurrence rule lookup/save/delete | Medium | Separates durable related records from task endpoint workflow logic |
 | `ProjectRepository.java` | Project persistence owner | `ProjectController` | Spring Data JPA and `Project` | Project catalog only | Low | Supplies standard project CRUD persistence |
-| `SubtaskRepository.java`, `NoteRepository.java`, `ReminderRepository.java`, `AttachmentRepository.java` | Child-resource persistence and task-key lookup owners | Matching controllers | Spring Data JPA and matching entities | One child-resource domain each | Medium | Supplies standard CRUD plus the task-keyed queries used by detail loading |
+| `SubtaskRepository.java`, `NoteRepository.java`, `ReminderRepository.java`, `AttachmentRepository.java` | Child-resource persistence and task-key lookup owners | Matching controllers | Spring Data JPA and matching entities | One child-resource domain each | Medium | Supplies standard CRUD plus the task-keyed queries used by resource loading |
 | `StatusRepository.java` | Status seed persistence owner | `DataInitializer` | Spring Data JPA and `Status` | Startup status records | Low | Gives startup initialization access to status records |
 
 ## Entities And Shared Validation Owners
@@ -192,7 +190,7 @@ service layer between controllers and repositories.
 | `types/task.ts` | Shared shape contract for all frontend persisted records | API, hooks, Calendar, utilities, many components | All typed frontend domains |
 | `dateTime.ts` | Base dependency for scheduling, recurrence, filtering, statistics, reminders, calendar, and display | `App.tsx`, Calendar, hook and utility graph | All time-sensitive behavior |
 | `useTaskListViewModel.ts` | Aggregates the derived-state utility graph for `App.tsx` | Task list, calendar subset, statistics, counts, empty states | Most read-only task views |
-| `useTaskDetailResources.ts` | Aggregates four child-resource APIs and task-keyed working copies | Detail panels and reminder state consumed by `App.tsx` | All task detail child resources |
+| `useTaskDetailResources.ts` | Aggregates four child-resource APIs and task-keyed working copies | Retained reminder state consumed by `App.tsx` | Retained child-resource state |
 | `TaskController.java` | Owns the broadest backend resource and depends on three repositories | Frontend task, recurrence, and task-tag APIs | Core backend behavior |
 | `TaskRepository.java` | Serves primary task endpoints and parent checks for four child domains | Task controller and child controllers/guard | Most backend request paths |
 | `Task.java` | Central entity and task-tag relationship contract | Task repository/controller, serialization, database | Core backend schema and task payloads |
@@ -207,9 +205,8 @@ surface.
 
 | Leaf node or group | Inbound dependency | Outbound dependency | Current blast radius |
 | --- | --- | --- | --- |
-| `ErrorBanner.tsx`, `ConfirmDelete.tsx`, `DetailSectionShell.tsx` | `App.tsx` or one detail presentation | React types only | One shared visual pattern |
+| `ErrorBanner.tsx`, `ConfirmDelete.tsx` | `App.tsx` | React types only | One shared visual pattern |
 | `StatsModal.tsx`, `SettingsPanel.tsx`, `StatusMoveDialog.tsx` | `App.tsx` | React types only | One bounded overlay/settings surface |
-| `DetailHeader.tsx`, `DetailDescriptionField.tsx`, `DetailRepeatRow.tsx` | `App.tsx` | React event types or a recurrence type | One detail-panel section |
 | `TagColorPicker.tsx`, `InlineProjectForm.tsx` | `App.tsx` or `InlineTagForm` | React types only | One catalog-entry control |
 | `RecurrenceControl.tsx` | `TaskEditorFields` and `App.tsx` for formatting/type use | React event types only | Recurrence selector presentation |
 | `TaskListPresentation.tsx` | `App.tsx` | No application modules | Task-list structural states |
@@ -250,9 +247,8 @@ surface.
 
 # Low-Risk Change Areas
 
-- Small presentational leaves such as `ErrorBanner.tsx`,
-  `DetailSectionShell.tsx`, `DetailHeader.tsx`, and
-  `TaskListPresentation.tsx` have no transport or domain mutation
+- Small presentational leaves such as `ErrorBanner.tsx`, `ConfirmDelete.tsx`,
+  and `TaskListPresentation.tsx` have no transport or domain mutation
   dependencies.
 - Bounded overlays such as `StatsModal.tsx`, `SettingsPanel.tsx`, and
   `StatusMoveDialog.tsx` consume values and intent supplied by `App.tsx`
@@ -276,7 +272,7 @@ contained.
   centralized in `api/tasks.ts`.
 - **No persisted mutations in leaf components:** presentation receives state
   and callbacks instead of becoming a competing domain owner.
-- **No duplicate task authority across list, calendar, and detail surfaces:**
+- **No duplicate task authority across list, calendar, and edit surfaces:**
   all consume the primary task working copy owned by `App.tsx`.
 - **No stored copies of major derived views:** filtering, sorting, statistics,
   counts, and empty-state selection flow through the derived utility and
