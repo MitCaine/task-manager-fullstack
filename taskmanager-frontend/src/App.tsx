@@ -1934,10 +1934,20 @@ function App() {
           setNewTagColor,
           addTagInlineEdit,
         }}
-        editTitle={editTitle}
-        setEditTitle={setEditTitle}
-        editDescription={editDescription}
-        setEditDescription={setEditDescription}
+        draft={{
+          editTitle,
+          setEditTitle,
+          editDescription,
+          setEditDescription,
+          editPriority,
+          setEditPriority,
+          editProjectID,
+          setEditProjectID,
+          editTaskTagIDs,
+          setEditTaskTagIDs,
+          editRepeat,
+          setEditRepeat,
+        }}
         editDate={editDate}
         setEditDate={setEditDate}
         editHour={editHour}
@@ -1956,8 +1966,6 @@ function App() {
         setEditEndMinute={setEditEndMinute}
         editEndAmpm={editEndAmpm}
         setEditEndAmpm={setEditEndAmpm}
-        editRepeat={editRepeat}
-        setEditRepeat={setEditRepeat}
         currentEditTimeRangeError={currentEditTimeRangeError}
         openTimeEditorScope={openTimeEditorScope}
         setOpenTimeEditorScope={setOpenTimeEditorScope}
@@ -1967,12 +1975,6 @@ function App() {
         inlineEditOpenControl={inlineEditOpenControl}
         setInlineEditOpenControl={setInlineEditOpenControl}
         toggleInlineEditDropdown={toggleInlineEditDropdown}
-        editPriority={editPriority}
-        setEditPriority={setEditPriority}
-        editProjectID={editProjectID}
-        setEditProjectID={setEditProjectID}
-        editTaskTagIDs={editTaskTagIDs}
-        setEditTaskTagIDs={setEditTaskTagIDs}
       />
     );
   };

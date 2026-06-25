@@ -52,6 +52,21 @@ type InlineTagCreation = {
   addTagInlineEdit: () => void;
 };
 
+type InlineTaskEditDraft = {
+  editTitle: string;
+  setEditTitle: (value: string) => void;
+  editDescription: string;
+  setEditDescription: (value: string) => void;
+  editPriority: PriorityValue | '';
+  setEditPriority: (value: PriorityValue | '') => void;
+  editProjectID: number | '';
+  setEditProjectID: (value: number | '') => void;
+  editTaskTagIDs: number[];
+  setEditTaskTagIDs: Dispatch<SetStateAction<number[]>>;
+  editRepeat: RepeatValue;
+  setEditRepeat: (value: RepeatValue) => void;
+};
+
 export type InlineTaskEditCardProps = {
   task: Task;
   variant?: InlineEditVariant;
@@ -60,10 +75,7 @@ export type InlineTaskEditCardProps = {
   refs: InlineTaskEditRefs;
   inlineProjectCreation: InlineProjectCreation;
   inlineTagCreation: InlineTagCreation;
-  editTitle: string;
-  setEditTitle: (value: string) => void;
-  editDescription: string;
-  setEditDescription: (value: string) => void;
+  draft: InlineTaskEditDraft;
   editDate: string;
   setEditDate: (value: string) => void;
   editHour: string;
@@ -82,8 +94,6 @@ export type InlineTaskEditCardProps = {
   setEditEndMinute: (value: string) => void;
   editEndAmpm: Ampm;
   setEditEndAmpm: (value: Ampm) => void;
-  editRepeat: RepeatValue;
-  setEditRepeat: (value: RepeatValue) => void;
   currentEditTimeRangeError: string | null;
   openTimeEditorScope: string | null;
   setOpenTimeEditorScope: Dispatch<SetStateAction<string | null>>;
@@ -93,12 +103,6 @@ export type InlineTaskEditCardProps = {
   inlineEditOpenControl: string | null;
   setInlineEditOpenControl: Dispatch<SetStateAction<string | null>>;
   toggleInlineEditDropdown: (control: 'priority' | 'project' | 'tags' | 'repeat') => void;
-  editPriority: PriorityValue | '';
-  setEditPriority: (value: PriorityValue | '') => void;
-  editProjectID: number | '';
-  setEditProjectID: (value: number | '') => void;
-  editTaskTagIDs: number[];
-  setEditTaskTagIDs: Dispatch<SetStateAction<number[]>>;
 };
 
 export default function InlineTaskEditCard({
@@ -109,10 +113,7 @@ export default function InlineTaskEditCard({
   refs,
   inlineProjectCreation,
   inlineTagCreation,
-  editTitle,
-  setEditTitle,
-  editDescription,
-  setEditDescription,
+  draft,
   editDate,
   setEditDate,
   editHour,
@@ -131,8 +132,6 @@ export default function InlineTaskEditCard({
   setEditEndMinute,
   editEndAmpm,
   setEditEndAmpm,
-  editRepeat,
-  setEditRepeat,
   currentEditTimeRangeError,
   openTimeEditorScope,
   setOpenTimeEditorScope,
@@ -142,12 +141,6 @@ export default function InlineTaskEditCard({
   inlineEditOpenControl,
   setInlineEditOpenControl,
   toggleInlineEditDropdown,
-  editPriority,
-  setEditPriority,
-  editProjectID,
-  setEditProjectID,
-  editTaskTagIDs,
-  setEditTaskTagIDs,
 }: InlineTaskEditCardProps): JSX.Element {
   const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
   const { saveEdit, cancelEdit } = actions;
@@ -158,6 +151,20 @@ export default function InlineTaskEditCard({
     inlineEditProjectInputRef,
     inlineEditTagInputRef,
   } = refs;
+  const {
+    editTitle,
+    setEditTitle,
+    editDescription,
+    setEditDescription,
+    editPriority,
+    setEditPriority,
+    editProjectID,
+    setEditProjectID,
+    editTaskTagIDs,
+    setEditTaskTagIDs,
+    editRepeat,
+    setEditRepeat,
+  } = draft;
   const {
     showInlineEditProject,
     setShowInlineEditProject,
