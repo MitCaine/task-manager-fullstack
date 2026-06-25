@@ -34,12 +34,32 @@ type InlineTaskEditRefs = {
   inlineEditTagInputRef: RefObject<HTMLInputElement>;
 };
 
+type InlineProjectCreation = {
+  showInlineEditProject: boolean;
+  setShowInlineEditProject: (value: boolean) => void;
+  newProjectTitle: string;
+  setNewProjectTitle: (value: string) => void;
+  addProjectInlineEdit: () => void;
+};
+
+type InlineTagCreation = {
+  showInlineEditTag: boolean;
+  setShowInlineEditTag: (value: boolean) => void;
+  newTagTitle: string;
+  setNewTagTitle: (value: string) => void;
+  newTagColor: string;
+  setNewTagColor: (value: string) => void;
+  addTagInlineEdit: () => void;
+};
+
 export type InlineTaskEditCardProps = {
   task: Task;
   variant?: InlineEditVariant;
   actions: InlineTaskEditActions;
   catalog: InlineTaskEditCatalog;
   refs: InlineTaskEditRefs;
+  inlineProjectCreation: InlineProjectCreation;
+  inlineTagCreation: InlineTagCreation;
   editTitle: string;
   setEditTitle: (value: string) => void;
   editDescription: string;
@@ -79,18 +99,6 @@ export type InlineTaskEditCardProps = {
   setEditProjectID: (value: number | '') => void;
   editTaskTagIDs: number[];
   setEditTaskTagIDs: Dispatch<SetStateAction<number[]>>;
-  showInlineEditProject: boolean;
-  setShowInlineEditProject: (value: boolean) => void;
-  newProjectTitle: string;
-  setNewProjectTitle: (value: string) => void;
-  addProjectInlineEdit: () => void;
-  showInlineEditTag: boolean;
-  setShowInlineEditTag: (value: boolean) => void;
-  newTagTitle: string;
-  setNewTagTitle: (value: string) => void;
-  newTagColor: string;
-  setNewTagColor: (value: string) => void;
-  addTagInlineEdit: () => void;
 };
 
 export default function InlineTaskEditCard({
@@ -99,6 +107,8 @@ export default function InlineTaskEditCard({
   actions,
   catalog,
   refs,
+  inlineProjectCreation,
+  inlineTagCreation,
   editTitle,
   setEditTitle,
   editDescription,
@@ -138,18 +148,6 @@ export default function InlineTaskEditCard({
   setEditProjectID,
   editTaskTagIDs,
   setEditTaskTagIDs,
-  showInlineEditProject,
-  setShowInlineEditProject,
-  newProjectTitle,
-  setNewProjectTitle,
-  addProjectInlineEdit,
-  showInlineEditTag,
-  setShowInlineEditTag,
-  newTagTitle,
-  setNewTagTitle,
-  newTagColor,
-  setNewTagColor,
-  addTagInlineEdit,
 }: InlineTaskEditCardProps): JSX.Element {
   const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
   const { saveEdit, cancelEdit } = actions;
@@ -160,6 +158,22 @@ export default function InlineTaskEditCard({
     inlineEditProjectInputRef,
     inlineEditTagInputRef,
   } = refs;
+  const {
+    showInlineEditProject,
+    setShowInlineEditProject,
+    newProjectTitle,
+    setNewProjectTitle,
+    addProjectInlineEdit,
+  } = inlineProjectCreation;
+  const {
+    showInlineEditTag,
+    setShowInlineEditTag,
+    newTagTitle,
+    setNewTagTitle,
+    newTagColor,
+    setNewTagColor,
+    addTagInlineEdit,
+  } = inlineTagCreation;
 
   return (
     <div

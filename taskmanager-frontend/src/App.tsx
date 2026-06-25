@@ -1918,6 +1918,22 @@ function App() {
           inlineEditProjectInputRef,
           inlineEditTagInputRef,
         }}
+        inlineProjectCreation={{
+          showInlineEditProject,
+          setShowInlineEditProject,
+          newProjectTitle,
+          setNewProjectTitle,
+          addProjectInlineEdit,
+        }}
+        inlineTagCreation={{
+          showInlineEditTag,
+          setShowInlineEditTag,
+          newTagTitle,
+          setNewTagTitle,
+          newTagColor,
+          setNewTagColor,
+          addTagInlineEdit,
+        }}
         editTitle={editTitle}
         setEditTitle={setEditTitle}
         editDescription={editDescription}
@@ -1957,18 +1973,6 @@ function App() {
         setEditProjectID={setEditProjectID}
         editTaskTagIDs={editTaskTagIDs}
         setEditTaskTagIDs={setEditTaskTagIDs}
-        showInlineEditProject={showInlineEditProject}
-        setShowInlineEditProject={setShowInlineEditProject}
-        newProjectTitle={newProjectTitle}
-        setNewProjectTitle={setNewProjectTitle}
-        addProjectInlineEdit={addProjectInlineEdit}
-        showInlineEditTag={showInlineEditTag}
-        setShowInlineEditTag={setShowInlineEditTag}
-        newTagTitle={newTagTitle}
-        setNewTagTitle={setNewTagTitle}
-        newTagColor={newTagColor}
-        setNewTagColor={setNewTagColor}
-        addTagInlineEdit={addTagInlineEdit}
       />
     );
   };
