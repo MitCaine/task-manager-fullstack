@@ -9,12 +9,10 @@ import {
   getRecurrence, setRepeat,
 } from './api/tasks';
 import {
-  formatDateTime as formatDateTimeDisplay,
   parseLocalDateTime,
   toLocalDateTimeString,
 } from './utils/dateTime';
-import { isTaskOverdue } from './utils/taskUtils';
-import { compactText, normalizeTaskStatus } from './utils/taskDisplay';
+import { normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
@@ -27,38 +25,29 @@ import {
 } from './utils/taskRecurrence';
 import type { RepeatValue } from './utils/taskRecurrence';
 import { buildTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
-import { calculateTaskTimeShift } from './utils/taskTimeShift';
 import {
   findProjectById,
   findTagsByIds,
   formatCreateDateDisplayLabel,
-  formatPriorityLabel,
   formatTaskDateRange,
 } from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
 import { SelectedTagChips } from './components/create-task/TagProjectChips';
 import TaskEditorFields from './components/create-task/TaskEditorFields';
+import CreateTaskCard from './components/create-task/CreateTaskCard';
 import StatsModal from './components/settings/StatsModal';
 import StatusMoveDialog from './components/dialogs/StatusMoveDialog';
 import TaskListControls from './components/task-list/TaskListControls';
 import type { FilterStatus, SortBy, ViewTab } from './components/task-list/TaskListControls';
 import TaskListToolbar from './components/task-list/TaskListToolbar';
-import AddTaskPreview from './components/create-task/AddTaskPreview';
 import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
 import ConfirmDelete from './components/shared/ConfirmDelete';
+import PrioritySelector from './components/shared/PrioritySelector';
 import SearchableCatalogList from './components/shared/SearchableCatalogList';
 import TagColorPicker from './components/forms/TagColorPicker';
 import InlineProjectForm from './components/forms/InlineProjectForm';
 import InlineTagForm from './components/forms/InlineTagForm';
-import DetailStatusBadges from './components/detail-panel/DetailStatusBadges';
-import DetailHeader from './components/detail-panel/DetailHeader';
-import DetailRepeatRow from './components/detail-panel/DetailRepeatRow';
-import DetailDescriptionField from './components/detail-panel/DetailDescriptionField';
-import DetailScheduleFields from './components/detail-panel/DetailScheduleFields';
-import DetailResourcePanels from './components/detail-panel/DetailResourcePanels';
-import ErrorBanner from './components/shared/ErrorBanner';
-import SelectedProjectChip from './components/create-task/SelectedProjectChip';
 import TaskListItems from './components/task-list/TaskListItems';
 import { TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
@@ -215,7 +204,6 @@ function App() {
 
   // Draft values for the selected task editor.
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [detailEditingTaskId, setDetailEditingTaskId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState('');
@@ -229,9 +217,6 @@ function App() {
   const [editEndAmpm, setEditEndAmpm] = useState<Ampm>('AM');
   const [editPriority, setEditPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
   const [editTaskTagIDs, setEditTaskTagIDs] = useState<number[]>([]);
-  const [showEditPriorityDropdown, setShowEditPriorityDropdown] = useState(false);
-  const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
-  const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
   const [showInlineEditProject, setShowInlineEditProject] = useState(false);
   const [showInlineEditTag, setShowInlineEditTag] = useState(false);
   const [inlineEditOpenControl, setInlineEditOpenControl] = useState<string | null>(null);
@@ -239,55 +224,15 @@ function App() {
   // Delete confirmation is tracked by task ID.
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  // Detail panel state for the selected task.
+  // Selected task state drives list highlighting.
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const {
     resources: {
       subtasks,
-      notes,
       reminders,
-      attachments,
-    },
-    drafts: {
-      newSubtaskTitle,
-      editingSubtaskId,
-      editingSubtaskTitle,
-      newNoteContent,
-      newReminderDate,
-      newReminderHour,
-      newReminderMinute,
-      newReminderAmpm,
-      newReminderMessage,
-      newAttachmentUrl,
-      newAttachmentLabel,
-    },
-    draftSetters: {
-      setNewSubtaskTitle,
-      setEditingSubtaskId,
-      setEditingSubtaskTitle,
-      setNewNoteContent,
-      setNewReminderDate,
-      setNewReminderHour,
-      setNewReminderMinute,
-      setNewReminderAmpm,
-      setNewReminderMessage,
-      setNewAttachmentUrl,
-      setNewAttachmentLabel,
     },
     actions: {
-      loadTaskSections,
       clearDeletedTaskResources,
-      addSubtask,
-      toggleSubtask,
-      removeSubtask,
-      updateSubtaskTitle,
-      addNote,
-      removeNote,
-      addReminder,
-      removeReminder,
-      addAttachment,
-      removeAttachment,
     },
     externalSetters: {
       setReminders,
@@ -398,15 +343,12 @@ function App() {
   const createControlsRef = useRef<HTMLDivElement>(null);
   const inlineTagInputRef = useRef<HTMLInputElement>(null);
   const inlineProjectInputRef = useRef<HTMLInputElement>(null);
-  const editPriorityDropdownRef = useRef<HTMLDivElement>(null);
   const editProjectDropdownRef = useRef<HTMLDivElement>(null);
   const editTagDropdownRef = useRef<HTMLDivElement>(null);
   const inlineEditProjectInputRef = useRef<HTMLInputElement>(null);
   const inlineEditTagInputRef = useRef<HTMLInputElement>(null);
 
-  // Refs keep the debounced auto-save callback pointed at current state.
-  const saveTimerRef = useRef<number>();
-  const saveEditRef  = useRef<(task: Task) => Promise<void>>(async () => {});
+  // Keep asynchronous list handlers pointed at current task state.
   const tasksRef     = useRef<Task[]>([]);
 
   // Prevent the same due reminder from opening duplicate toasts.
@@ -1126,15 +1068,11 @@ function App() {
         if (showStats) { setShowStats(false); return; }
         if (catalogManagerSection !== null) { setCatalogManagerSection(null); return; }
         if (showSettings) { setShowSettings(false); return; }
-        if (selectedTaskId !== null) { closePanel(); return; }
         if (
           openCreateControl !== null ||
           inlineEditOpenControl !== null ||
           openTimeEditorScope !== null ||
-          openActionTaskId !== null ||
-          showEditPriorityDropdown ||
-          showEditProjectDropdown ||
-          showEditTagDropdown
+          openActionTaskId !== null
         ) {
           closeFloatingControls();
           return;
@@ -1166,14 +1104,8 @@ function App() {
     inlineEditOpenControl,
     openTimeEditorScope,
     openActionTaskId,
-    showEditPriorityDropdown,
-    showEditProjectDropdown,
-    showEditTagDropdown,
-  ]); // closePanel is intentionally excluded — it's recreated every render
+  ]);
 
-  useOutsideClick(editPriorityDropdownRef, showEditPriorityDropdown, () => setShowEditPriorityDropdown(false));
-  useOutsideClick(editProjectDropdownRef,  showEditProjectDropdown,  () => setShowEditProjectDropdown(false));
-  useOutsideClick(editTagDropdownRef,      showEditTagDropdown,      () => setShowEditTagDropdown(false));
   useOutsideClick(settingsRef,             showSettings,             () => setShowSettings(false));
 
   useEffect(() => {
@@ -1306,9 +1238,6 @@ function App() {
       setEditEndHour(converted.hour);
       setEditEndAmpm(converted.ampm);
     }
-    const convertedReminder = convertHourForTimeMode(newReminderHour, newReminderAmpm, is24Hour);
-    setNewReminderHour(convertedReminder.hour);
-    setNewReminderAmpm(convertedReminder.ampm);
   }, [
     is24Hour,
     showAddTime,
@@ -1323,8 +1252,6 @@ function App() {
     editShowEndTime,
     editEndHour,
     editEndAmpm,
-    newReminderHour,
-    newReminderAmpm,
   ]);
 
   const locale = isEuropeanDate ? 'en-GB' : 'en-US';
@@ -1338,7 +1265,6 @@ function App() {
 
   const themeLabel: Record<Theme, string> = { system: '💻 System', light: '☀️ Light', dark: '🌙 Dark' };
 
-  const formatDateTime = (dt: string) => formatDateTimeDisplay(dt, locale, is24Hour);
   const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
   const { dateTimeScheduled: draftDateTimeScheduled, endDateTimeScheduled: draftEndDateTimeScheduled } = buildTaskSchedule({
@@ -1371,9 +1297,6 @@ function App() {
   const currentEditTimeRangeError = validateTaskTimeRange(draftEditDateTimeScheduled, draftEditEndDateTimeScheduled);
 
   const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean; inlineEditControls?: boolean } = {}) => {
-    setShowEditPriorityDropdown(false);
-    setShowEditProjectDropdown(false);
-    setShowEditTagDropdown(false);
     setOpenActionTaskId(null);
     setShowSettings(false);
     setShowStats(false);
@@ -1601,13 +1524,8 @@ function App() {
       toggleBulkSelection(task.taskID);
       return;
     }
-    if (mobileEditLayout) {
-      openPanel(task);
-      return;
-    }
     closeFloatingControls();
     setOpenActionTaskId(null);
-    setDetailEditingTaskId(null);
     setSelectedTaskId(current => current === task.taskID ? null : task.taskID);
   };
 
@@ -1615,7 +1533,6 @@ function App() {
     prepareInlineEditViewport();
     setOpenActionTaskId(null);
     setSelectedTaskId(null);
-    setDetailEditingTaskId(null);
     startEdit(task);
   };
 
@@ -1630,7 +1547,6 @@ function App() {
   };
 
   const startEdit = async (task: Task) => {
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     const draft = deriveTaskEditDraft(task, is24Hour);
     setEditingId(task.taskID);
     setEditTitle(draft.title);
@@ -1646,13 +1562,10 @@ function App() {
     setEditEndHour(draft.endHour);
     setEditEndMinute(draft.endMinute);
     setEditEndAmpm(draft.endAmpm);
-    setShowEditPriorityDropdown(false);
-    setShowEditProjectDropdown(false);
-    setShowEditTagDropdown(false);
     setShowInlineEditProject(false);
     setShowInlineEditTag(false);
     setInlineEditOpenControl(null);
-    // Reload the task so the panel starts with the backend's tag ordering.
+    // Reload the task so edit mode starts with the backend's tag ordering.
     try {
       const fresh = await getTask(task.taskID);
       setEditTaskTagIDs((fresh.tags ?? []).map(t => t.tagID));
@@ -1698,27 +1611,6 @@ function App() {
     setEditEndMinute(nextEnd.endMinute);
     setEditEndAmpm(nextEnd.endAmpm);
     setEditShowEndTime(true);
-  };
-
-  const shiftTime = (unit: 'hour' | 'day') => {
-    const shifted = calculateTaskTimeShift({
-      unit,
-      date: editDate,
-      showTime: editShowTime,
-      hour: editHour,
-      minute: editMinute,
-      ampm: editAmpm,
-      is24Hour,
-    });
-    setEditDate(shifted.date);
-    if (unit === 'hour') {
-      if (shifted.hour) setEditHour(shifted.hour);
-      if (shifted.minute) setEditMinute(shifted.minute);
-      if (shifted.ampm) setEditAmpm(shifted.ampm);
-      if (shifted.showTime) setEditShowTime(true);
-    }
-
-    scheduleAutoSave(0);
   };
 
   const saveEdit = async (task: Task) => {
@@ -1774,41 +1666,16 @@ function App() {
     }
   };
 
-  const scheduleAutoSave = (delay = 600) => {
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    const taskId = selectedTaskId;
-    saveTimerRef.current = window.setTimeout(() => {
-      const task = tasksRef.current.find(t => t.taskID === taskId);
-      if (task) saveEditRef.current(task);
-    }, delay);
-  };
-
   const removeTask = async (id: number) => {
     try {
       await deleteTask(id);
       setTasks(prev => prev.filter(t => t.taskID !== id));
       clearDeletedTaskResources(id);
       if (selectedTaskId === id) setSelectedTaskId(null);
-      if (detailEditingTaskId === id) setDetailEditingTaskId(null);
     } catch {
       setError('Failed to delete task.');
     }
     setConfirmDeleteId(null);
-  };
-
-  // Detail panel open and close helpers.
-  const openPanel = async (task: Task) => {
-    if (selectedTaskId === task.taskID) { closePanel(); return; }
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    if (selectedTaskId !== null) {
-      const current = tasks.find(t => t.taskID === selectedTaskId);
-      if (current) await saveEdit(current);
-    }
-    setSelectedTaskId(task.taskID);
-    setDetailEditingTaskId(task.taskID);
-    setOpenSections(new Set());
-    startEdit(task);
-    loadTaskSections(task.taskID);
   };
 
   const openTaskFromCalendar = async (taskId: number) => {
@@ -1817,30 +1684,9 @@ function App() {
     if (selectedTaskId === taskId) return;
     const task = tasks.find(t => t.taskID === taskId);
     if (!task) return;
-    if (mobileEditLayout) {
-      await openPanel(task);
-      return;
-    }
     closeFloatingControls();
     setOpenActionTaskId(null);
-    setDetailEditingTaskId(null);
     setSelectedTaskId(taskId);
-  };
-
-  const togglePanelSection = (name: string) =>
-    setOpenSections(prev => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-
-  const closePanel = async () => {
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    const task = tasks.find(t => t.taskID === selectedTaskId);
-    if (task) await saveEdit(task);
-    setSelectedTaskId(null);
-    setDetailEditingTaskId(null);
-    setEditingId(null);
   };
 
   // Project creation, deletion, and task detachment handlers.
@@ -1913,7 +1759,6 @@ function App() {
     if (!saved) return;
     setEditProjectID(saved.projectID);
     setShowInlineEditProject(false);
-    scheduleAutoSave(0);
   };
 
   const addTagInlineEdit = async () => {
@@ -1921,7 +1766,6 @@ function App() {
     if (!saved) return;
     setEditTaskTagIDs(prev => [...prev, saved.tagID]);
     setShowInlineEditTag(false);
-    scheduleAutoSave(0);
   };
 
   // Task duplication preserves metadata that belongs to the task itself.
@@ -2054,8 +1898,7 @@ function App() {
     });
   };
 
-  // Keep auto-save refs fresh for the debounced callback.
-  saveEditRef.current = saveEdit;
+  // Keep asynchronous callbacks pointed at current task state.
   tasksRef.current    = tasks;
 
   const renderInlineEditForm = (task: Task, variant: 'inline' | 'mobile' = 'inline') => {
@@ -2130,42 +1973,17 @@ function App() {
           timeRangeError={currentEditTimeRangeError}
         />
         <div className="form-row item__edit-meta-row">
-          <div className="tag-select">
-            <button
-              type="button"
-              className={`select tag-select__btn${editPriority !== '' ? ' tag-select__btn--active' : ''}`}
-              data-inline-edit-menu-trigger
-              onClick={() => {
-                toggleInlineEditDropdown('priority');
-              }}
-            >
-              {editPriority === ''
-                ? 'Priority'
-                : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[editPriority] }} />{formatPriorityLabel(editPriority)}</>}
-            </button>
-            {inlineEditOpenControl === 'priority' && (
-              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-                <button
-                  type="button"
-                  className={`tag-select__item tag-select__item--remove${editPriority === '' ? ' tag-select__item--on' : ''}`}
-                  onClick={() => { setEditPriority(''); setInlineEditOpenControl(null); }}
-                >
-                  Remove priority
-                </button>
-                {(['LOW', 'MEDIUM', 'HIGH'] as const).map(priority => (
-                  <button
-                    key={priority}
-                    type="button"
-                    className={`tag-select__item${editPriority === priority ? ' tag-select__item--on' : ''}`}
-                    onClick={() => { setEditPriority(priority); setInlineEditOpenControl(null); }}
-                  >
-                    <span className="priority-dot" style={{ background: PRIORITY_COLOR[priority] }} />
-                    {formatPriorityLabel(priority)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <PrioritySelector
+            value={editPriority}
+            colors={PRIORITY_COLOR}
+            open={inlineEditOpenControl === 'priority'}
+            onToggle={() => toggleInlineEditDropdown('priority')}
+            onSelect={value => { setEditPriority(value); setInlineEditOpenControl(null); }}
+            triggerLabel="Priority"
+            removeLabel="Remove priority"
+            triggerAttributes={{ 'data-inline-edit-menu-trigger': true }}
+            dropdownAttributes={{ 'data-inline-edit-menu-boundary': true }}
+          />
 
           <div className="tag-select" ref={editProjectDropdownRef}>
             <button
@@ -2333,305 +2151,107 @@ function App() {
         onTouchEnd={handleSwipeEnd}
       >
       <section className="mobile-page mobile-page--add" data-active={mobilePage === 'add'}>
-      <div className="card app__add" data-text-focus-scope="create-task">
-
-        {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-
-        <div className="controls" ref={createControlsRef}>
-          <TaskEditorFields
-            titleValue={input}
-            onTitleChange={value => { setInput(value); if (titleError) setTitleError(false); }}
-            titleInputRef={titleInputRef}
-            titleClassName={`input${titleError ? ' input--error' : ''}`}
-            titleType="text"
-            onTitleKeyDown={e => e.key === 'Enter' && addTask()}
-            titleErrorMessage={titleError ? 'Title is required.' : null}
-            titleWarningMessage={!titleError && input.trim() !== '' && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) ? 'A task with this title already exists.' : null}
-            descriptionValue={description}
-            onDescriptionChange={setDescription}
-            descriptionPlaceholder="Description (optional)"
-            descriptionRows={2}
-            dateTimeRowProps={{
-              editorScope: 'add-task',
-              openTimeEditorScope,
-              setOpenTimeEditorScope,
-              closeFloatingControls,
-              is24Hour,
-              hourOptions,
-              openControl: openCreateControl,
-              setOpenControl: setOpenCreateControl,
-              controlIds: {
-                date: 'date',
-                start: 'start',
-                end: 'end',
-                startHour: 'start-hour',
-                startMinute: 'start-minute',
-                startAmpm: 'start-ampm',
-                endHour: 'end-hour',
-                endMinute: 'end-minute',
-                endAmpm: 'end-ampm',
-              },
-              dateVal: date,
-              hourVal: hour,
-              minuteVal: minute,
-              ampmVal: ampm,
-              onDate: setDate,
-              onHour: setHour,
-              onMinute: setMinute,
-              onAmpm: setAmpm,
-              useDateDisplayProxy: true,
-              dateDisplayLabel: createDateDisplayLabel,
-              showTime: showAddTime,
-              onToggleTime: () => setShowAddTime(p => !p),
-              onRemoveStart: () => setShowAddTime(false),
-              showEndTime: showAddEndTime,
-              onToggleEndTime: toggleAddEndTime,
-              endHourVal: endHour,
-              endMinuteVal: endMinute,
-              endAmpmVal: endAmpm,
-              onEndHour: setEndHour,
-              onEndMinute: setEndMinute,
-              onEndAmpm: setEndAmpm,
-            }}
-            recurrenceControlProps={{
-              value: newRepeat,
-              onChange: setNewRepeat,
-              openControl: openCreateControl,
-              onToggle: () => toggleCreateDropdown('repeat'),
-              onClose: () => setOpenCreateControl(null),
-              controlId: 'repeat',
-              menuScope: 'create',
-            }}
-            timeRangeError={currentCreateTimeRangeError}
-          />
-          <div className="add-actions-row">
-          <div className="form-row">
-            <div className="tag-select" ref={priorityDropdownRef}>
-              <button
-                type="button"
-                className={`select tag-select__btn${newPriority !== '' ? ' tag-select__btn--active' : ''}`}
-                data-create-menu-trigger
-                onClick={() => {
-                  toggleCreateDropdown('priority');
-                }}
-              >
-                {newPriority === ''
-                  ? 'Priority'
-                  : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[newPriority] }} />{formatPriorityLabel(newPriority)}</>}
-              </button>
-              {openCreateControl === 'priority' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <button
-                    type="button"
-                    className={`tag-select__item tag-select__item--remove${newPriority === '' ? ' tag-select__item--on' : ''}`}
-                    onClick={() => { setNewPriority(''); setOpenCreateControl(null); }}
-                  >
-                    Remove priority
-                  </button>
-                  {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`tag-select__item${newPriority === p ? ' tag-select__item--on' : ''}`}
-                      onClick={() => { setNewPriority(p); setOpenCreateControl(null); }}
-                    >
-                      <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
-                      {formatPriorityLabel(p)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="tag-select" ref={projectDropdownRef}>
-              <button
-                type="button"
-                className={`select tag-select__btn${newProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                data-create-menu-trigger
-                onClick={() => {
-                  toggleCreateDropdown('project');
-                }}
-              >
-                {newProjectID === ''
-                  ? 'Project'
-                  : compactText(findProjectById(projects, newProjectID)?.title ?? 'Project', 10)}
-              </button>
-              {openCreateControl === 'project' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <button
-                    type="button"
-                    className="tag-select__new-btn tag-select__new-btn--top"
-                    onClick={() => {
-                      setOpenCreateControl(null);
-                      if (showInlineProject) { inlineProjectInputRef.current?.focus(); }
-                      else { setShowInlineProject(true); }
-                    }}
-                  >+ New Project</button>
-                  <SearchableCatalogList
-                    items={projects}
-                    searchLabel="Search create projects"
-                    searchPlaceholder="Search projects..."
-                    emptyMessage="No projects yet."
-                    noMatchesMessage="No projects match your search."
-                    renderItem={p => {
-                      const selected = newProjectID === p.projectID;
-                      return (
-                        <div key={p.projectID} className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                          <label className="tag-select__item-label">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => setNewProjectID(selected ? '' : p.projectID)}
-                            />
-                            📁 {p.title}
-                          </label>
-                          <button
-                            type="button"
-                            className="tag-select__delete"
-                            onClick={e => { e.stopPropagation(); removeProject(p.projectID); }}
-                            title="Delete project"
-                            aria-label="Delete project"
-                          >×</button>
-                        </div>
-                      );
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="tag-select tag-select--create-tags" ref={tagDropdownRef}>
-              <button
-                type="button"
-                className={`select tag-select__btn${newTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                data-create-menu-trigger
-                onClick={() => {
-                  toggleCreateDropdown('tags');
-                }}
-              >
-                {newTaskTagIDs.length === 0
-                  ? 'Tags'
-                  : `${newTaskTagIDs.length} Tag${newTaskTagIDs.length === 1 ? '' : 's'}`}
-              </button>
-              {openCreateControl === 'tags' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <button
-                    type="button"
-                    className="tag-select__new-btn tag-select__new-btn--top"
-                    onClick={() => {
-                      setOpenCreateControl(null);
-                      if (showInlineTag) { inlineTagInputRef.current?.focus(); }
-                      else { setShowInlineTag(true); }
-                    }}
-                  >+ New Tag</button>
-                  <SearchableCatalogList
-                    items={tags}
-                    searchLabel="Search create tags"
-                    searchPlaceholder="Search tags..."
-                    emptyMessage="No tags yet."
-                    noMatchesMessage="No tags match your search."
-                    isItemSelected={tag => newTaskTagIDs.includes(tag.tagID)}
-                    renderItem={tag => {
-                      const selected = newTaskTagIDs.includes(tag.tagID);
-                      return (
-                        <div key={tag.tagID}>
-                          <div className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                            <label className="tag-select__item-label">
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={() => setNewTaskTagIDs(prev =>
-                                  selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID]
-                                )}
-                              />
-                              {tag.title}
-                            </label>
-                            <button
-                              type="button"
-                              className="tag-dot tag-dot--clickable"
-                              style={{ background: tag.color ?? '#6366f1' }}
-                              onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
-                              title="Change color"
-                              aria-label="Change tag color"
-                            />
-                            <button
-                              type="button"
-                              className="tag-select__delete"
-                              onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }}
-                              title="Delete tag"
-                              aria-label="Delete tag"
-                            >×</button>
-                          </div>
-                          {colorPickerTagId === tag.tagID && (
-                            <TagColorPicker
-                              colors={TAG_COLORS}
-                              selectedColor={tag.color}
-                              onSelectColor={(c, e) => { e.stopPropagation(); changeTagColor(tag.tagID, c); }}
-                              className="tag-color-picker"
-                              getAriaLabel={c => `Set tag color ${c}`}
-                            />
-                          )}
-                        </div>
-                      );
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <button className="btn add-task-submit" onClick={addTask}>Add Task</button>
-          </div>
-          <SelectedProjectChip
-            project={newProjectID !== '' ? findProjectById(projects, newProjectID) ?? null : null}
-            onRemove={() => setNewProjectID('')}
-          />
-          <SelectedTagChips
-            tagIds={newTaskTagIDs}
-            tags={tags}
-            onRemove={id => setNewTaskTagIDs(prev => prev.filter(i => i !== id))}
-          />
-          {showInlineProject && (
-            <InlineProjectForm
-              inputRef={inlineProjectInputRef}
-              value={newProjectTitle}
-              maxLength={PROJECT_MAX_LENGTH}
-              placeholder="Project name…"
-              onChange={setNewProjectTitle}
-              onSubmit={addProject}
-              onCancel={() => { setShowInlineProject(false); setNewProjectTitle(''); }}
-            />
-          )}
-          {showInlineTag && (
-            <InlineTagForm
-              inputRef={inlineTagInputRef}
-              value={newTagTitle}
-              selectedColor={newTagColor}
-              colors={TAG_COLORS}
-              maxLength={TAG_MAX_LENGTH}
-              placeholder="Tag name…"
-              onChange={setNewTagTitle}
-              onSubmit={addTagInline}
-              onCancel={() => { setShowInlineTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
-              onSelectColor={setNewTagColor}
-              getColorAriaLabel={c => `Set new tag color ${c}`}
-            />
-          )}
-          <AddTaskPreview
-            title={input}
-            description={description}
-            dateTimeLabel={formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}
-            repeatLabel={newRepeat ? formatRecurrenceInterval(newRepeat) : null}
-            priority={newPriority || null}
-            priorityLabel={newPriority ? formatPriorityLabel(newPriority) : null}
-            project={draftProject}
-            tags={draftTags}
-          />
-        </div>
-
-      </div>
+      <CreateTaskCard
+        error={error}
+        onDismissError={() => setError(null)}
+        controlsRef={createControlsRef}
+        titleValue={input}
+        onTitleChange={value => { setInput(value); if (titleError) setTitleError(false); }}
+        titleInputRef={titleInputRef}
+        titleHasError={titleError}
+        titleWarningMessage={!titleError && input.trim() !== "" && tasks.some(t => t.title.toLowerCase() === input.trim().toLowerCase()) ? "A task with this title already exists." : null}
+        onTitleKeyDown={e => e.key === "Enter" && addTask()}
+        descriptionValue={description}
+        onDescriptionChange={setDescription}
+        date={date}
+        hour={hour}
+        minute={minute}
+        ampm={ampm}
+        onDateChange={setDate}
+        onHourChange={setHour}
+        onMinuteChange={setMinute}
+        onAmpmChange={setAmpm}
+        showTime={showAddTime}
+        onToggleTime={() => setShowAddTime(p => !p)}
+        onRemoveStartTime={() => setShowAddTime(false)}
+        showEndTime={showAddEndTime}
+        onToggleEndTime={toggleAddEndTime}
+        endHour={endHour}
+        endMinute={endMinute}
+        endAmpm={endAmpm}
+        onEndHourChange={setEndHour}
+        onEndMinuteChange={setEndMinute}
+        onEndAmpmChange={setEndAmpm}
+        openTimeEditorScope={openTimeEditorScope}
+        setOpenTimeEditorScope={setOpenTimeEditorScope}
+        closeFloatingControls={closeFloatingControls}
+        is24Hour={is24Hour}
+        hourOptions={hourOptions}
+        openCreateControl={openCreateControl}
+        setOpenCreateControl={setOpenCreateControl}
+        dateDisplayLabel={createDateDisplayLabel}
+        repeatValue={newRepeat}
+        onRepeatChange={setNewRepeat}
+        onToggleRepeat={() => toggleCreateDropdown("repeat")}
+        timeRangeError={currentCreateTimeRangeError}
+        priority={newPriority}
+        priorityColors={PRIORITY_COLOR}
+        onTogglePriority={() => toggleCreateDropdown("priority")}
+        onPriorityChange={setNewPriority}
+        priorityDropdownRef={priorityDropdownRef}
+        projects={projects}
+        selectedProjectID={newProjectID}
+        onToggleProject={() => toggleCreateDropdown("project")}
+        onProjectChange={setNewProjectID}
+        onRequestNewProject={() => {
+          setOpenCreateControl(null);
+          if (showInlineProject) { inlineProjectInputRef.current?.focus(); }
+          else { setShowInlineProject(true); }
+        }}
+        onDeleteProject={removeProject}
+        projectDropdownRef={projectDropdownRef}
+        tags={tags}
+        selectedTagIDs={newTaskTagIDs}
+        onToggleTags={() => toggleCreateDropdown("tags")}
+        onTagIDsChange={setNewTaskTagIDs}
+        onRequestNewTag={() => {
+          setOpenCreateControl(null);
+          if (showInlineTag) { inlineTagInputRef.current?.focus(); }
+          else { setShowInlineTag(true); }
+        }}
+        onDeleteTag={removeTag}
+        tagDropdownRef={tagDropdownRef}
+        colorPickerTagId={colorPickerTagId}
+        onToggleTagColorPicker={tagID => setColorPickerTagId(prev => prev === tagID ? null : tagID)}
+        onChangeTagColor={(tagID, color, event) => { event.stopPropagation(); changeTagColor(tagID, color); }}
+        tagColors={TAG_COLORS}
+        showInlineProject={showInlineProject}
+        inlineProjectInputRef={inlineProjectInputRef}
+        newProjectTitle={newProjectTitle}
+        projectMaxLength={PROJECT_MAX_LENGTH}
+        onNewProjectTitleChange={setNewProjectTitle}
+        onSubmitProject={addProject}
+        onCancelProject={() => { setShowInlineProject(false); setNewProjectTitle(""); }}
+        showInlineTag={showInlineTag}
+        inlineTagInputRef={inlineTagInputRef}
+        newTagTitle={newTagTitle}
+        newTagColor={newTagColor}
+        tagMaxLength={TAG_MAX_LENGTH}
+        onNewTagTitleChange={setNewTagTitle}
+        onSubmitTag={addTagInline}
+        onCancelTag={() => { setShowInlineTag(false); setNewTagTitle(""); setNewTagColor("#6366f1"); }}
+        onNewTagColorChange={setNewTagColor}
+        onAddTask={addTask}
+        previewDateTimeLabel={formatTaskDateRange(draftDateTimeScheduled, draftEndDateTimeScheduled, locale, is24Hour)}
+        previewRepeatLabel={newRepeat ? formatRecurrenceInterval(newRepeat) : null}
+        previewProject={draftProject}
+        previewTags={draftTags}
+      />
 
       </section>
 
       <section className="mobile-page mobile-page--tasks" data-active={mobilePage === 'tasks'}>
-      <div className={`card app__list${selectedTaskId !== null && detailEditingTaskId === selectedTaskId ? ' app__list--narrow' : ''}`}>
+      <div className="card app__list">
 
         <TaskListToolbar
           isEuropeanDate={isEuropeanDate}
@@ -2704,7 +2324,6 @@ function App() {
             filterStatus={filterStatus}
             selectedTaskId={selectedTaskId}
             editingId={editingId}
-            detailEditingTaskId={detailEditingTaskId}
             mobileEditLayout={mobileEditLayout}
             bulkMode={bulkMode}
             bulkSelectedIds={bulkSelectedIds}
@@ -2755,295 +2374,6 @@ function App() {
       />
       </section>
 
-      {selectedTaskId !== null && detailEditingTaskId === selectedTaskId && (() => {
-        const panelTask = tasks.find(t => t.taskID === selectedTaskId);
-        if (!panelTask) return null;
-        const panelOverdue = isTaskOverdue(panelTask);
-        const panelSubtasks = subtasks[selectedTaskId] ?? [];
-        const panelNotes    = notes[selectedTaskId]    ?? [];
-        const panelReminders = reminders[selectedTaskId] ?? [];
-        const panelDone = panelSubtasks.filter(s => s.statusID === 2).length;
-        const panelProjectTitle = panelTask.projectID ? findProjectById(projects, panelTask.projectID)?.title ?? null : null;
-        const showDuplicateTitleWarning = editTitle.trim() !== '' && tasks.some(t => t.taskID !== panelTask.taskID && t.title.toLowerCase() === editTitle.trim().toLowerCase());
-
-        return (
-          <div className="card app__detail" data-text-focus-scope={`detail-edit-${selectedTaskId}`}>
-            <DetailHeader
-              title={editTitle}
-              onTitleChange={value => { setEditTitle(value); scheduleAutoSave(); }}
-              showDuplicateWarning={showDuplicateTitleWarning}
-              onClose={closePanel}
-            />
-            <DetailStatusBadges overdue={panelOverdue} projectTitle={panelProjectTitle} />
-
-            <div className="detail__fields">
-              <DetailDescriptionField
-                value={editDescription}
-                onValue={value => { setEditDescription(value); scheduleAutoSave(); }}
-              />
-
-              <DetailScheduleFields
-                dateTimeRowProps={{
-                  editorScope: `detail-edit-${selectedTaskId}`,
-                  openTimeEditorScope,
-                  setOpenTimeEditorScope,
-                  closeFloatingControls,
-                  is24Hour,
-                  hourOptions,
-                  dateVal: editDate,
-                  hourVal: editHour,
-                  minuteVal: editMinute,
-                  ampmVal: editAmpm,
-                  onDate: v => { setEditDate(v); scheduleAutoSave(0); },
-                  onHour: v => { setEditHour(v); scheduleAutoSave(0); },
-                  onMinute: v => { setEditMinute(v); scheduleAutoSave(0); },
-                  onAmpm: v => { setEditAmpm(v); scheduleAutoSave(0); },
-                  showTime: editShowTime,
-                  onToggleTime: () => { setEditShowTime(p => !p); scheduleAutoSave(0); },
-                  onRemoveStart: () => { setEditShowTime(false); scheduleAutoSave(0); },
-                  showEndTime: editShowEndTime,
-                  onToggleEndTime: () => { toggleEditEndTime(); scheduleAutoSave(0); },
-                  endHourVal: editEndHour,
-                  endMinuteVal: editEndMinute,
-                  endAmpmVal: editEndAmpm,
-                  onEndHour: v => { setEditEndHour(v); scheduleAutoSave(0); },
-                  onEndMinute: v => { setEditEndMinute(v); scheduleAutoSave(0); },
-                  onEndAmpm: v => { setEditEndAmpm(v); scheduleAutoSave(0); },
-                }}
-                timeRangeError={currentEditTimeRangeError}
-                onShiftHour={() => shiftTime('hour')}
-                onShiftDay={() => shiftTime('day')}
-              />
-
-              <div className="form-row">
-                <div className="tag-select" ref={editPriorityDropdownRef}>
-                  <button
-                    type="button"
-                    className={`select tag-select__btn${editPriority !== '' ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => {
-                      const next = !showEditPriorityDropdown;
-                      closeFloatingControls();
-                      setShowEditPriorityDropdown(next);
-                    }}
-                  >
-                    {editPriority === ''
-                      ? 'Add priority'
-                      : <><span className="priority-dot" style={{ background: PRIORITY_COLOR[editPriority] }} />{formatPriorityLabel(editPriority)}</>}
-                  </button>
-                  {showEditPriorityDropdown && (
-                    <div className="tag-select__dropdown">
-                      <button type="button" className={`tag-select__item${editPriority === '' ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(''); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>Remove priority</button>
-                      {(['LOW', 'MEDIUM', 'HIGH'] as const).map(p => (
-                        <button key={p} type="button" className={`tag-select__item${editPriority === p ? ' tag-select__item--on' : ''}`} onClick={() => { setEditPriority(p); setShowEditPriorityDropdown(false); scheduleAutoSave(0); }}>
-                          <span className="priority-dot" style={{ background: PRIORITY_COLOR[p] }} />
-                          {formatPriorityLabel(p)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="tag-select" ref={editProjectDropdownRef}>
-                  <button
-                    type="button"
-                    className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => {
-                      const next = !showEditProjectDropdown;
-                      closeFloatingControls();
-                      setShowEditProjectDropdown(next);
-                    }}
-                  >
-                    {editProjectID === '' ? 'Add project' : 'Edit project'}
-                  </button>
-                  {showEditProjectDropdown && (
-                    <div className="tag-select__dropdown">
-                      <button type="button" className="tag-select__new-btn tag-select__new-btn--top" onClick={() => { setShowEditProjectDropdown(false); if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); } else { setShowInlineEditProject(true); } }}>+ New Project</button>
-                      <SearchableCatalogList
-                        items={projects}
-                        searchLabel="Search detail projects"
-                        searchPlaceholder="Search projects..."
-                        emptyMessage="No projects yet."
-                        noMatchesMessage="No projects match your search."
-                        renderItem={p => {
-                          const selected = Number(editProjectID) === p.projectID;
-                          return (
-                            <div key={p.projectID} className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                              <label className="tag-select__item-label">
-                                <input type="checkbox" checked={selected} onChange={() => { setEditProjectID(selected ? '' : p.projectID); scheduleAutoSave(0); }} />
-                                📁 {p.title}
-                              </label>
-                              <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeProject(p.projectID); }} title="Delete project" aria-label="Delete project">×</button>
-                            </div>
-                          );
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="tag-select" ref={editTagDropdownRef}>
-                  <button
-                    type="button"
-                    className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                    onClick={() => {
-                      const next = !showEditTagDropdown;
-                      closeFloatingControls();
-                      setShowEditTagDropdown(next);
-                    }}
-                  >
-                    {editTaskTagIDs.length === 0 ? 'Add tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
-                  </button>
-                  {showEditTagDropdown && (
-                    <div className="tag-select__dropdown">
-                      <button type="button" className="tag-select__new-btn tag-select__new-btn--top" onClick={() => { setShowEditTagDropdown(false); if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); } else { setShowInlineEditTag(true); } }}>+ New Tag</button>
-                      <SearchableCatalogList
-                        items={tags}
-                        searchLabel="Search detail tags"
-                        searchPlaceholder="Search tags..."
-                        emptyMessage="No tags yet."
-                        noMatchesMessage="No tags match your search."
-                        isItemSelected={tag => editTaskTagIDs.includes(tag.tagID)}
-                        renderItem={tag => {
-                          const selected = editTaskTagIDs.includes(tag.tagID);
-                          return (
-                            <div key={tag.tagID}>
-                              <div className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                                <label className="tag-select__item-label">
-                                  <input type="checkbox" checked={selected} onChange={() => { setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID]); scheduleAutoSave(0); }} />
-                                  {tag.title}
-                                </label>
-                                <button
-                                  type="button"
-                                  className="tag-dot tag-dot--clickable"
-                                  style={{ background: tag.color ?? '#6366f1' }}
-                                  onClick={e => { e.preventDefault(); e.stopPropagation(); setColorPickerTagId(prev => prev === tag.tagID ? null : tag.tagID); }}
-                                  title="Change color"
-                                  aria-label="Change tag color"
-                                />
-                                <button type="button" className="tag-select__delete" onClick={e => { e.stopPropagation(); removeTag(tag.tagID); }} title="Delete tag" aria-label="Delete tag">×</button>
-                              </div>
-                              {colorPickerTagId === tag.tagID && (
-                                <TagColorPicker
-                                  colors={TAG_COLORS}
-                                  selectedColor={tag.color}
-                                  onSelectColor={(c, e) => { e.stopPropagation(); changeTagColor(tag.tagID, c); }}
-                                  className="tag-color-picker"
-                                  getAriaLabel={c => `Set tag color ${c}`}
-                                />
-                              )}
-                            </div>
-                          );
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <SelectedTagChips
-                tagIds={editTaskTagIDs}
-                tags={tags}
-                onRemove={id => { setEditTaskTagIDs(prev => prev.filter(i => i !== id)); scheduleAutoSave(0); }}
-              />
-
-              {showInlineEditProject && (
-                <InlineProjectForm
-                  inputRef={inlineEditProjectInputRef}
-                  value={newProjectTitle}
-                  maxLength={PROJECT_MAX_LENGTH}
-                  placeholder="Project name…"
-                  onChange={setNewProjectTitle}
-                  onSubmit={addProjectInlineEdit}
-                  onCancel={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }}
-                />
-              )}
-
-              {showInlineEditTag && (
-                <InlineTagForm
-                  inputRef={inlineEditTagInputRef}
-                  value={newTagTitle}
-                  selectedColor={newTagColor}
-                  colors={TAG_COLORS}
-                  maxLength={TAG_MAX_LENGTH}
-                  placeholder="Tag name…"
-                  onChange={setNewTagTitle}
-                  onSubmit={addTagInlineEdit}
-                  onCancel={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
-                  onSelectColor={setNewTagColor}
-                  getColorAriaLabel={c => `Set new tag color ${c}`}
-                />
-              )}
-
-              <DetailRepeatRow
-                value={editRepeat}
-                onChange={value => { setEditRepeat(value); scheduleAutoSave(0); }}
-              />
-
-            </div>
-
-            <DetailResourcePanels
-              openSections={openSections}
-              onToggleSection={togglePanelSection}
-              subtasksPanel={{
-                subtasks: panelSubtasks,
-                doneCount: panelDone,
-                newSubtaskTitle,
-                editingSubtaskId,
-                editingSubtaskTitle,
-                onNewSubtaskTitleChange: setNewSubtaskTitle,
-                onAddSubtask: () => addSubtask(selectedTaskId),
-                onToggleSubtask: subtask => toggleSubtask(selectedTaskId, subtask),
-                onRemoveSubtask: subtaskId => removeSubtask(selectedTaskId, subtaskId),
-                onStartEditSubtask: subtask => { setEditingSubtaskId(subtask.subTaskID); setEditingSubtaskTitle(subtask.title); },
-                onEditingSubtaskTitleChange: setEditingSubtaskTitle,
-                onSaveSubtaskTitle: subtask => updateSubtaskTitle(selectedTaskId, subtask),
-                onCancelEditSubtask: () => { setEditingSubtaskId(null); setEditingSubtaskTitle(''); },
-              }}
-              notesPanel={{
-                notes: panelNotes,
-                newNoteContent,
-                onNoteContentChange: setNewNoteContent,
-                onAddNote: () => addNote(selectedTaskId),
-                onRemoveNote: noteId => removeNote(selectedTaskId, noteId),
-              }}
-              remindersPanel={{
-                reminders: panelReminders,
-                dateTimeRowProps: {
-                  editorScope: `reminder-${selectedTaskId}`,
-                  openTimeEditorScope,
-                  setOpenTimeEditorScope,
-                  closeFloatingControls,
-                  is24Hour,
-                  hourOptions,
-                  dateVal: newReminderDate,
-                  hourVal: newReminderHour,
-                  minuteVal: newReminderMinute,
-                  ampmVal: newReminderAmpm,
-                  onDate: setNewReminderDate,
-                  onHour: setNewReminderHour,
-                  onMinute: setNewReminderMinute,
-                  onAmpm: setNewReminderAmpm,
-                },
-                newReminderMessage,
-                onReminderMessageChange: setNewReminderMessage,
-                onAddReminder: () => addReminder(selectedTaskId),
-                onRemoveReminder: reminderId => removeReminder(selectedTaskId, reminderId),
-              }}
-              linksPanel={{
-                attachments: attachments[selectedTaskId] ?? [],
-                newAttachmentUrl,
-                newAttachmentLabel,
-                onAttachmentUrlChange: setNewAttachmentUrl,
-                onAttachmentLabelChange: setNewAttachmentLabel,
-                onAddAttachment: () => addAttachment(selectedTaskId),
-                onRemoveAttachment: attachmentId => removeAttachment(selectedTaskId, attachmentId),
-              }}
-              formatDateTime={formatDateTime}
-            />
-
-          </div>
-        );
-      })()}
 
       </div>
 

@@ -18,7 +18,6 @@ type TaskListItemsProps = {
   filterStatus: FilterStatus;
   selectedTaskId: number | null;
   editingId: number | null;
-  detailEditingTaskId: number | null;
   mobileEditLayout: boolean;
   bulkMode: boolean;
   bulkSelectedIds: Set<number>;
@@ -56,7 +55,6 @@ function TaskListItems({
   filterStatus,
   selectedTaskId,
   editingId,
-  detailEditingTaskId,
   mobileEditLayout,
   bulkMode,
   bulkSelectedIds,
@@ -110,8 +108,7 @@ function TaskListItems({
         const isSelected = selectedTaskId === task.taskID;
         const isEditingTask =
           editingId === task.taskID &&
-          selectedTaskId === null &&
-          detailEditingTaskId === null;
+          selectedTaskId === null;
         const taskSubtasks = subtasks[task.taskID] ?? [];
         const subtaskDone = taskSubtasks.filter(subtask => subtask.statusID === 2).length;
         const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;

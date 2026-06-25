@@ -55,7 +55,7 @@ function RecurrenceIntervalDropdown<T extends number | string>({
       onToggle={onToggle}
       onClose={onClose}
       onSelect={onChange}
-      boundarySelectors={['.app__list', '.app__add', '.app__detail', '.card']}
+      boundarySelectors={['.app__list', '.app__add', '.card']}
       minMenuWidth={88}
       maxMenuHeight={140}
       portalAttrs={boundaryAttrs}

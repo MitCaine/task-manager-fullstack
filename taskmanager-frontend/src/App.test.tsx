@@ -3092,14 +3092,10 @@ test('mobile edit project search filters and selects without changing panel or s
   }
 });
 
-test('detail panel project search filters and autosaves the selected project', async () => {
+test('mobile task tap selects without opening legacy detail or edit panels', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
-  mockGetProjects.mockResolvedValue([
-    { projectID: 7, title: 'Home' },
-    { projectID: 9, title: 'Wedding Planning' },
-  ]);
   render(<App />);
   await screen.findByText('Buy milk');
 
@@ -3107,26 +3103,13 @@ test('detail panel project search filters and autosaves the selected project', a
     await act(async () => {
       userEvent.click(screen.getByText('Buy milk'));
     });
-    const detailPanel = document.querySelector('.app__detail');
-    if (!(detailPanel instanceof HTMLElement)) throw new Error('Detail panel not found');
-    const detailScope = within(detailPanel);
 
-    await act(async () => {
-      userEvent.click(detailScope.getByRole('button', { name: /add project/i }));
-    });
-    const dropdown = detailPanel.querySelector('.tag-select__dropdown');
-    if (!(dropdown instanceof HTMLElement)) throw new Error('Detail project dropdown not found');
-    const dropdownScope = within(dropdown);
-    expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
-    userEvent.type(dropdownScope.getByRole('searchbox', { name: 'Search detail projects' }), 'WEDDING');
-
-    expect(dropdownScope.getByLabelText('📁 Wedding Planning')).toBeInTheDocument();
-    expect(dropdownScope.queryByLabelText('📁 Home')).not.toBeInTheDocument();
-    userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
-
-    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
-      projectID: 9,
-    })));
+    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
+    expect(document.querySelector('.app__detail')).not.toBeInTheDocument();
+    expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
+    expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
+    expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
+    expect(mockUpdateTask).not.toHaveBeenCalled();
   } finally {
     restoreTouchEnvironment();
   }
@@ -4980,7 +4963,7 @@ test('opening the task move menu shows alternate statuses', async () => {
   expect(screen.queryByRole('button', { name: /^active$/i })).not.toBeInTheDocument();
 });
 
-test('Escape closes settings without closing the task detail panel', async () => {
+test('Escape closes settings without clearing task selection', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
@@ -4990,7 +4973,7 @@ test('Escape closes settings without closing the task detail panel', async () =>
     await act(async () => {
       userEvent.click(screen.getByText('Buy milk'));
     });
-    expect(await screen.findByRole('button', { name: /close task details/i })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
 
     await act(async () => {
       userEvent.click(screen.getByRole('button', { name: /settings/i }));
@@ -5002,7 +4985,7 @@ test('Escape closes settings without closing the task detail panel', async () =>
     });
 
     expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /close task details/i })).toBeInTheDocument();
+    expect(document.querySelector('.item--selected')).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }
@@ -5152,8 +5135,8 @@ test('completing a recurring task with end time creates the next occurrence with
   const recurringTask: Task = {
     ...sampleTask,
     recurrenceRuleID: 10,
-    dateTimeScheduled: '2026-06-15T14:30:00',
-    endDateTimeScheduled: '2026-06-15T15:30:00',
+    dateTimeScheduled: '2099-06-15T14:30:00',
+    endDateTimeScheduled: '2099-06-15T15:30:00',
   };
   mockGetTasks.mockResolvedValue([recurringTask]);
   mockGetRecurrence.mockResolvedValue({
@@ -5162,8 +5145,8 @@ test('completing a recurring task with end time creates the next occurrence with
     intervalUnit: 'week',
     intervalValue: 1,
     timesOfRecurrence: 0,
-    startDateTime: '2026-06-15T14:30:00',
-    endDateTime: '2036-06-15T14:30:00',
+    startDateTime: '2099-06-15T14:30:00',
+    endDateTime: '2109-06-15T14:30:00',
   });
   mockCreateTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: null });
   mockGetTask.mockResolvedValue({ ...recurringTask, taskID: 99, recurrenceRuleID: 12 });
@@ -5177,8 +5160,8 @@ test('completing a recurring task with end time creates the next occurrence with
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
-    dateTimeScheduled: '2026-06-22T14:30:00',
-    endDateTimeScheduled: '2026-06-22T15:30:00',
+    dateTimeScheduled: '2099-06-22T14:30:00',
+    endDateTimeScheduled: '2099-06-22T15:30:00',
   })));
   expect(mockSetRepeat).toHaveBeenCalledWith(99, { intervalUnit: 'week', intervalValue: 1 });
 });
