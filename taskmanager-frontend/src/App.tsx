@@ -32,8 +32,6 @@ import {
   formatTaskDateRange,
 } from './utils/taskDisplayHelpers';
 import Calendar from './components/Calendar';
-import { SelectedTagChips } from './components/create-task/TagProjectChips';
-import TaskEditorFields from './components/create-task/TaskEditorFields';
 import CreateTaskCard from './components/create-task/CreateTaskCard';
 import StatsModal from './components/settings/StatsModal';
 import StatusMoveDialog from './components/dialogs/StatusMoveDialog';
@@ -43,11 +41,7 @@ import TaskListToolbar from './components/task-list/TaskListToolbar';
 import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
 import ConfirmDelete from './components/shared/ConfirmDelete';
-import PrioritySelector from './components/shared/PrioritySelector';
-import SearchableCatalogList from './components/shared/SearchableCatalogList';
-import TagColorPicker from './components/forms/TagColorPicker';
-import InlineProjectForm from './components/forms/InlineProjectForm';
-import InlineTagForm from './components/forms/InlineTagForm';
+import InlineTaskEditCard from './components/task-list/InlineTaskEditCard';
 import TaskListItems from './components/task-list/TaskListItems';
 import { TaskListLoading } from './components/task-list/TaskListPresentation';
 import useTaskDetailResources from './hooks/useTaskDetailResources';
@@ -1902,229 +1896,74 @@ function App() {
   tasksRef.current    = tasks;
 
   const renderInlineEditForm = (task: Task, variant: 'inline' | 'mobile' = 'inline') => {
-    const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
     return (
-      <div
-        className={`item__edit-card${variant === 'mobile' ? ' mobile-edit-panel' : ''}`}
-        data-text-focus-scope={scopeId}
-        data-edit-layout={variant}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="mobile-edit-panel__header">
-          <span className="mobile-edit-panel__title">Edit task</span>
-        </div>
-        <TaskEditorFields
-          titleValue={editTitle}
-          onTitleChange={setEditTitle}
-          descriptionValue={editDescription}
-          onDescriptionChange={setEditDescription}
-          descriptionPlaceholder="Description"
-          descriptionRows={2}
-          descriptionTitleStyleInput={variant === 'mobile'}
-          dateTimeRowProps={{
-            editorScope: scopeId,
-            openTimeEditorScope,
-            setOpenTimeEditorScope,
-            closeFloatingControls,
-            is24Hour,
-            hourOptions,
-            openControl: inlineEditOpenControl,
-            setOpenControl: setInlineEditOpenControl,
-            controlIds: {
-              date: `${scopeId}:date`,
-              start: `${scopeId}:start`,
-              end: `${scopeId}:end`,
-              startHour: `${scopeId}:start-hour`,
-              startMinute: `${scopeId}:start-minute`,
-              startAmpm: `${scopeId}:start-ampm`,
-              endHour: `${scopeId}:end-hour`,
-              endMinute: `${scopeId}:end-minute`,
-              endAmpm: `${scopeId}:end-ampm`,
-            },
-            dateVal: editDate,
-            hourVal: editHour,
-            minuteVal: editMinute,
-            ampmVal: editAmpm,
-            onDate: setEditDate,
-            onHour: setEditHour,
-            onMinute: setEditMinute,
-            onAmpm: setEditAmpm,
-            showTime: editShowTime,
-            onToggleTime: () => setEditShowTime(p => !p),
-            onRemoveStart: () => setEditShowTime(false),
-            showEndTime: editShowEndTime,
-            onToggleEndTime: toggleEditEndTime,
-            endHourVal: editEndHour,
-            endMinuteVal: editEndMinute,
-            endAmpmVal: editEndAmpm,
-            onEndHour: setEditEndHour,
-            onEndMinute: setEditEndMinute,
-            onEndAmpm: setEditEndAmpm,
-          }}
-          recurrenceControlProps={{
-            value: editRepeat,
-            onChange: setEditRepeat,
-            openControl: inlineEditOpenControl,
-            onToggle: () => toggleInlineEditDropdown('repeat'),
-            onClose: () => setInlineEditOpenControl(null),
-            controlId: 'repeat',
-            menuScope: scopeId,
-          }}
-          timeRangeError={currentEditTimeRangeError}
-        />
-        <div className="form-row item__edit-meta-row">
-          <PrioritySelector
-            value={editPriority}
-            colors={PRIORITY_COLOR}
-            open={inlineEditOpenControl === 'priority'}
-            onToggle={() => toggleInlineEditDropdown('priority')}
-            onSelect={value => { setEditPriority(value); setInlineEditOpenControl(null); }}
-            triggerLabel="Priority"
-            removeLabel="Remove priority"
-            triggerAttributes={{ 'data-inline-edit-menu-trigger': true }}
-            dropdownAttributes={{ 'data-inline-edit-menu-boundary': true }}
-          />
-
-          <div className="tag-select" ref={editProjectDropdownRef}>
-            <button
-              type="button"
-              className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-              data-inline-edit-menu-trigger
-              onClick={() => {
-                toggleInlineEditDropdown('project');
-              }}
-            >
-              {editProjectID === ''
-                ? 'Project'
-                : findProjectById(projects, editProjectID)?.title ?? 'Project'}
-            </button>
-            {inlineEditOpenControl === 'project' && (
-              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-                <button
-                  type="button"
-                  className="tag-select__new-btn tag-select__new-btn--top"
-                  onClick={() => {
-                    setInlineEditOpenControl(null);
-                    if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
-                    else { setShowInlineEditProject(true); }
-                  }}
-                >+ New Project</button>
-                <button
-                  type="button"
-                  className={`tag-select__item tag-select__item--remove${editProjectID === '' ? ' tag-select__item--on' : ''}`}
-                  onClick={() => { setEditProjectID(''); setInlineEditOpenControl(null); }}
-                >
-                  No project
-                </button>
-                <SearchableCatalogList
-                  items={projects}
-                  searchLabel="Search edit projects"
-                  searchPlaceholder="Search projects..."
-                  emptyMessage="No projects yet."
-                  noMatchesMessage="No projects match your search."
-                  renderItem={p => {
-                    const selected = Number(editProjectID) === p.projectID;
-                    return (
-                      <button
-                        key={p.projectID}
-                        type="button"
-                        className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}
-                        onClick={() => { setEditProjectID(selected ? '' : p.projectID); setInlineEditOpenControl(null); }}
-                      >
-                        {p.title}
-                      </button>
-                    );
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="tag-select" ref={editTagDropdownRef}>
-            <button
-              type="button"
-              className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-              data-inline-edit-menu-trigger
-              onClick={() => {
-                toggleInlineEditDropdown('tags');
-              }}
-            >
-              {editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
-            </button>
-            {inlineEditOpenControl === 'tags' && (
-              <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-                <button
-                  type="button"
-                  className="tag-select__new-btn tag-select__new-btn--top"
-                  onClick={() => {
-                    setInlineEditOpenControl(null);
-                    if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
-                    else { setShowInlineEditTag(true); }
-                  }}
-                >+ New Tag</button>
-                <SearchableCatalogList
-                  items={tags}
-                  searchLabel="Search edit tags"
-                  searchPlaceholder="Search tags..."
-                  emptyMessage="No tags yet."
-                  noMatchesMessage="No tags match your search."
-                  isItemSelected={tag => editTaskTagIDs.includes(tag.tagID)}
-                  renderItem={tag => {
-                    const selected = editTaskTagIDs.includes(tag.tagID);
-                    return (
-                      <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID])}
-                        />
-                        <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                        {tag.title}
-                      </label>
-                    );
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-        <SelectedTagChips
-          tagIds={editTaskTagIDs}
-          tags={tags}
-          className="item__edit-selected-tags"
-          onRemove={id => setEditTaskTagIDs(prev => prev.filter(i => i !== id))}
-        />
-        {showInlineEditProject && (
-          <InlineProjectForm
-            inputRef={inlineEditProjectInputRef}
-            value={newProjectTitle}
-            maxLength={PROJECT_MAX_LENGTH}
-            placeholder="Project name..."
-            onChange={setNewProjectTitle}
-            onSubmit={addProjectInlineEdit}
-            onCancel={() => { setShowInlineEditProject(false); setNewProjectTitle(''); }}
-          />
-        )}
-        {showInlineEditTag && (
-          <InlineTagForm
-            inputRef={inlineEditTagInputRef}
-            value={newTagTitle}
-            selectedColor={newTagColor}
-            colors={TAG_COLORS}
-            maxLength={TAG_MAX_LENGTH}
-            placeholder="Tag name..."
-            onChange={setNewTagTitle}
-            onSubmit={addTagInlineEdit}
-            onCancel={() => { setShowInlineEditTag(false); setNewTagTitle(''); setNewTagColor('#6366f1'); }}
-            onSelectColor={setNewTagColor}
-            getColorAriaLabel={c => `Choose tag color ${c}`}
-          />
-        )}
-        <div className="item__edit-actions">
-          <button className="btn btn--sm" onClick={() => saveEdit(task)}>Save</button>
-          <button className="btn btn--ghost btn--sm" onClick={cancelEdit}>Cancel</button>
-        </div>
-      </div>
+      <InlineTaskEditCard
+        task={task}
+        variant={variant}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editDescription={editDescription}
+        setEditDescription={setEditDescription}
+        editDate={editDate}
+        setEditDate={setEditDate}
+        editHour={editHour}
+        setEditHour={setEditHour}
+        editMinute={editMinute}
+        setEditMinute={setEditMinute}
+        editAmpm={editAmpm}
+        setEditAmpm={setEditAmpm}
+        editShowTime={editShowTime}
+        setEditShowTime={setEditShowTime}
+        editShowEndTime={editShowEndTime}
+        toggleEditEndTime={toggleEditEndTime}
+        editEndHour={editEndHour}
+        setEditEndHour={setEditEndHour}
+        editEndMinute={editEndMinute}
+        setEditEndMinute={setEditEndMinute}
+        editEndAmpm={editEndAmpm}
+        setEditEndAmpm={setEditEndAmpm}
+        editRepeat={editRepeat}
+        setEditRepeat={setEditRepeat}
+        currentEditTimeRangeError={currentEditTimeRangeError}
+        openTimeEditorScope={openTimeEditorScope}
+        setOpenTimeEditorScope={setOpenTimeEditorScope}
+        closeFloatingControls={closeFloatingControls}
+        is24Hour={is24Hour}
+        hourOptions={hourOptions}
+        inlineEditOpenControl={inlineEditOpenControl}
+        setInlineEditOpenControl={setInlineEditOpenControl}
+        toggleInlineEditDropdown={toggleInlineEditDropdown}
+        editPriority={editPriority}
+        setEditPriority={setEditPriority}
+        priorityColors={PRIORITY_COLOR}
+        projects={projects}
+        editProjectID={editProjectID}
+        setEditProjectID={setEditProjectID}
+        editProjectDropdownRef={editProjectDropdownRef}
+        tags={tags}
+        editTaskTagIDs={editTaskTagIDs}
+        setEditTaskTagIDs={setEditTaskTagIDs}
+        editTagDropdownRef={editTagDropdownRef}
+        showInlineEditProject={showInlineEditProject}
+        setShowInlineEditProject={setShowInlineEditProject}
+        inlineEditProjectInputRef={inlineEditProjectInputRef}
+        newProjectTitle={newProjectTitle}
+        setNewProjectTitle={setNewProjectTitle}
+        projectMaxLength={PROJECT_MAX_LENGTH}
+        addProjectInlineEdit={addProjectInlineEdit}
+        showInlineEditTag={showInlineEditTag}
+        setShowInlineEditTag={setShowInlineEditTag}
+        inlineEditTagInputRef={inlineEditTagInputRef}
+        newTagTitle={newTagTitle}
+        setNewTagTitle={setNewTagTitle}
+        newTagColor={newTagColor}
+        setNewTagColor={setNewTagColor}
+        tagColors={TAG_COLORS}
+        tagMaxLength={TAG_MAX_LENGTH}
+        addTagInlineEdit={addTagInlineEdit}
+        saveEdit={saveEdit}
+        cancelEdit={cancelEdit}
+      />
     );
   };
   return (
