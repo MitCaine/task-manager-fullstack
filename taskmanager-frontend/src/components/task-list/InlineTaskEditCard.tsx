@@ -13,9 +13,33 @@ import SearchableCatalogList from '../shared/SearchableCatalogList';
 
 type InlineEditVariant = 'inline' | 'mobile';
 
+type InlineTaskEditActions = {
+  saveEdit: (task: Task) => void;
+  cancelEdit: () => void;
+};
+
+type InlineTaskEditCatalog = {
+  projects: Project[];
+  tags: Tag[];
+  priorityColors: Record<string, string>;
+  tagColors: string[];
+  projectMaxLength: number;
+  tagMaxLength: number;
+};
+
+type InlineTaskEditRefs = {
+  editProjectDropdownRef: RefObject<HTMLDivElement>;
+  editTagDropdownRef: RefObject<HTMLDivElement>;
+  inlineEditProjectInputRef: RefObject<HTMLInputElement>;
+  inlineEditTagInputRef: RefObject<HTMLInputElement>;
+};
+
 export type InlineTaskEditCardProps = {
   task: Task;
   variant?: InlineEditVariant;
+  actions: InlineTaskEditActions;
+  catalog: InlineTaskEditCatalog;
+  refs: InlineTaskEditRefs;
   editTitle: string;
   setEditTitle: (value: string) => void;
   editDescription: string;
@@ -51,39 +75,30 @@ export type InlineTaskEditCardProps = {
   toggleInlineEditDropdown: (control: 'priority' | 'project' | 'tags' | 'repeat') => void;
   editPriority: PriorityValue | '';
   setEditPriority: (value: PriorityValue | '') => void;
-  priorityColors: Record<string, string>;
-  projects: Project[];
   editProjectID: number | '';
   setEditProjectID: (value: number | '') => void;
-  editProjectDropdownRef: RefObject<HTMLDivElement>;
-  tags: Tag[];
   editTaskTagIDs: number[];
   setEditTaskTagIDs: Dispatch<SetStateAction<number[]>>;
-  editTagDropdownRef: RefObject<HTMLDivElement>;
   showInlineEditProject: boolean;
   setShowInlineEditProject: (value: boolean) => void;
-  inlineEditProjectInputRef: RefObject<HTMLInputElement>;
   newProjectTitle: string;
   setNewProjectTitle: (value: string) => void;
-  projectMaxLength: number;
   addProjectInlineEdit: () => void;
   showInlineEditTag: boolean;
   setShowInlineEditTag: (value: boolean) => void;
-  inlineEditTagInputRef: RefObject<HTMLInputElement>;
   newTagTitle: string;
   setNewTagTitle: (value: string) => void;
   newTagColor: string;
   setNewTagColor: (value: string) => void;
-  tagColors: string[];
-  tagMaxLength: number;
   addTagInlineEdit: () => void;
-  saveEdit: (task: Task) => void;
-  cancelEdit: () => void;
 };
 
 export default function InlineTaskEditCard({
   task,
   variant = 'inline',
+  actions,
+  catalog,
+  refs,
   editTitle,
   setEditTitle,
   editDescription,
@@ -119,36 +134,32 @@ export default function InlineTaskEditCard({
   toggleInlineEditDropdown,
   editPriority,
   setEditPriority,
-  priorityColors,
-  projects,
   editProjectID,
   setEditProjectID,
-  editProjectDropdownRef,
-  tags,
   editTaskTagIDs,
   setEditTaskTagIDs,
-  editTagDropdownRef,
   showInlineEditProject,
   setShowInlineEditProject,
-  inlineEditProjectInputRef,
   newProjectTitle,
   setNewProjectTitle,
-  projectMaxLength,
   addProjectInlineEdit,
   showInlineEditTag,
   setShowInlineEditTag,
-  inlineEditTagInputRef,
   newTagTitle,
   setNewTagTitle,
   newTagColor,
   setNewTagColor,
-  tagColors,
-  tagMaxLength,
   addTagInlineEdit,
-  saveEdit,
-  cancelEdit,
 }: InlineTaskEditCardProps): JSX.Element {
   const scopeId = `${variant === 'mobile' ? 'mobile-edit' : 'inline-edit'}-${task.taskID}`;
+  const { saveEdit, cancelEdit } = actions;
+  const { projects, tags, priorityColors, tagColors, projectMaxLength, tagMaxLength } = catalog;
+  const {
+    editProjectDropdownRef,
+    editTagDropdownRef,
+    inlineEditProjectInputRef,
+    inlineEditTagInputRef,
+  } = refs;
 
   return (
     <div

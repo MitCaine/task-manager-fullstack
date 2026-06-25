@@ -1900,6 +1900,24 @@ function App() {
       <InlineTaskEditCard
         task={task}
         variant={variant}
+        actions={{
+          saveEdit,
+          cancelEdit,
+        }}
+        catalog={{
+          projects,
+          tags,
+          priorityColors: PRIORITY_COLOR,
+          tagColors: TAG_COLORS,
+          projectMaxLength: PROJECT_MAX_LENGTH,
+          tagMaxLength: TAG_MAX_LENGTH,
+        }}
+        refs={{
+          editProjectDropdownRef,
+          editTagDropdownRef,
+          inlineEditProjectInputRef,
+          inlineEditTagInputRef,
+        }}
         editTitle={editTitle}
         setEditTitle={setEditTitle}
         editDescription={editDescription}
@@ -1935,34 +1953,22 @@ function App() {
         toggleInlineEditDropdown={toggleInlineEditDropdown}
         editPriority={editPriority}
         setEditPriority={setEditPriority}
-        priorityColors={PRIORITY_COLOR}
-        projects={projects}
         editProjectID={editProjectID}
         setEditProjectID={setEditProjectID}
-        editProjectDropdownRef={editProjectDropdownRef}
-        tags={tags}
         editTaskTagIDs={editTaskTagIDs}
         setEditTaskTagIDs={setEditTaskTagIDs}
-        editTagDropdownRef={editTagDropdownRef}
         showInlineEditProject={showInlineEditProject}
         setShowInlineEditProject={setShowInlineEditProject}
-        inlineEditProjectInputRef={inlineEditProjectInputRef}
         newProjectTitle={newProjectTitle}
         setNewProjectTitle={setNewProjectTitle}
-        projectMaxLength={PROJECT_MAX_LENGTH}
         addProjectInlineEdit={addProjectInlineEdit}
         showInlineEditTag={showInlineEditTag}
         setShowInlineEditTag={setShowInlineEditTag}
-        inlineEditTagInputRef={inlineEditTagInputRef}
         newTagTitle={newTagTitle}
         setNewTagTitle={setNewTagTitle}
         newTagColor={newTagColor}
         setNewTagColor={setNewTagColor}
-        tagColors={TAG_COLORS}
-        tagMaxLength={TAG_MAX_LENGTH}
         addTagInlineEdit={addTagInlineEdit}
-        saveEdit={saveEdit}
-        cancelEdit={cancelEdit}
       />
     );
   };
