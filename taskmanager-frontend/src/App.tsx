@@ -13,7 +13,7 @@ import {
   toLocalDateTimeString,
 } from './utils/dateTime';
 import { normalizeTaskStatus } from './utils/taskDisplay';
-import { convertHourForTimeMode, validateTaskTimeRange } from './utils/taskForm';
+import { convertHourForTimeMode } from './utils/taskForm';
 import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
 import { deriveTaskEditDraft } from './utils/taskEditDraft';
@@ -24,7 +24,7 @@ import {
   recurrenceIntervalKey,
 } from './utils/taskRecurrence';
 import type { RepeatValue } from './utils/taskRecurrence';
-import { buildTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
+import { buildValidatedTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
 import {
   findProjectById,
   findTagsByIds,
@@ -1261,7 +1261,11 @@ function App() {
 
   const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
-  const { dateTimeScheduled: draftDateTimeScheduled, endDateTimeScheduled: draftEndDateTimeScheduled } = buildTaskSchedule({
+  const {
+    dateTimeScheduled: draftDateTimeScheduled,
+    endDateTimeScheduled: draftEndDateTimeScheduled,
+    rangeError: currentCreateTimeRangeError,
+  } = buildValidatedTaskSchedule({
     date,
     showTime: showAddTime,
     hour,
@@ -1275,8 +1279,7 @@ function App() {
   });
   const draftProject = findProjectById(projects, newProjectID);
   const draftTags = findTagsByIds(tags, newTaskTagIDs);
-  const currentCreateTimeRangeError = validateTaskTimeRange(draftDateTimeScheduled, draftEndDateTimeScheduled);
-  const { dateTimeScheduled: draftEditDateTimeScheduled, endDateTimeScheduled: draftEditEndDateTimeScheduled } = buildTaskSchedule({
+  const { rangeError: currentEditTimeRangeError } = buildValidatedTaskSchedule({
     date: editDate,
     showTime: editShowTime,
     hour: editHour,
@@ -1288,7 +1291,6 @@ function App() {
     endAmpm: editEndAmpm,
     is24Hour,
   });
-  const currentEditTimeRangeError = validateTaskTimeRange(draftEditDateTimeScheduled, draftEditEndDateTimeScheduled);
 
   const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean; inlineEditControls?: boolean } = {}) => {
     setOpenActionTaskId(null);
@@ -1347,7 +1349,7 @@ function App() {
       requestAnimationFrame(() => requestAnimationFrame(() => setTitleError(true)));
       return;
     }
-    const { dateTimeScheduled, endDateTimeScheduled } = buildTaskSchedule({
+    const { dateTimeScheduled, endDateTimeScheduled, rangeError } = buildValidatedTaskSchedule({
       date,
       showTime: showAddTime,
       hour,
@@ -1359,7 +1361,6 @@ function App() {
       endAmpm,
       is24Hour,
     });
-    const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
     if (rangeError) {
       return;
     }
@@ -1608,7 +1609,7 @@ function App() {
   };
 
   const saveEdit = async (task: Task) => {
-    const { dateTimeScheduled, endDateTimeScheduled } = buildTaskSchedule({
+    const { dateTimeScheduled, endDateTimeScheduled, rangeError } = buildValidatedTaskSchedule({
       date: editDate,
       showTime: editShowTime,
       hour: editHour,
@@ -1620,7 +1621,6 @@ function App() {
       endAmpm: editEndAmpm,
       is24Hour,
     });
-    const rangeError = validateTaskTimeRange(dateTimeScheduled, endDateTimeScheduled);
     if (rangeError) {
       return;
     }

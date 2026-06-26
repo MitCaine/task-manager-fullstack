@@ -2,13 +2,13 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { Project, Tag, Task } from '../../types/task';
 import type { Ampm } from '../../utils/taskForm';
 import type { RepeatValue } from '../../utils/taskRecurrence';
-import { findProjectById } from '../../utils/taskDisplayHelpers';
 import TaskEditorFields from '../create-task/TaskEditorFields';
 import { SelectedTagChips } from '../create-task/TagProjectChips';
 import InlineProjectForm from '../forms/InlineProjectForm';
 import InlineTagForm from '../forms/InlineTagForm';
 import PrioritySelector from '../shared/PrioritySelector';
 import type { PriorityValue } from '../shared/PrioritySelector';
+import ProjectSelector from '../shared/ProjectSelector';
 import SearchableCatalogList from '../shared/SearchableCatalogList';
 
 type InlineEditVariant = 'inline' | 'mobile';
@@ -271,60 +271,27 @@ export default function InlineTaskEditCard({
           dropdownAttributes={{ 'data-inline-edit-menu-boundary': true }}
         />
 
-        <div className="tag-select" ref={editProjectDropdownRef}>
-          <button
-            type="button"
-            className={`select tag-select__btn${editProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-            data-inline-edit-menu-trigger
-            onClick={() => {
-              toggleInlineEditDropdown('project');
-            }}
-          >
-            {editProjectID === ''
-              ? 'Project'
-              : findProjectById(projects, editProjectID)?.title ?? 'Project'}
-          </button>
-          {inlineEditOpenControl === 'project' && (
-            <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-              <button
-                type="button"
-                className="tag-select__new-btn tag-select__new-btn--top"
-                onClick={() => {
-                  setInlineEditOpenControl(null);
-                  if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
-                  else { setShowInlineEditProject(true); }
-                }}
-              >+ New Project</button>
-              <button
-                type="button"
-                className={`tag-select__item tag-select__item--remove${editProjectID === '' ? ' tag-select__item--on' : ''}`}
-                onClick={() => { setEditProjectID(''); setInlineEditOpenControl(null); }}
-              >
-                No project
-              </button>
-              <SearchableCatalogList
-                items={projects}
-                searchLabel="Search edit projects"
-                searchPlaceholder="Search projects..."
-                emptyMessage="No projects yet."
-                noMatchesMessage="No projects match your search."
-                renderItem={p => {
-                  const selected = Number(editProjectID) === p.projectID;
-                  return (
-                    <button
-                      key={p.projectID}
-                      type="button"
-                      className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}
-                      onClick={() => { setEditProjectID(selected ? '' : p.projectID); setInlineEditOpenControl(null); }}
-                    >
-                      {p.title}
-                    </button>
-                  );
-                }}
-              />
-            </div>
-          )}
-        </div>
+        <ProjectSelector
+          projects={projects}
+          selectedProjectID={editProjectID}
+          open={inlineEditOpenControl === 'project'}
+          onToggle={() => {
+            toggleInlineEditDropdown('project');
+          }}
+          onProjectChange={setEditProjectID}
+          onRequestNewProject={() => {
+            setInlineEditOpenControl(null);
+            if (showInlineEditProject) { inlineEditProjectInputRef.current?.focus(); }
+            else { setShowInlineEditProject(true); }
+          }}
+          rootRef={editProjectDropdownRef}
+          triggerAttributes={{ 'data-inline-edit-menu-trigger': true }}
+          dropdownAttributes={{ 'data-inline-edit-menu-boundary': true }}
+          searchLabel="Search edit projects"
+          closeOnSelect
+          showNoProjectOption
+          onClose={() => setInlineEditOpenControl(null)}
+        />
 
         <div className="tag-select" ref={editTagDropdownRef}>
           <button

@@ -2,10 +2,10 @@ import type { Dispatch, KeyboardEventHandler, MouseEvent, RefObject, SetStateAct
 import type { Project, Tag } from '../../types/task';
 import type { Ampm } from '../../utils/taskForm';
 import type { RepeatValue } from '../../utils/taskRecurrence';
-import { compactText } from '../../utils/taskDisplay';
 import { findProjectById, formatPriorityLabel } from '../../utils/taskDisplayHelpers';
 import ErrorBanner from '../shared/ErrorBanner';
 import PrioritySelector from '../shared/PrioritySelector';
+import ProjectSelector from '../shared/ProjectSelector';
 import SearchableCatalogList from '../shared/SearchableCatalogList';
 import TagColorPicker from '../forms/TagColorPicker';
 import InlineProjectForm from '../forms/InlineProjectForm';
@@ -287,56 +287,21 @@ export default function CreateTaskCard({
               triggerAttributes={{ 'data-create-menu-trigger': true }}
               dropdownAttributes={{ 'data-create-menu-boundary': true }}
             />
-            <div className="tag-select" ref={projectDropdownRef}>
-              <button
-                type="button"
-                className={`select tag-select__btn${selectedProjectID !== '' ? ' tag-select__btn--active' : ''}`}
-                data-create-menu-trigger
-                onClick={onToggleProject}
-              >
-                {selectedProjectID === ''
-                  ? 'Project'
-                  : compactText(findProjectById(projects, selectedProjectID)?.title ?? 'Project', 10)}
-              </button>
-              {openCreateControl === 'project' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <button
-                    type="button"
-                    className="tag-select__new-btn tag-select__new-btn--top"
-                    onClick={onRequestNewProject}
-                  >+ New Project</button>
-                  <SearchableCatalogList
-                    items={projects}
-                    searchLabel="Search create projects"
-                    searchPlaceholder="Search projects..."
-                    emptyMessage="No projects yet."
-                    noMatchesMessage="No projects match your search."
-                    renderItem={p => {
-                      const selected = selectedProjectID === p.projectID;
-                      return (
-                        <div key={p.projectID} className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                          <label className="tag-select__item-label">
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => onProjectChange(selected ? '' : p.projectID)}
-                            />
-                            📁 {p.title}
-                          </label>
-                          <button
-                            type="button"
-                            className="tag-select__delete"
-                            onClick={e => { e.stopPropagation(); onDeleteProject(p.projectID); }}
-                            title="Delete project"
-                            aria-label="Delete project"
-                          >×</button>
-                        </div>
-                      );
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+            <ProjectSelector
+              projects={projects}
+              selectedProjectID={selectedProjectID}
+              open={openCreateControl === 'project'}
+              onToggle={onToggleProject}
+              onProjectChange={onProjectChange}
+              onRequestNewProject={onRequestNewProject}
+              onDeleteProject={onDeleteProject}
+              rootRef={projectDropdownRef}
+              triggerAttributes={{ 'data-create-menu-trigger': true }}
+              dropdownAttributes={{ 'data-create-menu-boundary': true }}
+              searchLabel="Search create projects"
+              compactSelectedTitleLength={10}
+              showFolderIcon
+            />
             <div className="tag-select tag-select--create-tags" ref={tagDropdownRef}>
               <button
                 type="button"
