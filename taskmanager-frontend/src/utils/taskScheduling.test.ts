@@ -1,4 +1,4 @@
-import { buildTaskSchedule, getDefaultEndTime } from './taskScheduling';
+import { buildTaskSchedule, buildValidatedTaskSchedule, getDefaultEndTime } from './taskScheduling';
 
 describe('buildTaskSchedule', () => {
   it('builds a date-only start schedule without an end date', () => {
@@ -52,6 +52,46 @@ describe('buildTaskSchedule', () => {
     })).toEqual({
       dateTimeScheduled: null,
       endDateTimeScheduled: null,
+    });
+  });
+});
+
+describe('buildValidatedTaskSchedule', () => {
+  it('returns the built schedule with no range error for a valid end time', () => {
+    expect(buildValidatedTaskSchedule({
+      date: '2026-06-04',
+      showTime: true,
+      hour: '03',
+      minute: '30',
+      ampm: 'PM',
+      showEndTime: true,
+      endHour: '04',
+      endMinute: '30',
+      endAmpm: 'PM',
+      is24Hour: false,
+    })).toEqual({
+      dateTimeScheduled: '2026-06-04T15:30:00',
+      endDateTimeScheduled: '2026-06-04T16:30:00',
+      rangeError: null,
+    });
+  });
+
+  it('returns the existing range validation error for an invalid end time', () => {
+    expect(buildValidatedTaskSchedule({
+      date: '2026-06-04',
+      showTime: true,
+      hour: '03',
+      minute: '30',
+      ampm: 'PM',
+      showEndTime: true,
+      endHour: '03',
+      endMinute: '00',
+      endAmpm: 'PM',
+      is24Hour: false,
+    })).toEqual({
+      dateTimeScheduled: '2026-06-04T15:30:00',
+      endDateTimeScheduled: '2026-06-04T15:00:00',
+      rangeError: 'End time must be after start time.',
     });
   });
 });

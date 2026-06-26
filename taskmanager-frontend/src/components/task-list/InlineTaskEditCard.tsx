@@ -9,7 +9,7 @@ import InlineTagForm from '../forms/InlineTagForm';
 import PrioritySelector from '../shared/PrioritySelector';
 import type { PriorityValue } from '../shared/PrioritySelector';
 import ProjectSelector from '../shared/ProjectSelector';
-import SearchableCatalogList from '../shared/SearchableCatalogList';
+import TagSelector from '../shared/TagSelector';
 
 type InlineEditVariant = 'inline' | 'mobile';
 
@@ -293,53 +293,25 @@ export default function InlineTaskEditCard({
           onClose={() => setInlineEditOpenControl(null)}
         />
 
-        <div className="tag-select" ref={editTagDropdownRef}>
-          <button
-            type="button"
-            className={`select tag-select__btn${editTaskTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-            data-inline-edit-menu-trigger
-            onClick={() => {
-              toggleInlineEditDropdown('tags');
-            }}
-          >
-            {editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
-          </button>
-          {inlineEditOpenControl === 'tags' && (
-            <div className="tag-select__dropdown" data-inline-edit-menu-boundary>
-              <button
-                type="button"
-                className="tag-select__new-btn tag-select__new-btn--top"
-                onClick={() => {
-                  setInlineEditOpenControl(null);
-                  if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
-                  else { setShowInlineEditTag(true); }
-                }}
-              >+ New Tag</button>
-              <SearchableCatalogList
-                items={tags}
-                searchLabel="Search edit tags"
-                searchPlaceholder="Search tags..."
-                emptyMessage="No tags yet."
-                noMatchesMessage="No tags match your search."
-                isItemSelected={tag => editTaskTagIDs.includes(tag.tagID)}
-                renderItem={tag => {
-                  const selected = editTaskTagIDs.includes(tag.tagID);
-                  return (
-                    <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => setEditTaskTagIDs(prev => selected ? prev.filter(id => id !== tag.tagID) : [...prev, tag.tagID])}
-                      />
-                      <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />
-                      {tag.title}
-                    </label>
-                  );
-                }}
-              />
-            </div>
-          )}
-        </div>
+        <TagSelector
+          tags={tags}
+          selectedTagIDs={editTaskTagIDs}
+          open={inlineEditOpenControl === 'tags'}
+          onToggle={() => {
+            toggleInlineEditDropdown('tags');
+          }}
+          onTagIDsChange={setEditTaskTagIDs}
+          onRequestNewTag={() => {
+            setInlineEditOpenControl(null);
+            if (showInlineEditTag) { inlineEditTagInputRef.current?.focus(); }
+            else { setShowInlineEditTag(true); }
+          }}
+          rootRef={editTagDropdownRef}
+          triggerAttributes={{ 'data-inline-edit-menu-trigger': true }}
+          dropdownAttributes={{ 'data-inline-edit-menu-boundary': true }}
+          searchLabel="Search edit tags"
+          selectedCountLabel={editTaskTagIDs.length === 0 ? 'Tags' : `${editTaskTagIDs.length} tag${editTaskTagIDs.length !== 1 ? 's' : ''}`}
+        />
       </div>
       <SelectedTagChips
         tagIds={editTaskTagIDs}

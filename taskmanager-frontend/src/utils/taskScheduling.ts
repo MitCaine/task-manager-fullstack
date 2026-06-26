@@ -1,4 +1,5 @@
 import { buildDateTimeString, buildTaskDateTimeString } from './dateTime';
+import { validateTaskTimeRange } from './taskForm';
 import type { Ampm } from './taskForm';
 
 export type TaskScheduleInput = {
@@ -19,6 +20,10 @@ export type TaskSchedule = {
   endDateTimeScheduled: string | null;
 };
 
+export type TaskScheduleValidation = TaskSchedule & {
+  rangeError: string | null;
+};
+
 export function buildTaskSchedule({
   date,
   showTime,
@@ -36,6 +41,14 @@ export function buildTaskSchedule({
     ? buildDateTimeString(date, endHour, endMinute, endAmpm, is24Hour)
     : null;
   return { dateTimeScheduled, endDateTimeScheduled };
+}
+
+export function buildValidatedTaskSchedule(input: TaskScheduleInput): TaskScheduleValidation {
+  const schedule = buildTaskSchedule(input);
+  return {
+    ...schedule,
+    rangeError: validateTaskTimeRange(schedule.dateTimeScheduled, schedule.endDateTimeScheduled),
+  };
 }
 
 export function getDefaultEndTime({

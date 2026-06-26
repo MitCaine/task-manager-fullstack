@@ -6,8 +6,7 @@ import { findProjectById, formatPriorityLabel } from '../../utils/taskDisplayHel
 import ErrorBanner from '../shared/ErrorBanner';
 import PrioritySelector from '../shared/PrioritySelector';
 import ProjectSelector from '../shared/ProjectSelector';
-import SearchableCatalogList from '../shared/SearchableCatalogList';
-import TagColorPicker from '../forms/TagColorPicker';
+import TagSelector from '../shared/TagSelector';
 import InlineProjectForm from '../forms/InlineProjectForm';
 import InlineTagForm from '../forms/InlineTagForm';
 import SelectedProjectChip from './SelectedProjectChip';
@@ -302,78 +301,27 @@ export default function CreateTaskCard({
               compactSelectedTitleLength={10}
               showFolderIcon
             />
-            <div className="tag-select tag-select--create-tags" ref={tagDropdownRef}>
-              <button
-                type="button"
-                className={`select tag-select__btn${selectedTagIDs.length > 0 ? ' tag-select__btn--active' : ''}`}
-                data-create-menu-trigger
-                onClick={onToggleTags}
-              >
-                {selectedTagIDs.length === 0
-                  ? 'Tags'
-                  : `${selectedTagIDs.length} Tag${selectedTagIDs.length === 1 ? '' : 's'}`}
-              </button>
-              {openCreateControl === 'tags' && (
-                <div className="tag-select__dropdown" data-create-menu-boundary>
-                  <button
-                    type="button"
-                    className="tag-select__new-btn tag-select__new-btn--top"
-                    onClick={onRequestNewTag}
-                  >+ New Tag</button>
-                  <SearchableCatalogList
-                    items={tags}
-                    searchLabel="Search create tags"
-                    searchPlaceholder="Search tags..."
-                    emptyMessage="No tags yet."
-                    noMatchesMessage="No tags match your search."
-                    isItemSelected={tag => selectedTagIDs.includes(tag.tagID)}
-                    renderItem={tag => {
-                      const selected = selectedTagIDs.includes(tag.tagID);
-                      return (
-                        <div key={tag.tagID}>
-                          <div className={`tag-select__item${selected ? ' tag-select__item--on' : ''}`}>
-                            <label className="tag-select__item-label">
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={() => onTagIDsChange(previous =>
-                                  selected ? previous.filter(id => id !== tag.tagID) : [...previous, tag.tagID]
-                                )}
-                              />
-                              {tag.title}
-                            </label>
-                            <button
-                              type="button"
-                              className="tag-dot tag-dot--clickable"
-                              style={{ background: tag.color ?? '#6366f1' }}
-                              onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleTagColorPicker(tag.tagID); }}
-                              title="Change color"
-                              aria-label="Change tag color"
-                            />
-                            <button
-                              type="button"
-                              className="tag-select__delete"
-                              onClick={e => { e.stopPropagation(); onDeleteTag(tag.tagID); }}
-                              title="Delete tag"
-                              aria-label="Delete tag"
-                            >×</button>
-                          </div>
-                          {colorPickerTagId === tag.tagID && (
-                            <TagColorPicker
-                              colors={tagColors}
-                              selectedColor={tag.color}
-                              onSelectColor={(c, e) => onChangeTagColor(tag.tagID, c, e)}
-                              className="tag-color-picker"
-                              getAriaLabel={c => `Set tag color ${c}`}
-                            />
-                          )}
-                        </div>
-                      );
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+            <TagSelector
+              tags={tags}
+              selectedTagIDs={selectedTagIDs}
+              open={openCreateControl === 'tags'}
+              onToggle={onToggleTags}
+              onTagIDsChange={onTagIDsChange}
+              onRequestNewTag={onRequestNewTag}
+              rootRef={tagDropdownRef}
+              rootClassName="tag-select tag-select--create-tags"
+              triggerAttributes={{ 'data-create-menu-trigger': true }}
+              dropdownAttributes={{ 'data-create-menu-boundary': true }}
+              searchLabel="Search create tags"
+              selectedCountLabel={selectedTagIDs.length === 0
+                ? 'Tags'
+                : `${selectedTagIDs.length} Tag${selectedTagIDs.length === 1 ? '' : 's'}`}
+              onDeleteTag={onDeleteTag}
+              colorPickerTagId={colorPickerTagId}
+              onToggleTagColorPicker={onToggleTagColorPicker}
+              onChangeTagColor={onChangeTagColor}
+              tagColors={tagColors}
+            />
           </div>
           <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
         </div>
