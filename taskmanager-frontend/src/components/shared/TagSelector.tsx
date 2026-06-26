@@ -1,6 +1,5 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, MouseEvent, RefObject } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode, RefObject } from 'react';
 import type { Tag } from '../../types/task';
-import TagColorPicker from '../forms/TagColorPicker';
 import SearchableCatalogList from './SearchableCatalogList';
 
 type DataAttributes = Record<`data-${string}`, string | boolean | number | undefined>;
@@ -18,11 +17,8 @@ type TagSelectorProps = {
   dropdownAttributes?: HTMLAttributes<HTMLDivElement> & DataAttributes;
   searchLabel: string;
   selectedCountLabel: string;
-  onDeleteTag?: (tagID: number) => void;
-  colorPickerTagId?: number | null;
-  onToggleTagColorPicker?: (tagID: number) => void;
-  onChangeTagColor?: (tagID: number, color: string, event: MouseEvent<HTMLButtonElement>) => void;
-  tagColors?: string[];
+  renderTagActions?: (tag: Tag) => ReactNode;
+  renderTagDetails?: (tag: Tag) => ReactNode;
 };
 
 export default function TagSelector({
@@ -38,11 +34,8 @@ export default function TagSelector({
   dropdownAttributes,
   searchLabel,
   selectedCountLabel,
-  onDeleteTag,
-  colorPickerTagId,
-  onToggleTagColorPicker,
-  onChangeTagColor,
-  tagColors = [],
+  renderTagActions,
+  renderTagDetails,
 }: TagSelectorProps): JSX.Element {
   const toggleTag = (tagID: number, selected: boolean) => {
     onTagIDsChange(previous => selected ? previous.filter(id => id !== tagID) : [...previous, tagID]);
@@ -74,7 +67,7 @@ export default function TagSelector({
             isItemSelected={tag => selectedTagIDs.includes(tag.tagID)}
             renderItem={tag => {
               const selected = selectedTagIDs.includes(tag.tagID);
-              if (!onDeleteTag) {
+              if (!renderTagActions) {
                 return (
                   <label key={tag.tagID} className={`tag-select__item tag-select__item-label${selected ? ' tag-select__item--on' : ''}`}>
                     <input
@@ -99,31 +92,9 @@ export default function TagSelector({
                       />
                       {tag.title}
                     </label>
-                    <button
-                      type="button"
-                      className="tag-dot tag-dot--clickable"
-                      style={{ background: tag.color ?? '#6366f1' }}
-                      onClick={event => { event.preventDefault(); event.stopPropagation(); onToggleTagColorPicker?.(tag.tagID); }}
-                      title="Change color"
-                      aria-label="Change tag color"
-                    />
-                    <button
-                      type="button"
-                      className="tag-select__delete"
-                      onClick={event => { event.stopPropagation(); onDeleteTag(tag.tagID); }}
-                      title="Delete tag"
-                      aria-label="Delete tag"
-                    >×</button>
+                    {renderTagActions(tag)}
                   </div>
-                  {colorPickerTagId === tag.tagID && onChangeTagColor && (
-                    <TagColorPicker
-                      colors={tagColors}
-                      selectedColor={tag.color}
-                      onSelectColor={(color, event) => onChangeTagColor(tag.tagID, color, event)}
-                      className="tag-color-picker"
-                      getAriaLabel={color => `Set tag color ${color}`}
-                    />
-                  )}
+                  {renderTagDetails?.(tag)}
                 </div>
               );
             }}

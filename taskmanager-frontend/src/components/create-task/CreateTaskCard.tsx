@@ -4,6 +4,7 @@ import type { Ampm } from '../../utils/taskForm';
 import type { RepeatValue } from '../../utils/taskRecurrence';
 import { findProjectById, formatPriorityLabel } from '../../utils/taskDisplayHelpers';
 import ErrorBanner from '../shared/ErrorBanner';
+import TagColorPicker from '../forms/TagColorPicker';
 import PrioritySelector from '../shared/PrioritySelector';
 import ProjectSelector from '../shared/ProjectSelector';
 import TagSelector from '../shared/TagSelector';
@@ -316,11 +317,34 @@ export default function CreateTaskCard({
               selectedCountLabel={selectedTagIDs.length === 0
                 ? 'Tags'
                 : `${selectedTagIDs.length} Tag${selectedTagIDs.length === 1 ? '' : 's'}`}
-              onDeleteTag={onDeleteTag}
-              colorPickerTagId={colorPickerTagId}
-              onToggleTagColorPicker={onToggleTagColorPicker}
-              onChangeTagColor={onChangeTagColor}
-              tagColors={tagColors}
+              renderTagActions={tag => (
+                <>
+                  <button
+                    type="button"
+                    className="tag-dot tag-dot--clickable"
+                    style={{ background: tag.color ?? '#6366f1' }}
+                    onClick={event => { event.preventDefault(); event.stopPropagation(); onToggleTagColorPicker(tag.tagID); }}
+                    title="Change color"
+                    aria-label="Change tag color"
+                  />
+                  <button
+                    type="button"
+                    className="tag-select__delete"
+                    onClick={event => { event.stopPropagation(); onDeleteTag(tag.tagID); }}
+                    title="Delete tag"
+                    aria-label="Delete tag"
+                  >×</button>
+                </>
+              )}
+              renderTagDetails={tag => colorPickerTagId === tag.tagID ? (
+                <TagColorPicker
+                  colors={tagColors}
+                  selectedColor={tag.color}
+                  onSelectColor={(color, event) => onChangeTagColor(tag.tagID, color, event)}
+                  className="tag-color-picker"
+                  getAriaLabel={color => `Set tag color ${color}`}
+                />
+              ) : null}
             />
           </div>
           <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
