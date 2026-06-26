@@ -48,6 +48,8 @@ import useTaskDetailResources from './hooks/useTaskDetailResources';
 import useProjectTagCatalog from './hooks/useProjectTagCatalog';
 import useTaskListViewModel from './hooks/useTaskListViewModel';
 import useBulkSelection from './hooks/useBulkSelection';
+import useFloatingControlCoordinator from './hooks/useFloatingControlCoordinator';
+import useModalFocusReturn from './hooks/useModalFocusReturn';
 
 declare global {
   interface Window {
@@ -57,25 +59,10 @@ declare global {
 
 type Theme = 'system' | 'light' | 'dark';
 type MobilePage = 'add' | 'tasks' | 'calendar';
-type CreateOpenControl = string | null;
 
 function mediaQueryMatches(query: string): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   return Boolean(window.matchMedia(query)?.matches);
-}
-
-function toggleOpenControl(
-  setOpenControl: Dispatch<SetStateAction<string | null>>,
-  control: string,
-  isActive: (current: string | null, control: string) => boolean = (current, next) => current === next,
-) {
-  setOpenControl(current => isActive(current, control) ? null : control);
-}
-
-function isCreateControlGroupActive(current: CreateOpenControl, control: Exclude<CreateOpenControl, null>): boolean {
-  if (control === 'start') return current === 'start' || current === 'start-hour' || current === 'start-minute' || current === 'start-ampm';
-  if (control === 'end') return current === 'end' || current === 'end-hour' || current === 'end-minute' || current === 'end-ampm';
-  return current === control;
 }
 
 const TAG_COLORS = [
@@ -180,10 +167,6 @@ function App() {
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [catalogManagerSection, setCatalogManagerSection] = useState<'projects' | 'tags' | null>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
-  const settingsRestoreFocusRef = useRef<HTMLElement | null>(null);
-  const wasSettingsOpenRef = useRef(false);
   const [showInlineTag, setShowInlineTag] = useState(false);
   const [newTaskTagIDs, setNewTaskTagIDs] = useState<number[]>([]);
   const [viewTab, setViewTab] = useState<ViewTab>('all');
@@ -213,7 +196,6 @@ function App() {
   const [editTaskTagIDs, setEditTaskTagIDs] = useState<number[]>([]);
   const [showInlineEditProject, setShowInlineEditProject] = useState(false);
   const [showInlineEditTag, setShowInlineEditTag] = useState(false);
-  const [inlineEditOpenControl, setInlineEditOpenControl] = useState<string | null>(null);
 
   // Delete confirmation is tracked by task ID.
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -247,19 +229,40 @@ function App() {
     toggleBulkSelection,
   } = useBulkSelection();
   const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
-  const statusFirstActionRef = useRef<HTMLButtonElement>(null);
-  const statusRestoreFocusRef = useRef<HTMLElement | null>(null);
-  const wasStatusMoveOpenRef = useRef(false);
-  const [openActionTaskId, setOpenActionTaskId] = useState<number | null>(null);
 
   // Stats modal visibility.
   const [showStats, setShowStats] = useState(false);
-  const statsTriggerRef = useRef<HTMLButtonElement>(null);
-  const statsCloseRef = useRef<HTMLButtonElement>(null);
-  const statsRestoreFocusRef = useRef<HTMLElement | null>(null);
-  const wasStatsOpenRef = useRef(false);
-  const [openTimeEditorScope, setOpenTimeEditorScope] = useState<string | null>(null);
-  const [openCreateControl, setOpenCreateControl] = useState<CreateOpenControl>(null);
+  const {
+    settingsRef,
+    settingsTriggerRef,
+    statsTriggerRef,
+    statsCloseRef,
+    statusFirstActionRef,
+    rememberSettingsFocus,
+    rememberStatsFocus,
+    rememberStatusMoveFocus,
+  } = useModalFocusReturn({
+    showStats,
+    showSettings,
+    statusMoveOpen: statusMoveTask !== null,
+  });
+  const {
+    openTimeEditorScope,
+    setOpenTimeEditorScope,
+    openCreateControl,
+    setOpenCreateControl,
+    inlineEditOpenControl,
+    setInlineEditOpenControl,
+    openActionTaskId,
+    setOpenActionTaskId,
+    closeFloatingControls,
+    toggleCreateDropdown,
+    toggleInlineEditDropdown,
+  } = useFloatingControlCoordinator({
+    closeSettings: () => setShowSettings(false),
+    closeStats: () => setShowStats(false),
+    closeStatusMove: () => setStatusMoveTask(null),
+  });
 
   // Reminder toasts are queued independently from persisted reminders.
   const [toasts, setToasts] = useState<ToastListItem[]>([]);
@@ -272,18 +275,6 @@ function App() {
   const taskLongPressTimer = useRef<number | null>(null);
   const taskLongPressTriggered = useRef(false);
   const previousIs24HourRef = useRef(is24Hour);
-
-  const rememberCurrentFocus = (targetRef: { current: HTMLElement | null }) => {
-    targetRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  };
-
-  const restoreFocusIfAppropriate = (targetRef: { current: HTMLElement | null }) => {
-    const target = targetRef.current;
-    targetRef.current = null;
-    const active = document.activeElement;
-    const shouldRestore = !active || active === document.body || (active instanceof HTMLElement && !active.isConnected);
-    if (shouldRestore && target?.isConnected) target.focus();
-  };
 
   // Repeat editor keeps the persisted value so autosave can detect changes.
   const [editRepeat, setEditRepeat] = useState<RepeatValue>(null);
@@ -1103,69 +1094,6 @@ function App() {
   useOutsideClick(settingsRef,             showSettings,             () => setShowSettings(false));
 
   useEffect(() => {
-    if (showStats) {
-      statsCloseRef.current?.focus();
-    } else if (wasStatsOpenRef.current) {
-      restoreFocusIfAppropriate(statsRestoreFocusRef);
-    }
-    wasStatsOpenRef.current = showStats;
-  }, [showStats]);
-
-  useEffect(() => {
-    if (!showSettings && wasSettingsOpenRef.current) {
-      restoreFocusIfAppropriate(settingsRestoreFocusRef);
-    }
-    wasSettingsOpenRef.current = showSettings;
-  }, [showSettings]);
-
-  useEffect(() => {
-    if (statusMoveTask) {
-      statusFirstActionRef.current?.focus();
-    } else if (wasStatusMoveOpenRef.current) {
-      restoreFocusIfAppropriate(statusRestoreFocusRef);
-    }
-    wasStatusMoveOpenRef.current = statusMoveTask !== null;
-  }, [statusMoveTask]);
-
-  useEffect(() => {
-    if (!openCreateControl) return;
-    const handler = (event: PointerEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.closest('[data-create-menu-trigger]')) return;
-      if (target.closest('[data-create-menu-boundary]')) return;
-      setOpenCreateControl(null);
-      setOpenTimeEditorScope(null);
-    };
-    document.addEventListener('pointerdown', handler, true);
-    return () => document.removeEventListener('pointerdown', handler, true);
-  }, [openCreateControl]);
-
-  useEffect(() => {
-    if (!inlineEditOpenControl) return;
-    const handler = (event: PointerEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.closest('[data-create-menu-trigger]')) return;
-      if (target.closest('[data-create-menu-boundary]')) return;
-      if (target.closest('[data-inline-edit-menu-trigger]')) return;
-      if (target.closest('[data-inline-edit-menu-boundary]')) return;
-      setInlineEditOpenControl(null);
-      setOpenTimeEditorScope(null);
-    };
-    document.addEventListener('pointerdown', handler, true);
-    return () => document.removeEventListener('pointerdown', handler, true);
-  }, [inlineEditOpenControl]);
-
-  useEffect(() => {
-    if (openActionTaskId === null) return;
-    const handler = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.item__actions')) setOpenActionTaskId(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [openActionTaskId]);
-
-  useEffect(() => {
     localStorage.setItem('theme', theme);
     if (theme === 'system') {
       document.documentElement.removeAttribute('data-theme');
@@ -1292,45 +1220,24 @@ function App() {
     is24Hour,
   });
 
-  const closeFloatingControls = (options: { timeEditors?: boolean; createControls?: boolean; inlineEditControls?: boolean } = {}) => {
-    setOpenActionTaskId(null);
-    setShowSettings(false);
-    setShowStats(false);
-    setStatusMoveTask(null);
-    if (options.inlineEditControls !== false) setInlineEditOpenControl(null);
-    if (options.timeEditors !== false) setOpenTimeEditorScope(null);
-    if (options.createControls !== false) setOpenCreateControl(null);
-  };
-
   const toggleStatsPanel = () => {
     const next = !showStats;
-    if (next) rememberCurrentFocus(statsRestoreFocusRef);
+    if (next) rememberStatsFocus();
     closeFloatingControls();
     setShowStats(next);
   };
 
   const toggleSettingsPanel = () => {
     const next = !showSettings;
-    if (next) rememberCurrentFocus(settingsRestoreFocusRef);
+    if (next) rememberSettingsFocus();
     closeFloatingControls();
     setShowSettings(next);
   };
 
   const openStatusMoveDialog = (task: Task) => {
-    rememberCurrentFocus(statusRestoreFocusRef);
+    rememberStatusMoveFocus();
     closeFloatingControls();
     setStatusMoveTask(task);
-  };
-
-  const toggleCreateDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
-    closeFloatingControls({ createControls: false });
-    toggleOpenControl(setOpenCreateControl, control, isCreateControlGroupActive);
-  };
-
-  const toggleInlineEditDropdown = (control: 'priority' | 'project' | 'tags' | 'repeat') => {
-    closeFloatingControls({ timeEditors: false, inlineEditControls: false });
-    setOpenTimeEditorScope(null);
-    toggleOpenControl(setInlineEditOpenControl, control);
   };
 
   // Task create, update, completion, and focus handlers.
