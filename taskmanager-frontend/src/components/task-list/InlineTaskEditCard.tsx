@@ -67,15 +67,7 @@ type InlineTaskEditDraft = {
   setEditRepeat: (value: RepeatValue) => void;
 };
 
-export type InlineTaskEditCardProps = {
-  task: Task;
-  variant?: InlineEditVariant;
-  actions: InlineTaskEditActions;
-  catalog: InlineTaskEditCatalog;
-  refs: InlineTaskEditRefs;
-  inlineProjectCreation: InlineProjectCreation;
-  inlineTagCreation: InlineTagCreation;
-  draft: InlineTaskEditDraft;
+type InlineTaskEditSchedule = {
   editDate: string;
   setEditDate: (value: string) => void;
   editHour: string;
@@ -95,11 +87,23 @@ export type InlineTaskEditCardProps = {
   editEndAmpm: Ampm;
   setEditEndAmpm: (value: Ampm) => void;
   currentEditTimeRangeError: string | null;
+  is24Hour: boolean;
+  hourOptions: string[];
+};
+
+export type InlineTaskEditCardProps = {
+  task: Task;
+  variant?: InlineEditVariant;
+  actions: InlineTaskEditActions;
+  catalog: InlineTaskEditCatalog;
+  refs: InlineTaskEditRefs;
+  inlineProjectCreation: InlineProjectCreation;
+  inlineTagCreation: InlineTagCreation;
+  draft: InlineTaskEditDraft;
+  schedule: InlineTaskEditSchedule;
   openTimeEditorScope: string | null;
   setOpenTimeEditorScope: Dispatch<SetStateAction<string | null>>;
   closeFloatingControls: (options?: { timeEditors?: boolean; createControls?: boolean; inlineEditControls?: boolean }) => void;
-  is24Hour: boolean;
-  hourOptions: string[];
   inlineEditOpenControl: string | null;
   setInlineEditOpenControl: Dispatch<SetStateAction<string | null>>;
   toggleInlineEditDropdown: (control: 'priority' | 'project' | 'tags' | 'repeat') => void;
@@ -114,30 +118,10 @@ export default function InlineTaskEditCard({
   inlineProjectCreation,
   inlineTagCreation,
   draft,
-  editDate,
-  setEditDate,
-  editHour,
-  setEditHour,
-  editMinute,
-  setEditMinute,
-  editAmpm,
-  setEditAmpm,
-  editShowTime,
-  setEditShowTime,
-  editShowEndTime,
-  toggleEditEndTime,
-  editEndHour,
-  setEditEndHour,
-  editEndMinute,
-  setEditEndMinute,
-  editEndAmpm,
-  setEditEndAmpm,
-  currentEditTimeRangeError,
+  schedule,
   openTimeEditorScope,
   setOpenTimeEditorScope,
   closeFloatingControls,
-  is24Hour,
-  hourOptions,
   inlineEditOpenControl,
   setInlineEditOpenControl,
   toggleInlineEditDropdown,
@@ -165,6 +149,29 @@ export default function InlineTaskEditCard({
     editRepeat,
     setEditRepeat,
   } = draft;
+  const {
+    editDate,
+    setEditDate,
+    editHour,
+    setEditHour,
+    editMinute,
+    setEditMinute,
+    editAmpm,
+    setEditAmpm,
+    editShowTime,
+    setEditShowTime,
+    editShowEndTime,
+    toggleEditEndTime,
+    editEndHour,
+    setEditEndHour,
+    editEndMinute,
+    setEditEndMinute,
+    editEndAmpm,
+    setEditEndAmpm,
+    currentEditTimeRangeError,
+    is24Hour,
+    hourOptions,
+  } = schedule;
   const {
     showInlineEditProject,
     setShowInlineEditProject,

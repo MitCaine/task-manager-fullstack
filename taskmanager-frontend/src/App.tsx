@@ -1948,30 +1948,32 @@ function App() {
           editRepeat,
           setEditRepeat,
         }}
-        editDate={editDate}
-        setEditDate={setEditDate}
-        editHour={editHour}
-        setEditHour={setEditHour}
-        editMinute={editMinute}
-        setEditMinute={setEditMinute}
-        editAmpm={editAmpm}
-        setEditAmpm={setEditAmpm}
-        editShowTime={editShowTime}
-        setEditShowTime={setEditShowTime}
-        editShowEndTime={editShowEndTime}
-        toggleEditEndTime={toggleEditEndTime}
-        editEndHour={editEndHour}
-        setEditEndHour={setEditEndHour}
-        editEndMinute={editEndMinute}
-        setEditEndMinute={setEditEndMinute}
-        editEndAmpm={editEndAmpm}
-        setEditEndAmpm={setEditEndAmpm}
-        currentEditTimeRangeError={currentEditTimeRangeError}
+        schedule={{
+          editDate,
+          setEditDate,
+          editHour,
+          setEditHour,
+          editMinute,
+          setEditMinute,
+          editAmpm,
+          setEditAmpm,
+          editShowTime,
+          setEditShowTime,
+          editShowEndTime,
+          toggleEditEndTime,
+          editEndHour,
+          setEditEndHour,
+          editEndMinute,
+          setEditEndMinute,
+          editEndAmpm,
+          setEditEndAmpm,
+          currentEditTimeRangeError,
+          is24Hour,
+          hourOptions,
+        }}
         openTimeEditorScope={openTimeEditorScope}
         setOpenTimeEditorScope={setOpenTimeEditorScope}
         closeFloatingControls={closeFloatingControls}
-        is24Hour={is24Hour}
-        hourOptions={hourOptions}
         inlineEditOpenControl={inlineEditOpenControl}
         setInlineEditOpenControl={setInlineEditOpenControl}
         toggleInlineEditDropdown={toggleInlineEditDropdown}
