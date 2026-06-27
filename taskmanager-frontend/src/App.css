@@ -753,7 +753,7 @@ select {
 .input:focus,
 .select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: 0 0 0 1px var(--accent-ring);
 }
 
 .input::placeholder {
