@@ -121,8 +121,8 @@ export default function DateTimeRow({
 
   const handleDateChange = (nextDate: string) => {
     onDate(nextDate);
-    setOpenControl?.(current => current === dateControl ? null : current);
-    setOpenTimeEditorScope(current => current === dateControl ? null : current);
+    setOpenControl?.(null);
+    setOpenTimeEditorScope(null);
   };
 
   const renderTimeControl = ({
@@ -226,8 +226,7 @@ export default function DateTimeRow({
               onClick={openDateControl}
               data-create-menu-trigger
               data-open={openControl === dateControl ? 'true' : undefined}
-              onInput={e => handleDateChange((e.target as HTMLInputElement).value)}
-              onChange={e => handleDateChange(e.target.value)}
+              onChange={e => {handleDateChange(e.currentTarget.value);e.currentTarget.blur();}}
             />
             <span className={`btn btn--ghost btn--sm datetime-row__date-display${openControl === dateControl ? ' datetime-row__date-display--active' : ''}`} aria-hidden="true">
               {dateLabel}
