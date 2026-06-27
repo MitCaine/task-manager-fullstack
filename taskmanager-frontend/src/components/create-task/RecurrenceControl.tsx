@@ -117,29 +117,10 @@ export default function RecurrenceControl({
         {...triggerAttrs}
       >
         <span className="recurrence-select__label">Repeat</span>
-        <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{formatRecurrenceInterval(value)}</span>
+        <span className={`recurrence-select__value${value ? ' recurrence-select__value--active' : ''}`}>{value ? formatRecurrenceInterval(value) : 'Never repeat'}</span>
       </button>
       {open && (
         <div className="tag-select__dropdown recurrence-select__dropdown recurrence-select__dropdown--value-aligned" role="menu" {...boundaryAttrs}>
-          <button
-            type="button"
-            role="menuitem"
-            className={`tag-select__item${value === null ? ' tag-select__item--on' : ''}`}
-            onClick={() => {
-              onChange(null);
-              onClose();
-            }}
-          >
-            Do not repeat
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className={`tag-select__item${value ? ' tag-select__item--on' : ''}`}
-            onClick={() => onChange(selected)}
-          >
-            {formatRecurrenceInterval(selected)}
-          </button>
           <div className="recurrence-select__interval-controls" onClick={event => event.stopPropagation()}>
             <RecurrenceIntervalDropdown
               id={`${menuScope}-${controlId}-value`}
@@ -163,6 +144,26 @@ export default function RecurrenceControl({
               onClose={() => setOpenIntervalMenu(null)}
               onChange={intervalUnit => onChange(clampRecurrenceInterval({ intervalUnit, intervalValue: selected.intervalValue }))}
             />
+          </div>
+          <div className="recurrence-select__actions">
+            <button
+                type="button"
+                role="menuitem"
+                className="btn btn--ghost btn--sm recurrence-select__clear"
+                onClick={() => {
+                  onChange(null);
+                  onClose();
+                }}
+            >
+              Never repeat
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm recurrence-select__done"
+              onClick={onClose}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

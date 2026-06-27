@@ -1030,7 +1030,7 @@ test('open create dropdown controls close when their trigger is clicked again', 
     createScope.getByRole('button', { name: /^priority$/i }),
     createScope.getByRole('button', { name: /^project$/i }),
     createScope.getByRole('button', { name: /^tags$/i }),
-    createScope.getByRole('button', { name: /repeat.*do not repeat/i }),
+    createScope.getByRole('button', { name: /repeat.*never repeat/i }),
   ];
 
   for (const trigger of triggers) {
@@ -1170,7 +1170,7 @@ test('date input remains usable after create control switching', async () => {
   });
 
   expect(getCreateDateInput().value).toBe('2026-06-20');
-  expect(getCreateDateInput()).toHaveAttribute('data-open', 'true');
+  expect(getCreateDateInput()).not.toHaveAttribute('data-open');
 });
 
 test('create task date control renders the desktop-visible date display proxy', () => {
@@ -1283,11 +1283,36 @@ test('repeat dropdown uses a value-aligned dropdown hook', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
 
   const dropdown = document.querySelector('.recurrence-select__dropdown');
   expect(dropdown).toHaveClass('recurrence-select__dropdown--value-aligned');
+});
+
+test('create repeat dropdown keeps interval edits open until Done closes it', async () => {
+  render(<App />);
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+  });
+  const dropdown = document.querySelector('.recurrence-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error('Create repeat dropdown not found');
+  const dropdownScope = within(dropdown);
+
+  await act(async () => {
+    userEvent.click(dropdownScope.getByRole('button', { name: /^unit day$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('option', { name: /^week$/i }));
+  });
+  expect(dropdown).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(dropdownScope.getByRole('button', { name: /^done$/i }));
+  });
+  expect(document.querySelector('.recurrence-select__dropdown')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /repeat.*every week/i })).toBeInTheDocument();
 });
 
 test('create tags dropdown uses the generic dropdown sizing', async () => {
@@ -1432,11 +1457,11 @@ test('create form keeps repeat before the action row controls', async () => {
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
-  const repeatButton = within(createCard).getByRole('button', { name: /repeat.*do not repeat/i });
+  const repeatButton = within(createCard).getByRole('button', { name: /repeat.*never repeat/i });
   const priorityButton = within(createCard).getByRole('button', { name: /^priority$/i });
   const addButton = within(createCard).getByRole('button', { name: /^add task$/i });
 
-  expect(within(repeatButton).getByText('Do not repeat')).toBeInTheDocument();
+  expect(within(repeatButton).getByText('Never repeat')).toBeInTheDocument();
   expect(repeatButton.compareDocumentPosition(priorityButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(priorityButton.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
@@ -1449,10 +1474,13 @@ test('create task can select daily recurrence and saves it', async () => {
 
   userEvent.type(screen.getByPlaceholderText(/task title/i), 'Daily task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
+    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
+    userEvent.click(screen.getByRole('button', { name: /^every 1$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('option', { name: /^1$/i }));
   });
   expect(within(screen.getByLabelText(/task preview/i)).getByText('Every day')).toBeInTheDocument();
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
@@ -1468,10 +1496,7 @@ test('create task can select weekly and monthly recurrence', async () => {
 
   userEvent.type(screen.getByPlaceholderText(/task title/i), 'Weekly task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
-  });
-  await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
+    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
@@ -1481,14 +1506,11 @@ test('create task can select weekly and monthly recurrence', async () => {
   });
   userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, { intervalUnit: 'week', intervalValue: 1 }));
-  await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*do not repeat/i })).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*never repeat/i })).toBeInTheDocument());
 
   userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*do not repeat/i }));
-  });
-  await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /^every day$/i }));
+    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
@@ -2507,7 +2529,7 @@ test('open mobile edit dropdown controls close when their trigger is tapped agai
       editScope.getByRole('button', { name: /^priority$/i }),
       editScope.getByRole('button', { name: /^project$/i }),
       editScope.getByRole('button', { name: /^tags$/i }),
-      editScope.getByRole('button', { name: /repeat.*do not repeat/i }),
+      editScope.getByRole('button', { name: /repeat.*never repeat/i }),
     ];
 
     for (const trigger of triggers) {
@@ -3717,8 +3739,13 @@ test('inline edit date input updates the edited task date without opening an emp
   expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
 
   await act(async () => {
+    userEvent.click(dateInput);
+  });
+  expect(dateInput).toHaveAttribute('data-open', 'true');
+  await act(async () => {
     fireEvent.change(dateInput, { target: { value: '2026-06-22' } });
   });
+  expect(dateInput).not.toHaveAttribute('data-open');
   await act(async () => {
     userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
   });
@@ -3837,12 +3864,19 @@ test('inline edit can change recurrence', async () => {
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /repeat.*every week/i }));
   });
+  const dropdown = editCard.querySelector('.recurrence-select__dropdown');
+  if (!(dropdown instanceof HTMLElement)) throw new Error('Inline repeat dropdown not found');
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /^unit week$/i }));
   });
   await act(async () => {
     userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
+  expect(dropdown).toBeInTheDocument();
+  await act(async () => {
+    userEvent.click(within(dropdown).getByRole('button', { name: /^done$/i }));
+  });
+  expect(editCard.querySelector('.recurrence-select__dropdown')).not.toBeInTheDocument();
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
@@ -3884,7 +3918,7 @@ test('inline edit can remove recurrence', async () => {
     userEvent.click(editScope.getByRole('button', { name: /repeat.*every day/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('menuitem', { name: /do not repeat/i }));
+    userEvent.click(editScope.getByRole('menuitem', { name: /never repeat/i }));
   });
   await act(async () => {
     userEvent.click(editScope.getByRole('button', { name: /^save$/i }));

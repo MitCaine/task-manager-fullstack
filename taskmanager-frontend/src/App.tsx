@@ -26,8 +26,6 @@ import {
 import type { RepeatValue } from './utils/taskRecurrence';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
 import {
-  findProjectById,
-  findTagsByIds,
   formatCreateDateDisplayLabel,
   formatTaskDateRange,
 } from './utils/taskDisplayHelpers';
@@ -50,6 +48,7 @@ import useTaskListViewModel from './hooks/useTaskListViewModel';
 import useBulkSelection from './hooks/useBulkSelection';
 import useFloatingControlCoordinator from './hooks/useFloatingControlCoordinator';
 import useModalFocusReturn from './hooks/useModalFocusReturn';
+import useCreateTaskWorkflow from './hooks/useCreateTaskWorkflow';
 
 declare global {
   interface Window {
@@ -127,39 +126,12 @@ function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, on
   }, [ref, isOpen, onClose]);
 }
 
-function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
-  const now = new Date();
-  const h = now.getHours();
-  return {
-    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
-    hour: String(h % 12 || 12).padStart(2, '0'),
-    minute: String(now.getMinutes()).padStart(2, '0'),
-    ampm: h >= 12 ? 'PM' : 'AM',
-  };
-}
-
 function App() {
   // Tasks loaded from the API and top-level request state.
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Draft values for the task creation form.
-  const [input, setInput] = useState('');
-  const [titleError, setTitleError] = useState(false);
-  const [description, setDescription] = useState('');
-  const { date: initDate, hour: initHour, minute: initMinute, ampm: initAmpm } = getNow();
-  const [date, setDate] = useState(initDate);
-  const [hour, setHour] = useState(initHour);
-  const [minute, setMinute] = useState(initMinute);
-  const [ampm, setAmpm] = useState<Ampm>(initAmpm);
-  const [showAddTime, setShowAddTime] = useState(false);
-  const [showAddEndTime, setShowAddEndTime] = useState(false);
-  const [endHour, setEndHour] = useState('12');
-  const [endMinute, setEndMinute] = useState('00');
-  const [endAmpm, setEndAmpm] = useState<Ampm>('AM');
-  const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
-  const [newRepeat, setNewRepeat] = useState<RepeatValue>(null);
   const [recurrenceLabels, setRecurrenceLabels] = useState<Record<number, string>>({});
 
   // UI preferences and transient dropdown state.
@@ -167,8 +139,6 @@ function App() {
   const [isEuropeanDate, setIsEuropeanDate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [catalogManagerSection, setCatalogManagerSection] = useState<'projects' | 'tags' | null>(null);
-  const [showInlineTag, setShowInlineTag] = useState(false);
-  const [newTaskTagIDs, setNewTaskTagIDs] = useState<number[]>([]);
   const [viewTab, setViewTab] = useState<ViewTab>('all');
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem('theme') as Theme) ?? 'system'
@@ -281,10 +251,8 @@ function App() {
   const [originalRepeatKey, setOriginalRepeatKey] = useState('');
 
   // Project lists and selectors shared by create and edit flows.
-  const [newProjectID, setNewProjectID] = useState<number | ''>('');
   const [editProjectID, setEditProjectID] = useState<number | ''>('');
   const [filterProjectID, setFilterProjectID] = useState<number | ''>('');
-  const [showInlineProject, setShowInlineProject] = useState(false);
 
   // Tag lists, filters, and inline color editing state.
   const [expandedTagTaskIds, setExpandedTagTaskIds] = useState<Set<number>>(new Set());
@@ -318,6 +286,68 @@ function App() {
       deleteTagFromCatalog,
     },
   } = useProjectTagCatalog({ setError });
+  const {
+    draft: {
+      input,
+      setInput,
+      titleError,
+      setTitleError,
+      description,
+      setDescription,
+      date,
+      setDate,
+      hour,
+      setHour,
+      minute,
+      setMinute,
+      ampm,
+      setAmpm,
+      showAddTime,
+      setShowAddTime,
+      showAddEndTime,
+      endHour,
+      setEndHour,
+      endMinute,
+      setEndMinute,
+      endAmpm,
+      setEndAmpm,
+      newPriority,
+      setNewPriority,
+      newRepeat,
+      setNewRepeat,
+      newProjectID,
+      setNewProjectID,
+      newTaskTagIDs,
+      setNewTaskTagIDs,
+      showInlineProject,
+      setShowInlineProject,
+      showInlineTag,
+      setShowInlineTag,
+    },
+    derived: {
+      draftDateTimeScheduled,
+      draftEndDateTimeScheduled,
+      currentCreateTimeRangeError,
+      draftProject,
+      draftTags,
+    },
+    actions: {
+      addTask,
+      addProject,
+      addTagInline,
+      toggleAddEndTime,
+    },
+  } = useCreateTaskWorkflow({
+    is24Hour,
+    projects,
+    tags,
+    setTasks,
+    setError,
+    setToasts,
+    toastIdRef,
+    createProjectFromDraft,
+    createTagFromDraft,
+  });
 
   // Element refs used for shortcuts, dropdown positioning, and focus return.
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -1189,24 +1219,6 @@ function App() {
 
   const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
-  const {
-    dateTimeScheduled: draftDateTimeScheduled,
-    endDateTimeScheduled: draftEndDateTimeScheduled,
-    rangeError: currentCreateTimeRangeError,
-  } = buildValidatedTaskSchedule({
-    date,
-    showTime: showAddTime,
-    hour,
-    minute,
-    ampm,
-    showEndTime: showAddEndTime,
-    endHour,
-    endMinute,
-    endAmpm,
-    is24Hour,
-  });
-  const draftProject = findProjectById(projects, newProjectID);
-  const draftTags = findTagsByIds(tags, newTaskTagIDs);
   const { rangeError: currentEditTimeRangeError } = buildValidatedTaskSchedule({
     date: editDate,
     showTime: editShowTime,
@@ -1240,72 +1252,7 @@ function App() {
     setStatusMoveTask(task);
   };
 
-  // Task create, update, completion, and focus handlers.
-  const toggleAddEndTime = () => {
-    if (showAddEndTime) { setShowAddEndTime(false); return; }
-    const nextEnd = getDefaultEndTime({ hour, minute, ampm, is24Hour });
-    setEndHour(nextEnd.endHour);
-    setEndMinute(nextEnd.endMinute);
-    setEndAmpm(nextEnd.endAmpm);
-    setShowAddEndTime(true);
-  };
-
-  const addTask = async () => {
-    if (input.trim() === '') {
-      setTitleError(false);
-      requestAnimationFrame(() => requestAnimationFrame(() => setTitleError(true)));
-      return;
-    }
-    const { dateTimeScheduled, endDateTimeScheduled, rangeError } = buildValidatedTaskSchedule({
-      date,
-      showTime: showAddTime,
-      hour,
-      minute,
-      ampm,
-      showEndTime: showAddEndTime,
-      endHour,
-      endMinute,
-      endAmpm,
-      is24Hour,
-    });
-    if (rangeError) {
-      return;
-    }
-    try {
-      const saved = await createTask({ title: input.trim(), description: description.trim(), dateTimeScheduled, endDateTimeScheduled, priority: newPriority || null, projectID: newProjectID !== '' ? newProjectID : null });
-      let taskForState = saved;
-      if (newRepeat) {
-        const repeated = await setRepeat(saved.taskID, newRepeat);
-        taskForState = { ...saved, recurrenceRuleID: repeated.recurrenceRuleID ?? null };
-      }
-      if (newTaskTagIDs.length > 0) {
-        await Promise.all(newTaskTagIDs.map(tagId => addTagToTask(saved.taskID, tagId)));
-        const tagObjects = tags.filter(t => newTaskTagIDs.includes(t.tagID));
-        taskForState = { ...taskForState, tags: tagObjects };
-      }
-      setTasks(prev => [...prev, taskForState]);
-      setInput('');
-      setDescription('');
-      setNewPriority('');
-      setNewRepeat(null);
-      setNewProjectID('');
-      setNewTaskTagIDs([]);
-      setShowAddTime(false);
-      setShowAddEndTime(false);
-      const n = getNow();
-      setDate(n.date); setHour(n.hour); setMinute(n.minute); setAmpm(n.ampm);
-      setToasts(prev => [...prev, {
-        id: ++toastIdRef.current,
-        taskTitle: taskForState.title,
-        message: 'Task added.',
-        kind: 'confirmation',
-        autoDismissMs: 3500,
-      }]);
-    } catch {
-      setError('Failed to create task.');
-    }
-  };
-
+  // Task update, completion, and focus handlers.
   const completeRecurringTask = async (task: Task, rule: RecurrenceRule) => {
     const nextSchedule = buildRecurringTaskSchedule({
       dateTimeScheduled: task.dateTimeScheduled,
@@ -1590,12 +1537,7 @@ function App() {
     setSelectedTaskId(taskId);
   };
 
-  // Project creation, deletion, and task detachment handlers.
-  const addProject = async () => {
-    const saved = await createProjectFromDraft();
-    if (saved) setShowInlineProject(false);
-  };
-
+  // Project deletion and task detachment handlers.
   const changeTagColor = async (tagID: number, color: string) => {
     const updated = await updateTagColor(tagID, color);
     if (!updated) return;
@@ -1647,14 +1589,7 @@ function App() {
     return counts;
   }, [tasks]);
 
-  // Tag creation, color changes, deletion, and task assignment handlers.
-  const addTagInline = async () => {
-    const saved = await createTagFromDraft();
-    if (!saved) return;
-    setNewTaskTagIDs(prev => [...prev, saved.tagID]);
-    setShowInlineTag(false);
-  };
-
+  // Tag color changes, deletion, and task assignment handlers.
   const addProjectInlineEdit = async () => {
     const saved = await createProjectFromDraft();
     if (!saved) return;

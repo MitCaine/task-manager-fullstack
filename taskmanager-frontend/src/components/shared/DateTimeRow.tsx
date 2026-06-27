@@ -121,7 +121,8 @@ export default function DateTimeRow({
 
   const handleDateChange = (nextDate: string) => {
     onDate(nextDate);
-    if (controlledCreateRow) setOpenControl?.(dateControl);
+    setOpenControl?.(current => current === dateControl ? null : current);
+    setOpenTimeEditorScope(current => current === dateControl ? null : current);
   };
 
   const renderTimeControl = ({
