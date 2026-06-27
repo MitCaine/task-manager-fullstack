@@ -4459,12 +4459,21 @@ test('project management composes search usage filter and sort controls', async 
 
   expect(listNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
 
-  await act(async () => { fireEvent.change(scope.getByLabelText('Sort'), { target: { value: 'usage-desc' } }); });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  expect(scope.getByRole('menuitem', { name: /usage high-low/i })).toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
+  expect(scope.queryByRole('menuitem', { name: /usage high-low/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Alpha', 'Gamma', 'Beta']);
 
-  await act(async () => { fireEvent.change(scope.getByLabelText('Filter'), { target: { value: 'unused' } }); });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*usage high-low/i })); });
+  expect(scope.getByRole('menuitem', { name: /name a-z/i })).toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
+  expect(scope.queryByRole('menuitem', { name: /name a-z/i })).not.toBeInTheDocument();
+  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /unused only/i })); });
+  expect(scope.queryByRole('menuitem', { name: /unused only/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Beta']);
   expect(scope.getByText('0 tasks')).toBeInTheDocument();
+  expect(dialog.querySelector('select')).not.toBeInTheDocument();
 
   await act(async () => { userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'ga'); });
   expect(scope.getByText('No projects match your search.')).toBeInTheDocument();
@@ -4515,7 +4524,8 @@ test('catalog management edit search and selection modes are mutually exclusive'
   await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
   await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
   expect(scope.getByRole('alert')).toHaveTextContent('Delete 1 project: Home?');
-  await act(async () => { fireEvent.change(scope.getByLabelText('Sort'), { target: { value: 'usage-desc' } }); });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
   expect(scope.queryByRole('alert')).not.toBeInTheDocument();
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
@@ -4804,10 +4814,14 @@ test('tag management composes search usage filter and sort controls', async () =
 
   expect(listNames()).toEqual(['Docs', 'Errand', 'Work']);
 
-  await act(async () => { fireEvent.change(scope.getByLabelText('Sort'), { target: { value: 'usage-asc' } }); });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage low-high/i })); });
+  expect(scope.queryByRole('menuitem', { name: /usage low-high/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Docs', 'Errand', 'Work']);
 
-  await act(async () => { fireEvent.change(scope.getByLabelText('Filter'), { target: { value: 'used' } }); });
+  await act(async () => { userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
+  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /^used only$/i })); });
+  expect(scope.queryByRole('menuitem', { name: /^used only$/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Errand', 'Work']);
 
   await act(async () => { userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'wo'); });
@@ -4870,7 +4884,10 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const selectRule = css.match(/\.catalog-manager__select\s*\{[^}]*\}/)?.[0] ?? '';
   const listControlsRule = css.match(/\.catalog-manager__list-controls\s*\{[^}]*\}/)?.[0] ?? '';
   const controlRule = css.match(/\.catalog-manager__control\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlInputRule = css.match(/\.catalog-manager__control \.input\s*\{[^}]*\}/)?.[0] ?? '';
+  const controlSelectRule = css.match(/\.catalog-manager__control-select\s*\{[^}]*\}/)?.[0] ?? '';
+  const controlTriggerRule = css.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
+  const controlDropdownRule = css.match(/\.catalog-manager__control-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
+  const controlCheckRule = css.match(/\.catalog-manager__control-check\s*\{[^}]*\}/)?.[0] ?? '';
   const controlLabelRule = css.match(/\.catalog-manager__control-label\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileTagCreateActionsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
@@ -4878,7 +4895,8 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const mobileItemRule = mobileManagerRules.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileListControlsRule = mobileManagerRules.match(/\.catalog-manager__list-controls\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileControlRule = mobileManagerRules.match(/\.catalog-manager__control\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileControlInputRule = mobileManagerRules.match(/\.catalog-manager__control \.input\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileControlSelectRule = mobileManagerRules.match(/\.catalog-manager__control-select\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileControlTriggerRule = mobileManagerRules.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileBulkBarRule = mobileManagerRules.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileBulkActionsRule = mobileManagerRules.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
 
@@ -4927,7 +4945,10 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(listControlsRule).toContain('display: flex');
   expect(listControlsRule).toContain('flex-wrap: wrap');
   expect(controlRule).toContain('display: inline-flex');
-  expect(controlInputRule).toContain('min-width: 8.5rem');
+  expect(controlSelectRule).toContain('min-width: 8.5rem');
+  expect(controlTriggerRule).toContain('min-width: 8.5rem');
+  expect(controlDropdownRule).toContain('min-width: 8.5rem');
+  expect(controlCheckRule).toContain('flex: 0 0 0.75rem');
   expect(controlLabelRule).toContain('white-space: nowrap');
   expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
   expect(mobileManagerRules).toContain('--catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))');
@@ -4961,7 +4982,8 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(mobileManagerRules).toContain('padding-bottom: 1.25rem');
   expect(mobileListControlsRule).toContain('align-items: stretch');
   expect(mobileControlRule).toContain('flex: 1 1 13rem');
-  expect(mobileControlInputRule).toContain('min-width: 10.5rem');
+  expect(mobileControlSelectRule).toContain('min-width: 10.5rem');
+  expect(mobileControlTriggerRule).toContain('min-width: 10.5rem');
   expect(mobileBulkBarRule).toContain('flex-direction: column');
   expect(mobileBulkBarRule).toContain('align-items: stretch');
   expect(mobileBulkActionsRule).toContain('justify-content: flex-start');

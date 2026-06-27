@@ -1,12 +1,14 @@
-import { type TouchEvent, useMemo, useState } from 'react';
+import { type KeyboardEvent, type TouchEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 
 type CatalogSection = 'projects' | 'tags';
 type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
 type CatalogUsageFilter = 'all' | 'used' | 'unused';
+type CatalogControlDropdown = 'sort' | 'filter';
 type PendingDelete = { kind: CatalogSection; id: number; title: string; usageCount: number } | null;
 type PendingBulkDelete = { kind: CatalogSection; ids: number[] } | null;
+type CatalogDropdownOption<Value extends string> = { value: Value; label: string };
 
 const usageLabel = (count: number) => `${count} task${count === 1 ? '' : 's'}`;
 const normalizeCatalogTitle = (value: string) => value.trim().toLocaleLowerCase();
@@ -62,6 +64,107 @@ const focusCatalogRenameWithoutViewportPull = (input: HTMLInputElement) => {
   }, 250);
 };
 
+const sortOptions: CatalogDropdownOption<CatalogSortMode>[] = [
+  { value: 'name-asc', label: 'Name A-Z' },
+  { value: 'usage-desc', label: 'Usage High-Low' },
+  { value: 'usage-asc', label: 'Usage Low-High' },
+];
+
+const usageFilterOptions: CatalogDropdownOption<CatalogUsageFilter>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'used', label: 'Used only' },
+  { value: 'unused', label: 'Unused only' },
+];
+
+type CatalogControlDropdownProps<Value extends string> = {
+  label: string;
+  value: Value;
+  options: CatalogDropdownOption<Value>[];
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onChange: (value: Value) => void;
+};
+
+function CatalogControlDropdown<Value extends string>({
+  label,
+  value,
+  options,
+  open,
+  onToggle,
+  onClose,
+  onChange,
+}: CatalogControlDropdownProps<Value>): JSX.Element {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedOption = options.find(option => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [onClose, open]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Escape') return;
+    event.stopPropagation();
+    onClose();
+  };
+
+  return (
+      <div className="catalog-manager__control" ref={rootRef} onKeyDown={handleKeyDown}>
+        <span className="catalog-manager__control-label">{label}</span>
+
+        <div className="tag-select catalog-manager__control-select">
+          <button
+              type="button"
+              className={`select select--sm tag-select__btn catalog-manager__control-trigger ${
+                  label === 'Sort'
+                      ? 'catalog-manager__control-trigger--sort'
+                      : 'catalog-manager__control-trigger--filter'
+              }`}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              aria-label={`${label}: ${selectedOption.label}`}
+              onClick={onToggle}
+          >
+            {selectedOption.label}
+          </button>
+
+          {open && (
+              <div className="tag-select__dropdown catalog-manager__control-dropdown" role="menu">
+                {options.map(option => {
+                  const selected = option.value === value;
+
+                  return (
+                      <button
+                          key={option.value}
+                          type="button"
+                          role="menuitem"
+                          className={`tag-select__item catalog-manager__control-option${
+                              selected ? ' tag-select__item--on' : ''
+                          }`}
+                          onClick={() => {
+                            onChange(option.value);
+                            onClose();
+                          }}
+                      >
+                <span className="catalog-manager__control-check" aria-hidden="true">
+                  {selected ? '✓' : ''}
+                </span>
+                        <span>{option.label}</span>
+                      </button>
+                  );
+                })}
+              </div>
+          )}
+        </div>
+      </div>
+  );
+}
+
 type CatalogManagementModalProps = {
   initialSection: CatalogSection;
   projects: Project[];
@@ -105,6 +208,7 @@ export default function CatalogManagementModal({
   const [addSummary, setAddSummary] = useState('');
   const [sortMode, setSortMode] = useState<CatalogSortMode>('name-asc');
   const [usageFilter, setUsageFilter] = useState<CatalogUsageFilter>('all');
+  const [openControlDropdown, setOpenControlDropdown] = useState<CatalogControlDropdown | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase();
 
   const visibleProjects = useMemo(() => {
@@ -157,6 +261,7 @@ export default function CatalogManagementModal({
     setQuery('');
     setSortMode('name-asc');
     setUsageFilter('all');
+    setOpenControlDropdown(null);
     setEditingID(null);
     setPendingDelete(null);
     setPendingBulkDelete(null);
@@ -251,6 +356,11 @@ export default function CatalogManagementModal({
     setEditingID(null);
     clearAllSelection();
     setPendingBulkDelete(null);
+  };
+
+  const toggleControlDropdown = (control: CatalogControlDropdown) => {
+    beginListControlMode();
+    setOpenControlDropdown(current => current === control ? null : control);
   };
 
   const handleCatalogRenameTouchStart = (event: TouchEvent<HTMLInputElement>) => {
@@ -380,30 +490,30 @@ export default function CatalogManagementModal({
         />
 
         <div className="catalog-manager__list-controls">
-          <label className="catalog-manager__control">
-            <span className="catalog-manager__control-label">Sort</span>
-            <select
-              className="input input--sm"
-              value={sortMode}
-              onChange={event => { beginListControlMode(); setSortMode(event.currentTarget.value as CatalogSortMode); }}
-            >
-              <option value="name-asc">Name A-Z</option>
-              <option value="usage-desc">Usage High-Low</option>
-              <option value="usage-asc">Usage Low-High</option>
-            </select>
-          </label>
-          <label className="catalog-manager__control">
-            <span className="catalog-manager__control-label">Filter</span>
-            <select
-              className="input input--sm"
-              value={usageFilter}
-              onChange={event => { beginListControlMode(); setUsageFilter(event.currentTarget.value as CatalogUsageFilter); }}
-            >
-              <option value="all">All</option>
-              <option value="used">Used only</option>
-              <option value="unused">Unused only</option>
-            </select>
-          </label>
+          <CatalogControlDropdown
+            label="Sort"
+            value={sortMode}
+            options={sortOptions}
+            open={openControlDropdown === 'sort'}
+            onToggle={() => toggleControlDropdown('sort')}
+            onClose={() => setOpenControlDropdown(current => current === 'sort' ? null : current)}
+            onChange={nextSortMode => {
+              beginListControlMode();
+              setSortMode(nextSortMode);
+            }}
+          />
+          <CatalogControlDropdown
+            label="Filter"
+            value={usageFilter}
+            options={usageFilterOptions}
+            open={openControlDropdown === 'filter'}
+            onToggle={() => toggleControlDropdown('filter')}
+            onClose={() => setOpenControlDropdown(current => current === 'filter' ? null : current)}
+            onChange={nextUsageFilter => {
+              beginListControlMode();
+              setUsageFilter(nextUsageFilter);
+            }}
+          />
         </div>
 
         {selectedCount > 0 && (
