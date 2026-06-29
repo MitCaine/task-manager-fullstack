@@ -351,7 +351,7 @@ function TaskListControls({
 
       <input
         ref={searchInputRef}
-        className="input search mtop"
+        className="input search mt-top"
         type="text"
         value={search}
         onChange={e => onSearchChange(e.target.value)}
@@ -359,7 +359,7 @@ function TaskListControls({
         aria-label="Search tasks"
       />
 
-      <div className="spread mtop small task-overview">
+      <div className="spread mt-top small task-overview">
         <div className="task-count-row">
           <button
             type="button"

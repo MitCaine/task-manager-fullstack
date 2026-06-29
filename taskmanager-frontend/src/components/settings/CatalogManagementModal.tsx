@@ -2,6 +2,7 @@ import { type KeyboardEvent, type TouchEvent, useEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 import { handleProxyFocusAssistTouchStart } from '../../utils/mobileFocusAssist';
+import CatalogManagerItemRow, { CatalogManagerColorControl } from './CatalogManagerItemRow';
 
 type CatalogSection = 'projects' | 'tags';
 type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
@@ -11,7 +12,6 @@ type PendingDelete = { kind: CatalogSection; id: number; title: string; usageCou
 type PendingBulkDelete = { kind: CatalogSection; ids: number[] } | null;
 type CatalogDropdownOption<Value extends string> = { value: Value; label: string };
 
-const usageLabel = (count: number) => `${count} task${count === 1 ? '' : 's'}`;
 const normalizeCatalogTitle = (value: string) => value.trim().toLocaleLowerCase();
 const compareCatalogTitles = (left: string, right: string) => left.localeCompare(right, undefined, { sensitivity: 'base' });
 const formatDuplicateSummary = (skipped: number, duplicates: string[]) => {
@@ -383,29 +383,6 @@ export default function CatalogManagementModal({
     : 'Add tag names, one per line';
   const addLabel = section === 'projects' ? 'Project names' : 'Tag names';
   const createLabel = section === 'projects' ? 'Create Projects' : 'Create Tags';
-  const renderColorControl = (value: string, onChange: (value: string) => void, ariaLabel: string) => (
-    <label className="catalog-manager__color-control">
-      <input className="catalog-manager__color-input" type="color" value={value} onChange={event => onChange(event.currentTarget.value)} aria-label={ariaLabel} />
-      <span className="catalog-manager__color-swatch" style={{ background: value }} aria-hidden="true" />
-      <span>Tag Color</span>
-    </label>
-  );
-  const renderEditActions = (kind: CatalogSection, id: number, title: string, usageCount: number) => (
-    <div className="catalog-manager__actions">
-      <button className="btn btn--sm" onClick={saveEdit}>Save</button>
-      <button className="btn btn--ghost btn--sm" onClick={() => setEditingID(null)}>Cancel</button>
-      <button
-        className="btn btn--danger btn--sm"
-        onClick={() => {
-          setPendingBulkDelete(null);
-          setPendingDelete({ kind, id, title, usageCount });
-        }}
-      >
-        Delete
-      </button>
-    </div>
-  );
-
   return createPortal(
     <div className="modal-overlay modal-overlay--catalog-manager" onClick={onClose}>
       <div className="modal catalog-manager" role="dialog" aria-modal="true" aria-labelledby="catalog-manager-title" onClick={event => event.stopPropagation()}>
@@ -434,7 +411,11 @@ export default function CatalogManagementModal({
               {createLabel}
             </button>
             {section === 'tags' && (
-              renderColorControl(newTagColor, setNewTagColor, 'New tag color')
+              <CatalogManagerColorControl
+                value={newTagColor}
+                onChange={setNewTagColor}
+                ariaLabel="New tag color"
+              />
             )}
           </div>
         </div>
@@ -510,64 +491,57 @@ export default function CatalogManagementModal({
               {section === 'projects'
                 ? visibleProjects.map(project => {
                     const editing = editingID === project.projectID;
+                    const usageCount = projectUsage.get(project.projectID) ?? 0;
                     return (
-                      <li key={project.projectID} className={`catalog-manager__item catalog-manager__item--project${editing ? ' catalog-manager__item--editing' : ''}`}>
-                        {!editing && (
-                          <input
-                            type="checkbox"
-                            className="catalog-manager__select"
-                            checked={selectedProjectIDs.has(project.projectID)}
-                            onChange={() => toggleSelection(project.projectID)}
-                            aria-label={`Select project ${project.title}`}
-                          />
-                        )}
-                        <div className="catalog-manager__main">
-                          {editing
-                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} onTouchStart={handleCatalogRenameTouchStart} aria-label={`Rename project ${project.title}`} />
-                            : <span className="catalog-manager__name">{project.title}</span>}
-                          {!editing && <span className="catalog-manager__usage">{usageLabel(projectUsage.get(project.projectID) ?? 0)}</span>}
-                        </div>
-                        {editing
-                          ? renderEditActions('projects', project.projectID, project.title, projectUsage.get(project.projectID) ?? 0)
-                          : (
-                            <div className="catalog-manager__actions">
-                              <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(project.projectID, project.title)}>Edit</button>
-                              <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount: projectUsage.get(project.projectID) ?? 0 }); }}>Delete</button>
-                            </div>
-                          )}
-                      </li>
+                      <CatalogManagerItemRow
+                        key={project.projectID}
+                        kind="projects"
+                        title={project.title}
+                        usageCount={usageCount}
+                        selected={selectedProjectIDs.has(project.projectID)}
+                        editing={editing}
+                        editingTitle={editingTitle}
+                        editingColor={editingColor}
+                        onToggleSelection={() => toggleSelection(project.projectID)}
+                        onEditingTitleChange={setEditingTitle}
+                        onEditingColorChange={setEditingColor}
+                        onRenameTouchStart={handleCatalogRenameTouchStart}
+                        onSaveEdit={saveEdit}
+                        onCancelEdit={() => setEditingID(null)}
+                        onBeginEdit={() => beginEdit(project.projectID, project.title)}
+                        onRequestDelete={() => {
+                          setPendingBulkDelete(null);
+                          setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount });
+                        }}
+                      />
                     );
                   })
                 : visibleTags.map(tag => {
                     const editing = editingID === tag.tagID;
+                    const usageCount = tagUsage.get(tag.tagID) ?? 0;
                     return (
-                      <li key={tag.tagID} className={`catalog-manager__item catalog-manager__item--tag${editing ? ' catalog-manager__item--editing' : ''}`}>
-                        {!editing && (
-                          <input
-                            type="checkbox"
-                            className="catalog-manager__select"
-                            checked={selectedTagIDs.has(tag.tagID)}
-                            onChange={() => toggleSelection(tag.tagID)}
-                            aria-label={`Select tag ${tag.title}`}
-                          />
-                        )}
-                        <div className="catalog-manager__main">
-                          {!editing && <span className="tag-dot" style={{ background: tag.color ?? '#6366f1' }} />}
-                          {editing
-                            ? <input type="text" className="input catalog-manager__edit-input" value={editingTitle} onChange={event => setEditingTitle(event.currentTarget.value)} onTouchStart={handleCatalogRenameTouchStart} aria-label={`Rename tag ${tag.title}`} />
-                            : <span className="catalog-manager__name">{tag.title}</span>}
-                          {editing && renderColorControl(editingColor, setEditingColor, `Color for tag ${tag.title}`)}
-                          {!editing && <span className="catalog-manager__usage">{usageLabel(tagUsage.get(tag.tagID) ?? 0)}</span>}
-                        </div>
-                        {editing
-                          ? renderEditActions('tags', tag.tagID, tag.title, tagUsage.get(tag.tagID) ?? 0)
-                          : (
-                            <div className="catalog-manager__actions">
-                              <button className="btn btn--ghost btn--sm" onClick={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}>Edit</button>
-                              <button className="btn btn--danger btn--sm" onClick={() => { setPendingBulkDelete(null); setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount: tagUsage.get(tag.tagID) ?? 0 }); }}>Delete</button>
-                            </div>
-                          )}
-                      </li>
+                      <CatalogManagerItemRow
+                        key={tag.tagID}
+                        kind="tags"
+                        title={tag.title}
+                        usageCount={usageCount}
+                        selected={selectedTagIDs.has(tag.tagID)}
+                        editing={editing}
+                        color={tag.color}
+                        editingTitle={editingTitle}
+                        editingColor={editingColor}
+                        onToggleSelection={() => toggleSelection(tag.tagID)}
+                        onEditingTitleChange={setEditingTitle}
+                        onEditingColorChange={setEditingColor}
+                        onRenameTouchStart={handleCatalogRenameTouchStart}
+                        onSaveEdit={saveEdit}
+                        onCancelEdit={() => setEditingID(null)}
+                        onBeginEdit={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}
+                        onRequestDelete={() => {
+                          setPendingBulkDelete(null);
+                          setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount });
+                        }}
+                      />
                     );
                   })}
             </ul>

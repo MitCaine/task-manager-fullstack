@@ -873,6 +873,7 @@
 }
 
 .cal-item__tag-chip {
+  /* --tag-color is set per calendar chip from React inline style at runtime. */
   background: color-mix(in srgb, var(--tag-color, var(--accent)) 12%, var(--surface));
   color: var(--text);
   font-size: 0.6rem;

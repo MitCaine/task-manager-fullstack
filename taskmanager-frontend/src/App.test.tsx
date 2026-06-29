@@ -2265,7 +2265,7 @@ test('text focus correction summary emits scalar scroll and viewport evidence be
   expect(summary).toBeTruthy();
   expect(summary).toHaveLength(1);
   expect(summary?.[0]).toContain('event=scroll');
-  expect(summary?.[0]).toContain('active=input.input.search.mtop[Search tasks]');
+  expect(summary?.[0]).toContain('active=input.input.search.mt-top[Search tasks]');
   expect(summary?.[0]).toContain('scope=div.card.app__list');
   expect(summary?.[0]).toContain('source=null');
   expect(summary?.[0]).toContain('windowY=48->48');

@@ -136,6 +136,7 @@
 
 /* ── Page ───────────────────────────────────────────────── */
 body {
+  /* Keep both: 100vh is the fallback, 100dvh follows dynamic mobile viewport height. */
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg);
@@ -271,7 +272,7 @@ select {
   .app__add .datetime-row__date--proxy:focus-visible + .datetime-row__date-display,
   .app__add .datetime-row__date--proxy.datetime-row__date--active + .datetime-row__date-display,
   .app__add .datetime-row__date-display--active {
-    border-width: 0px;
+    border-width: 0;
     border-color: transparent;
     background: var(--input-bg);
     color: var(--accent);
@@ -419,6 +420,7 @@ select {
     text-align-last: center;
   }
 
+  /* Intentional WebKit pseudo-element: centers Safari date input internals. */
   .item__edit-card:not(.mobile-edit-panel) .datetime-row__date::-webkit-datetime-edit {
     display: flex;
     width: 100%;
@@ -660,7 +662,7 @@ select {
   align-items: center;
 }
 
-.mtop  { margin-top: 1.25rem; }
+.mt-top { margin-top: 1.25rem; }
 
 .small {
   font-size: 0.82rem;
@@ -731,8 +733,8 @@ select {
   justify-content: flex-start;
 }
 
-.app__list .search.mtop,
-.task-overview.mtop {
+.app__list .search.mt-top,
+.task-overview.mt-top {
   margin-top: 0.55rem;
 }
 
@@ -2064,6 +2066,7 @@ input[type="datetime-local"] {
 }
 
 .item__tag-chip {
+  /* --tag-color is set per chip from React inline style at runtime. */
   background: color-mix(in srgb, var(--tag-color, var(--accent)) 12%, var(--surface));
   color: var(--text);
   font-size: 0.72rem;
@@ -2653,6 +2656,7 @@ input[type="datetime-local"] {
 }
 
 .selected-tag-chip {
+  /* --tag-color is set per selected chip from React inline style at runtime. */
   background: color-mix(in srgb, var(--tag-color, var(--accent)) 12%, var(--surface));
   color: var(--text);
   display: inline-flex;
@@ -3988,11 +3992,11 @@ input[type="datetime-local"] {
     padding: 0.28rem 0.68rem;
   }
 
-  .app__list .search.mtop {
+  .app__list .search.mt-top {
     margin-top: 0.58rem;
   }
 
-  .task-overview.mtop {
+  .task-overview.mt-top {
     margin-top: 0.4rem;
   }
 
