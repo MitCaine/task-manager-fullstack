@@ -2,7 +2,8 @@ import { type KeyboardEvent, type TouchEvent, useEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 import { handleProxyFocusAssistTouchStart } from '../../utils/mobileFocusAssist';
-import CatalogManagerItemRow, { CatalogManagerColorControl } from './CatalogManagerItemRow';
+import CatalogBulkCreateSection from './CatalogBulkCreateSection';
+import CatalogManagerItemRow from './CatalogManagerItemRow';
 
 type CatalogSection = 'projects' | 'tags';
 type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
@@ -396,30 +397,21 @@ export default function CatalogManagementModal({
           <button className={`btn catalog-manager__tab${section === 'tags' ? '' : ' btn--ghost'}`} onClick={() => changeSection('tags')}>Tags</button>
         </div>
 
-        <div className={`catalog-manager__create catalog-manager__create--${section}`}>
-          <textarea
-            id={`catalog-manager-create-${section}`}
-            className="input catalog-manager__create-input"
-            value={addText}
-            onChange={event => { setAddText(event.currentTarget.value); setAddSummary(''); }}
-            placeholder={addPlaceholder}
-            aria-label={addLabel}
-            rows={3}
-          />
-          <div className={`catalog-manager__create-actions catalog-manager__create-actions--${section}`}>
-            <button className="btn catalog-manager__create-button" onClick={createItems} disabled={!addText.trim()}>
-              {createLabel}
-            </button>
-            {section === 'tags' && (
-              <CatalogManagerColorControl
-                value={newTagColor}
-                onChange={setNewTagColor}
-                ariaLabel="New tag color"
-              />
-            )}
-          </div>
-        </div>
-        {addSummary && <div className="catalog-manager__create-summary" role="status">{addSummary}</div>}
+        <CatalogBulkCreateSection
+          section={section}
+          addText={addText}
+          addSummary={addSummary}
+          newTagColor={newTagColor}
+          addPlaceholder={addPlaceholder}
+          addLabel={addLabel}
+          createLabel={createLabel}
+          onAddTextChange={value => {
+            setAddText(value);
+            setAddSummary('');
+          }}
+          onNewTagColorChange={setNewTagColor}
+          onCreateItems={createItems}
+        />
 
         <input
           type="search"
