@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
 import { handleProxyFocusAssistTouchStart } from '../../utils/mobileFocusAssist';
 import CatalogBulkCreateSection from './CatalogBulkCreateSection';
-import CatalogManagerItemRow from './CatalogManagerItemRow';
+import CatalogManagerList from './CatalogManagerList';
 
 type CatalogSection = 'projects' | 'tags';
 type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
@@ -378,7 +378,6 @@ export default function CatalogManagementModal({
     setAddSummary(`Created ${created} ${sectionLabel}. ${formatDuplicateSummary(skipped, Array.from(duplicateNames.values()))} Failed ${failed}.`);
   };
 
-  const items = section === 'projects' ? visibleProjects : visibleTags;
   const addPlaceholder = section === 'projects'
     ? 'Add project names, one per line'
     : 'Add tag names, one per line';
@@ -475,70 +474,29 @@ export default function CatalogManagementModal({
           </div>
         )}
 
-        <div className="catalog-manager__body">
-          {items.length === 0 ? (
-            <p className="catalog-manager__empty">No {section} match your search.</p>
-          ) : (
-            <ul className="catalog-manager__list">
-              {section === 'projects'
-                ? visibleProjects.map(project => {
-                    const editing = editingID === project.projectID;
-                    const usageCount = projectUsage.get(project.projectID) ?? 0;
-                    return (
-                      <CatalogManagerItemRow
-                        key={project.projectID}
-                        kind="projects"
-                        title={project.title}
-                        usageCount={usageCount}
-                        selected={selectedProjectIDs.has(project.projectID)}
-                        editing={editing}
-                        editingTitle={editingTitle}
-                        editingColor={editingColor}
-                        onToggleSelection={() => toggleSelection(project.projectID)}
-                        onEditingTitleChange={setEditingTitle}
-                        onEditingColorChange={setEditingColor}
-                        onRenameTouchStart={handleCatalogRenameTouchStart}
-                        onSaveEdit={saveEdit}
-                        onCancelEdit={() => setEditingID(null)}
-                        onBeginEdit={() => beginEdit(project.projectID, project.title)}
-                        onRequestDelete={() => {
-                          setPendingBulkDelete(null);
-                          setPendingDelete({ kind: 'projects', id: project.projectID, title: project.title, usageCount });
-                        }}
-                      />
-                    );
-                  })
-                : visibleTags.map(tag => {
-                    const editing = editingID === tag.tagID;
-                    const usageCount = tagUsage.get(tag.tagID) ?? 0;
-                    return (
-                      <CatalogManagerItemRow
-                        key={tag.tagID}
-                        kind="tags"
-                        title={tag.title}
-                        usageCount={usageCount}
-                        selected={selectedTagIDs.has(tag.tagID)}
-                        editing={editing}
-                        color={tag.color}
-                        editingTitle={editingTitle}
-                        editingColor={editingColor}
-                        onToggleSelection={() => toggleSelection(tag.tagID)}
-                        onEditingTitleChange={setEditingTitle}
-                        onEditingColorChange={setEditingColor}
-                        onRenameTouchStart={handleCatalogRenameTouchStart}
-                        onSaveEdit={saveEdit}
-                        onCancelEdit={() => setEditingID(null)}
-                        onBeginEdit={() => beginEdit(tag.tagID, tag.title, tag.color ?? '#6366f1')}
-                        onRequestDelete={() => {
-                          setPendingBulkDelete(null);
-                          setPendingDelete({ kind: 'tags', id: tag.tagID, title: tag.title, usageCount });
-                        }}
-                      />
-                    );
-                  })}
-            </ul>
-          )}
-        </div>
+        <CatalogManagerList
+          section={section}
+          visibleProjects={visibleProjects}
+          visibleTags={visibleTags}
+          projectUsage={projectUsage}
+          tagUsage={tagUsage}
+          selectedProjectIDs={selectedProjectIDs}
+          selectedTagIDs={selectedTagIDs}
+          editingID={editingID}
+          editingTitle={editingTitle}
+          editingColor={editingColor}
+          onToggleSelection={toggleSelection}
+          onEditingTitleChange={setEditingTitle}
+          onEditingColorChange={setEditingColor}
+          onRenameTouchStart={handleCatalogRenameTouchStart}
+          onSaveEdit={saveEdit}
+          onCancelEdit={() => setEditingID(null)}
+          onBeginEdit={beginEdit}
+          onRequestDelete={request => {
+            setPendingBulkDelete(null);
+            setPendingDelete(request);
+          }}
+        />
 
         {pendingDelete && (
           <div className="catalog-manager__confirm" role="alert">
