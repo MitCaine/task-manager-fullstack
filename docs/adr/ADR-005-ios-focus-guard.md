@@ -26,6 +26,8 @@ is tracked.
 - `visualViewport` resize and scroll monitoring;
 - document-scroll detection and correction;
 - repeated asynchronous correction after edit entry and focus changes;
+- proxy-input focus assist for mobile edit and catalog rename fields that
+  trigger WKWebView geometry pulls before normal focus handling runs;
 - touchmove prevention outside the active field;
 - bounded textarea internal scrolling;
 - optional diagnostic logging.

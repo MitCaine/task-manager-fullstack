@@ -335,12 +335,13 @@ The final system required:
 - Repeated asynchronous scroll corrections
 - Touchmove prevention outside active fields
 - Bounded textarea scrolling
+- Proxy-input focus assist for mobile edit and catalog rename fields
 - Explicit text-focus scopes
 - Stable mobile editor placement
 - Debug logging
 - Extensive regression tests
 
-The final solution intentionally avoided broad shell transforms, general viewport-height manipulation, pre-focus blocking, and Capacitor Keyboard plugin ownership.
+The final solution intentionally avoided broad shell transforms, general viewport-height manipulation, and Capacitor Keyboard plugin ownership. The remaining pre-focus handling is deliberately narrow: mobile inline edit and catalog rename fields use a fixed-position proxy input first, then focus the real input with `preventScroll` after 250ms.
 
 ### Why
 

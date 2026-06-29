@@ -469,8 +469,9 @@ remain outside automated coverage.
 ## Mobile Focus Protection
 
 **Coverage summary:** Extensive direct `App.test.tsx` cases protect focus
-transitions across create, search, and edit fields; stale blur handling;
-sequence reuse; document and visual viewport correction; touchmove
+transitions across create, search, and edit fields; the proxy-input focus
+assist used by mobile inline edit and catalog rename fields; stale blur
+handling; sequence reuse; document and visual viewport correction; touchmove
 prevention; bounded textarea scrolling; debug gating; and swipe coexistence.
 
 **Files:** `taskmanager-frontend/src/App.test.tsx`.
@@ -479,8 +480,9 @@ prevention; bounded textarea scrolling; debug gating; and swipe coexistence.
 invariants have unusually detailed regression coverage.
 
 **Failure detection:** Likely catches stale blur disabling protection, missed
-scroll/viewport correction, duplicate scheduling, touch leakage, textarea
-overscroll, broken focus scopes, and interference with horizontal paging.
+scroll/viewport correction, missing proxy-input focus interception for known
+WKWebView pull paths, duplicate scheduling, touch leakage, textarea overscroll,
+broken focus scopes, and interference with horizontal paging.
 
 **Known coverage gaps:** jsdom cannot reproduce real iOS WKWebView keyboard,
 visual viewport, caret auto-scroll, or white-gap rendering failures. Device or

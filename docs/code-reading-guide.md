@@ -705,7 +705,8 @@ decision is recorded in [ADR-004](adr/ADR-004-mobile-edit-row.md).
 The global focus guard protects text entry in iOS/WKWebView by coordinating
 focus transitions, text-focus scopes, `visualViewport` monitoring,
 document-scroll correction, touch guards, bounded textarea scrolling, edit
-entry preparation, and focus restoration.
+entry preparation, the proxy-input focus assist for mobile inline edit/catalog
+rename fields, and focus restoration.
 
 ### Why It Exists
 
@@ -720,10 +721,13 @@ keyboard transitions. The centralized design is recorded in
 2. [ADR-005](adr/ADR-005-ios-focus-guard.md)
 3. `taskmanager-frontend/src/App.tsx`: text-focus refs, helpers, listeners,
    edit-entry preparation, keyboard handling, and focus restoration
-4. `taskmanager-frontend/src/App.tsx`: `data-text-focus-scope` placement
-5. `taskmanager-frontend/src/App.css`: root, app, pager, page, list, mobile
+4. `taskmanager-frontend/src/utils/mobileFocusAssist.ts`: the WKWebView
+   proxy-input focus assist. Do not replace it with scroll-reset timers,
+   `touch-action`, or overscroll CSS.
+5. `taskmanager-frontend/src/App.tsx`: `data-text-focus-scope` placement
+6. `taskmanager-frontend/src/App.css`: root, app, pager, page, list, mobile
    edit, and textarea scroll rules
-6. Focus, `visualViewport`, touchmove, textarea, swipe, and restoration cases
+7. Focus, `visualViewport`, touchmove, textarea, swipe, and restoration cases
    in `taskmanager-frontend/src/App.test.tsx`
 
 ### Key Concepts To Watch For

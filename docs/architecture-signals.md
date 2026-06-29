@@ -388,6 +388,8 @@ owners, and WKWebView behavior jointly preserve the current result.
 
 - A change is described as only CSS, only JSX placement, or only focus cleanup
   despite touching a protected invariant.
+- The proxy-input focus assist is removed because scroll-reset timers,
+  `touch-action`, or overscroll CSS appear to cover the same behavior.
 - Repeated viewport or scroll corrections are removed as apparently
   redundant.
 - Zero document scroll is treated as proof that the visual viewport is stable.

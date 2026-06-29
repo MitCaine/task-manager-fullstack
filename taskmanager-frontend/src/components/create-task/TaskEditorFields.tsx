@@ -1,4 +1,4 @@
-import type { KeyboardEventHandler, Ref } from 'react';
+import type { KeyboardEventHandler, Ref, TouchEventHandler } from 'react';
 import DateTimeRow from '../shared/DateTimeRow';
 import type { DateTimeRowProps } from '../shared/DateTimeRow';
 import RecurrenceControl from './RecurrenceControl';
@@ -11,6 +11,7 @@ export type TaskEditorFieldsProps = {
   titleClassName?: string;
   titleType?: 'text';
   onTitleKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  onTitleTouchStart?: TouchEventHandler<HTMLInputElement>;
   titleErrorMessage?: string | null;
   titleWarningMessage?: string | null;
   descriptionValue: string;
@@ -18,6 +19,7 @@ export type TaskEditorFieldsProps = {
   descriptionPlaceholder: string;
   descriptionRows: number;
   descriptionTitleStyleInput?: boolean;
+  onDescriptionTouchStart?: TouchEventHandler<HTMLInputElement>;
   dateTimeRowProps: DateTimeRowProps;
   recurrenceControlProps: RecurrenceControlProps;
   timeRangeError?: string | null;
@@ -30,6 +32,7 @@ export default function TaskEditorFields({
   titleClassName = 'input',
   titleType,
   onTitleKeyDown,
+  onTitleTouchStart,
   titleErrorMessage,
   titleWarningMessage,
   descriptionValue,
@@ -37,6 +40,7 @@ export default function TaskEditorFields({
   descriptionPlaceholder,
   descriptionRows,
   descriptionTitleStyleInput = false,
+  onDescriptionTouchStart,
   dateTimeRowProps,
   recurrenceControlProps,
   timeRangeError,
@@ -50,6 +54,7 @@ export default function TaskEditorFields({
         value={titleValue}
         onChange={e => onTitleChange(e.target.value)}
         onKeyDown={onTitleKeyDown}
+        onTouchStart={onTitleTouchStart}
         placeholder="Task title"
         aria-label="Task title"
       />
@@ -62,6 +67,7 @@ export default function TaskEditorFields({
             type="text"
             value={descriptionValue}
             onChange={e => onDescriptionChange(e.currentTarget.value)}
+            onTouchStart={onDescriptionTouchStart}
             placeholder={descriptionPlaceholder}
             aria-label="Task description"
             maxLength={1000}

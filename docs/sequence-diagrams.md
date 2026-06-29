@@ -673,6 +673,10 @@ sequenceDiagram
     App->>DOM: Render mobile editor through mobile-edit-row
     App->>DOM: Attach data-text-focus-scope
 
+    User->>DOM: Touch mobile edit text field
+    DOM->>Guard: Prevent native touch focus
+    Guard->>DOM: Focus fixed proxy input near safe viewport top
+    Guard->>DOM: After 250ms, focus real input with preventScroll
     User->>DOM: Focus mobile edit text field
     DOM->>Guard: focusin event
     Guard->>Guard: Track active field, scope, sequence, and keyboard text mode
@@ -700,8 +704,8 @@ sequenceDiagram
 - **Owners:** `App.tsx` owns mobile task-card behavior, `openPanel`, the shared
   edit draft, mobile edit placement, focus scopes, and the global focus guard.
   `useTaskDetailResources` owns loaded task-detail resources.
-- **Utilities:** `deriveTaskEditDraft`. Focus and viewport corrections are
-  specialized `App.tsx` platform helpers rather than pure utilities.
+- **Utilities:** `deriveTaskEditDraft` and `mobileFocusAssist`. App-owned
+  focus and viewport corrections remain post-focus platform helpers.
 - **Frontend API:** `getTask`, optional `getRecurrence`, `getSubtasks`,
   `getNotes`, `getReminders`, and `getAttachments`.
 - **Backend:** `TaskController` and task-detail resource
@@ -722,6 +726,7 @@ sequenceDiagram
 - `mobile edit panel keeps the edit text focus scope separate from the list card`
 - `mobile edit entry does not reposition the task list`
 - `mobile edit description renders title-style input by default`
+- `mobile edit text fields use proxy focus assist before native focus`
 - `mobile edit title and description focus do not report visual viewport drift in a stable viewport`
 - `visual viewport drift is detected after document scroll has been corrected`
 - `mobile text focus prevents touchmove outside the active text field by default`

@@ -168,6 +168,36 @@ Reset again after a short timeout
 The repeated corrections are intentional. WebKit may apply asynchronous
 viewport movement after the initiating event has completed.
 
+This edit-entry preparation is separate from the mobile edit proxy-input focus
+assist and from pager swipe suppression. The entry preparation stabilizes the
+editor transition; the proxy assist handles the later tap into a mobile edit
+text field; the pager guard briefly ignores page swipes during the edit
+transition.
+
+## Proxy-Input Focus Assist
+
+Some WKWebView focus pulls happen before the normal `focusin` path has a real
+active input to protect. For those cases, the app uses a narrow proxy-input
+focus assist.
+
+The assist intercepts touch focus on mobile/coarse-pointer text inputs,
+prevents the native touch focus, creates a temporary fixed-position proxy input
+near the safe top of the viewport, focuses that proxy with `preventScroll`,
+then focuses the real input with `preventScroll` after a 250ms delay and
+removes the proxy.
+
+The real input stays mounted in its original layout. It is not moved,
+absolutely positioned, hidden, or replaced.
+
+Current users of this helper:
+
+- Project/Tag Management rename fields.
+- Mobile inline edit title and description inputs inside `.mobile-edit-panel`.
+
+Create-task fields and desktop inline edit fields do not use the proxy assist.
+They continue to rely on edit-entry preparation, the global text-focus guard,
+and normal scroll ownership.
+
 ## Focus Transition Tracking
 
 The text-focus guard tracks whether the application is currently in keyboard
@@ -247,6 +277,11 @@ While keyboard text-entry mode is active:
 This preserves valid internal textarea scrolling without allowing the gesture
 to drag the visual viewport.
 
+The touchmove guard runs after text focus exists. It is not a replacement for
+the proxy-input focus assist, which handles the initial tap before `focusin`,
+and it is not the pager swipe suppression used immediately after entering edit
+mode.
+
 ## Keyboard Behavior
 
 Global keyboard behavior is owned by `App.tsx`.
@@ -301,14 +336,16 @@ by default.
 ## Catalog Rename Focus Assist
 
 Project and tag renaming inside the Catalog Management modal has one
-additional iOS/WKWebView-specific focus assist. This applies only to the
-Project/Tag Management rename textboxes, not to create-task fields, task edit
-fields, search fields, create textareas, or general modal controls.
+additional iOS/WKWebView-specific focus assist. The same shared helper is also
+used by mobile inline edit title and description fields. It does not apply to
+create-task fields, desktop task edit fields, search fields, create textareas,
+or general modal controls.
 
 The completed mobile catalog-management surface also includes compact search,
 sort/filter controls, usage counts, bulk creation, row selection, and single or
 bulk delete confirmations. Those behaviors are modal/catalog interactions; the
-focus assist remains scoped to the rename textbox path only.
+focus assist remains scoped to catalog rename textboxes and the mobile inline
+edit text fields that reproduce the same WKWebView pre-focus pull.
 
 ### Symptom
 
@@ -350,8 +387,8 @@ specific path:
 
 ### Actual Fix
 
-`CatalogManagementModal.tsx` intercepts touch focus for catalog rename inputs
-on mobile/coarse-pointer devices only. The handler:
+The shared proxy-input focus assist intercepts touch focus for catalog rename
+inputs on mobile/coarse-pointer devices only. The handler:
 
 1. prevents the default touch focus;
 2. stops propagation so the same touch sequence cannot fall through to nearby
@@ -367,7 +404,9 @@ earlier production attempt temporarily moved the real input itself; that avoided
 the viewport pull, but it also let the adjacent Tag Color control occupy the row
 and receive the later tap/click target. The proxy-input approach satisfies
 WKWebView's focus geometry without creating a layout vacancy in the edit row.
-The global `visualViewport` logic is not changed.
+Mobile inline edit title and description fields now use the same shared helper
+for the same pre-focus geometry problem. The global `visualViewport` logic is
+not changed.
 
 ### Future Reuse Rule
 

@@ -1182,7 +1182,10 @@ after focus or keyboard movement.
 WKWebView can leave the visible viewport offset while document scroll is
 already zero. The guard would stop detecting that failure state, allowing
 shifted content and white gaps after keyboard interaction. Scroll evidence
-would incorrectly report a stable application shell.
+would incorrectly report a stable application shell. For mobile inline edit
+and catalog rename fields, direct native focus can also pull the page before
+post-focus cleanup runs; the shared proxy-input assist is the confirmed
+pre-focus fix for that path.
 
 ## Affected State Categories
 
@@ -1200,6 +1203,8 @@ would incorrectly report a stable application shell.
 ## Affected Tests
 
 - `visual viewport drift is detected after document scroll has been corrected`
+- `mobile edit text fields use proxy focus assist before native focus`
+- `catalog rename touch focus uses a proxy input and leaves the real input in the row`
 - `text focus correction summary emits scalar scroll and viewport evidence behind debug flag`
 - Mobile text-focus correction cases in `taskmanager-frontend/src/App.test.tsx`
 

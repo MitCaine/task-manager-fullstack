@@ -2,6 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { Project, Tag, Task } from '../../types/task';
 import type { Ampm } from '../../utils/taskForm';
 import type { RepeatValue } from '../../utils/taskRecurrence';
+import { handleProxyFocusAssistTouchStart } from '../../utils/mobileFocusAssist';
 import TaskEditorFields from '../create-task/TaskEditorFields';
 import { SelectedTagChips } from '../create-task/TagProjectChips';
 import InlineProjectForm from '../forms/InlineProjectForm';
@@ -207,6 +208,12 @@ export default function InlineTaskEditCard({
         descriptionPlaceholder="Description"
         descriptionRows={2}
         descriptionTitleStyleInput={variant === 'mobile'}
+        // Mobile inline edit text focus uses the same WKWebView proxy-input
+        // assist as catalog rename. The proxy gets focus from a safe fixed
+        // viewport position first; direct focus on the real input can pull the
+        // mobile card/page, and CSS/timer-only fixes were insufficient.
+        onTitleTouchStart={variant === 'mobile' ? handleProxyFocusAssistTouchStart : undefined}
+        onDescriptionTouchStart={variant === 'mobile' ? handleProxyFocusAssistTouchStart : undefined}
         dateTimeRowProps={{
           editorScope: scopeId,
           openTimeEditorScope,

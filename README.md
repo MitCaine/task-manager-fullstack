@@ -347,18 +347,18 @@ Inline task editing needed special handling because editing inside the task list
 
 Mobile/coarse-pointer edit descriptions intentionally use the title-style `input.input` control. Create-task descriptions and desktop edit descriptions remain `textarea.input.controls__description`, where bounded textarea touch handling preserves internal scrolling without leaking overscroll into the visual viewport.
 
-The final production fix avoids Capacitor Keyboard plugin hooks, shell transforms, broad viewport-height calculations, and pre-focus blocking. It relies on focused-field touchmove prevention, bounded textarea overscroll prevention, stable focus transition tracking, and the mobile edit panel structure. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
+The production fix avoids Capacitor Keyboard plugin hooks, shell transforms, and broad viewport-height calculations. It relies on stable focus transition tracking, focused-field touchmove prevention, bounded textarea overscroll prevention, the mobile edit panel structure, and a narrow proxy-input focus assist for WKWebView fields that pull before normal focus handling can run. Mobile inline edit title/description fields and Project/Tag Management rename fields use that shared proxy assist: touch focus is intercepted, a temporary fixed-position proxy input near the safe top of the viewport is focused with `preventScroll`, then the real input is focused with `preventScroll` after 250ms while staying in its original layout. Pager swipe suppression remains a separate transition guard. The behavior is covered by `App.test.tsx` and verified with `npm test -- App.test.tsx --watchAll=false --silent` plus `npm run ios:sync`.
 
-The Project/Tag Management rename fields also use a narrow iOS focus-assist shim for the case where WKWebView visually pulls low modal text fields above the keyboard even though DOM scroll and visual viewport metrics remain stable. Details and reuse rules are documented in `docs/mobile-focus-system.md`.
+The Project/Tag Management rename fields and mobile inline edit title/description fields share the same proxy-input focus assist for cases where WKWebView visually pulls low text fields above the keyboard even though DOM scroll and visual viewport metrics remain stable. Details and reuse rules are documented in `docs/mobile-focus-system.md`.
 
 ## Recent Improvements
 
 - Added Project/Tag Management search, usage counts, sort/filter controls, bulk creation from newline-separated names, single and bulk deletion confirmations, and mode-exclusive editing/creating/selection/delete flows.
 - Polished mobile Project/Tag Management layout and rename focus behavior so catalog management remains usable on iPhone-sized WKWebView screens.
 - Upgraded recurrence documentation and UI behavior around value-plus-unit intervals, constrained unit ranges, formatted labels such as "Every 2 weeks", and task-card repeat tooltips/popovers.
-- Added a scoped iOS WKWebView focus assist for Project/Tag Management rename fields and documented the diagnostic evidence in `docs/mobile-focus-system.md`.
+- Added a shared iOS WKWebView proxy-input focus assist for Project/Tag Management rename fields and mobile inline edit title/description fields, with diagnostic evidence in `docs/mobile-focus-system.md`.
 - Extracted bounded presentation components while keeping task state, focus, and mobile ownership in `App.tsx`; legacy detail-panel resource UI has been removed from the active frontend.
-- Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
+- Stabilized iOS WKWebView text focus by moving mobile edit into a stable panel, using the proxy-input focus assist for mobile edit text fields, preventing focused-field viewport dragging, bounding textarea overscroll, and using a title-style input for mobile edit descriptions.
 - Fixed mobile edit Repeat-to-Project spacing without changing the iOS WKWebView focus-stability architecture.
 - Improved desktop/browser task-card alignment by moving task cards toward explicit checkbox, content, and actions columns instead of relying on action-button overlap compensation.
 - Extracted shared frontend date/time utilities for local `LocalDateTime` input values, snooze handling, overdue checks, and recurrence next-occurrence calculations.

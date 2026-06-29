@@ -149,6 +149,7 @@ because snoozing crosses the persisted reminder and transient toast domains.
 - outside-click coordination;
 - edit-entry viewport preparation;
 - iOS text-focus guard;
+- proxy-input focus assist for mobile inline edit and catalog rename fields;
 - visual viewport drift detection and correction.
 
 Focus behavior depends on application-wide overlay state and DOM placement. It

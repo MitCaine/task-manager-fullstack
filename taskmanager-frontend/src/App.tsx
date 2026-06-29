@@ -3,9 +3,9 @@ import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
 import {
-  getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
+  getTasks, getTask, createTask, deleteTask, patchTaskStatus,
   patchReminderDate,
-  addTagToTask, removeTagFromTask,
+  addTagToTask,
   getRecurrence, setRepeat,
 } from './api/tasks';
 import {
@@ -14,17 +14,12 @@ import {
 } from './utils/dateTime';
 import { normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode } from './utils/taskForm';
-import type { Ampm } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
-import { deriveTaskEditDraft } from './utils/taskEditDraft';
 import {
   buildRecurringTaskSchedule,
   formatRecurrenceInterval,
   normalizeRecurrenceRule,
-  recurrenceIntervalKey,
 } from './utils/taskRecurrence';
-import type { RepeatValue } from './utils/taskRecurrence';
-import { buildValidatedTaskSchedule, getDefaultEndTime } from './utils/taskScheduling';
 import {
   formatCreateDateDisplayLabel,
   formatTaskDateRange,
@@ -49,6 +44,7 @@ import useBulkSelection from './hooks/useBulkSelection';
 import useFloatingControlCoordinator from './hooks/useFloatingControlCoordinator';
 import useModalFocusReturn from './hooks/useModalFocusReturn';
 import useCreateTaskWorkflow from './hooks/useCreateTaskWorkflow';
+import useInlineEditWorkflow from './hooks/useInlineEditWorkflow';
 
 declare global {
   interface Window {
@@ -149,24 +145,6 @@ function App() {
   const [sortBy, setSortBy] = useState<SortBy>('dueAsc');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
 
-  // Draft values for the selected task editor.
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [editHour, setEditHour] = useState('12');
-  const [editMinute, setEditMinute] = useState('00');
-  const [editAmpm, setEditAmpm] = useState<Ampm>('AM');
-  const [editShowTime, setEditShowTime] = useState(false);
-  const [editShowEndTime, setEditShowEndTime] = useState(false);
-  const [editEndHour, setEditEndHour] = useState('12');
-  const [editEndMinute, setEditEndMinute] = useState('00');
-  const [editEndAmpm, setEditEndAmpm] = useState<Ampm>('AM');
-  const [editPriority, setEditPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | ''>('');
-  const [editTaskTagIDs, setEditTaskTagIDs] = useState<number[]>([]);
-  const [showInlineEditProject, setShowInlineEditProject] = useState(false);
-  const [showInlineEditTag, setShowInlineEditTag] = useState(false);
-
   // Delete confirmation is tracked by task ID.
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
@@ -242,16 +220,13 @@ function App() {
   const [mobileEditLayout, setMobileEditLayout] = useState(() => mediaQueryMatches('(max-width: 720px), (pointer: coarse)'));
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
+  const ignoreInlineEditPullActions = useRef(false);
+  const ignoreInlineEditPullTimer = useRef<number | null>(null);
   const taskLongPressTimer = useRef<number | null>(null);
   const taskLongPressTriggered = useRef(false);
   const previousIs24HourRef = useRef(is24Hour);
 
-  // Repeat editor keeps the persisted value so autosave can detect changes.
-  const [editRepeat, setEditRepeat] = useState<RepeatValue>(null);
-  const [originalRepeatKey, setOriginalRepeatKey] = useState('');
-
   // Project lists and selectors shared by create and edit flows.
-  const [editProjectID, setEditProjectID] = useState<number | ''>('');
   const [filterProjectID, setFilterProjectID] = useState<number | ''>('');
 
   // Tag lists, filters, and inline color editing state.
@@ -348,6 +323,66 @@ function App() {
     createProjectFromDraft,
     createTagFromDraft,
   });
+  const {
+    draft: {
+      editingId,
+      setEditingId,
+      editTitle,
+      setEditTitle,
+      editDescription,
+      setEditDescription,
+      editDate,
+      setEditDate,
+      editHour,
+      setEditHour,
+      editMinute,
+      setEditMinute,
+      editAmpm,
+      setEditAmpm,
+      editShowTime,
+      setEditShowTime,
+      editShowEndTime,
+      setEditShowEndTime,
+      editEndHour,
+      setEditEndHour,
+      editEndMinute,
+      setEditEndMinute,
+      editEndAmpm,
+      setEditEndAmpm,
+      editPriority,
+      setEditPriority,
+      editTaskTagIDs,
+      setEditTaskTagIDs,
+      editProjectID,
+      setEditProjectID,
+      editRepeat,
+      setEditRepeat,
+      showInlineEditProject,
+      setShowInlineEditProject,
+      showInlineEditTag,
+      setShowInlineEditTag,
+    },
+    derived: {
+      currentEditTimeRangeError,
+    },
+    actions: {
+      startEdit,
+      saveEdit,
+      cancelEdit,
+      toggleEditEndTime,
+      addProjectInlineEdit,
+      addTagInlineEdit,
+    },
+  } = useInlineEditWorkflow({
+    is24Hour,
+    tags,
+    setTasks,
+    setError,
+    createProjectFromDraft,
+    createTagFromDraft,
+    setInlineEditOpenControl,
+    selectedTaskId,
+  });
 
   // Element refs used for shortcuts, dropdown positioning, and focus return.
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -379,6 +414,12 @@ function App() {
 
   const prepareInlineEditViewport = () => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    ignoreInlineEditPullActions.current = true;
+    if (ignoreInlineEditPullTimer.current !== null) window.clearTimeout(ignoreInlineEditPullTimer.current);
+    ignoreInlineEditPullTimer.current = window.setTimeout(() => {
+      ignoreInlineEditPullActions.current = false;
+      ignoreInlineEditPullTimer.current = null;
+    }, 250);
     resetDocumentViewportScroll();
     document.dispatchEvent(new CustomEvent('task-manager:edit-entry-reset'));
     window.requestAnimationFrame(() => resetDocumentViewportScroll());
@@ -405,6 +446,10 @@ function App() {
     }
     query.addListener(update);
     return () => query.removeListener(update);
+  }, []);
+
+  useEffect(() => () => {
+    if (ignoreInlineEditPullTimer.current !== null) window.clearTimeout(ignoreInlineEditPullTimer.current);
   }, []);
 
   useEffect(() => {
@@ -805,6 +850,9 @@ function App() {
       transition?: { transitionId: number; from: string; scopeFrom: string },
       source = 'null',
     ) => {
+      // Post-focus cleanup only. The confirmed iOS pre-focus pull fix for
+      // mobile inline edit/catalog rename is the proxy-input focus assist, not
+      // this burst or touch-action/overscroll CSS.
       const changedValues = resetTextFocusScroll(reason, source);
       window.requestAnimationFrame(() => resetTextFocusScroll(`${reason}:raf`, source));
       [40, 120, 300].forEach(delay => {
@@ -1219,19 +1267,6 @@ function App() {
 
   const createDateDisplayLabel = formatCreateDateDisplayLabel(date, locale, is24Hour);
 
-  const { rangeError: currentEditTimeRangeError } = buildValidatedTaskSchedule({
-    date: editDate,
-    showTime: editShowTime,
-    hour: editHour,
-    minute: editMinute,
-    ampm: editAmpm,
-    showEndTime: editShowEndTime,
-    endHour: editEndHour,
-    endMinute: editEndMinute,
-    endAmpm: editEndAmpm,
-    is24Hour,
-  });
-
   const toggleStatsPanel = () => {
     const next = !showStats;
     if (next) rememberStatsFocus();
@@ -1395,48 +1430,6 @@ function App() {
     setConfirmDeleteId(taskId);
   };
 
-  const startEdit = async (task: Task) => {
-    const draft = deriveTaskEditDraft(task, is24Hour);
-    setEditingId(task.taskID);
-    setEditTitle(draft.title);
-    setEditDescription(draft.description);
-    setEditPriority(draft.priority);
-    setEditProjectID(draft.projectID);
-    setEditShowTime(draft.showTime);
-    setEditDate(draft.date);
-    setEditHour(draft.hour);
-    setEditMinute(draft.minute);
-    setEditAmpm(draft.ampm);
-    setEditShowEndTime(draft.showEndTime);
-    setEditEndHour(draft.endHour);
-    setEditEndMinute(draft.endMinute);
-    setEditEndAmpm(draft.endAmpm);
-    setShowInlineEditProject(false);
-    setShowInlineEditTag(false);
-    setInlineEditOpenControl(null);
-    // Reload the task so edit mode starts with the backend's tag ordering.
-    try {
-      const fresh = await getTask(task.taskID);
-      setEditTaskTagIDs((fresh.tags ?? []).map(t => t.tagID));
-      setTasks(prev => prev.map(t => t.taskID === fresh.taskID ? { ...t, tags: fresh.tags } : t));
-    } catch {
-      setEditTaskTagIDs((task.tags ?? []).map(t => t.tagID));
-    }
-    // The task only stores a rule ID, so load the rule before editing repeat.
-    if (!task.recurrenceRuleID) {
-      setEditRepeat(null); setOriginalRepeatKey('');
-    } else {
-      getRecurrence(task.taskID)
-        .then(rule => {
-          const repeat = normalizeRecurrenceRule(rule);
-          setEditRepeat(repeat); setOriginalRepeatKey(recurrenceIntervalKey(repeat));
-        })
-        .catch(() => { setEditRepeat(null); setOriginalRepeatKey(''); });
-    }
-  };
-
-  const cancelEdit = () => setEditingId(null);
-
   const focusTaskById = (taskId: number) => {
     // Reset list controls before jumping to the opened task.
     setSearch('');
@@ -1451,67 +1444,6 @@ function App() {
       el.classList.add('item--highlight');
       window.setTimeout(() => el.classList.remove('item--highlight'), 1200);
     }, 50);
-  };
-
-  const toggleEditEndTime = () => {
-    if (editShowEndTime) { setEditShowEndTime(false); return; }
-    const nextEnd = getDefaultEndTime({ hour: editHour, minute: editMinute, ampm: editAmpm, is24Hour });
-    setEditEndHour(nextEnd.endHour);
-    setEditEndMinute(nextEnd.endMinute);
-    setEditEndAmpm(nextEnd.endAmpm);
-    setEditShowEndTime(true);
-  };
-
-  const saveEdit = async (task: Task) => {
-    const { dateTimeScheduled, endDateTimeScheduled, rangeError } = buildValidatedTaskSchedule({
-      date: editDate,
-      showTime: editShowTime,
-      hour: editHour,
-      minute: editMinute,
-      ampm: editAmpm,
-      showEndTime: editShowEndTime,
-      endHour: editEndHour,
-      endMinute: editEndMinute,
-      endAmpm: editEndAmpm,
-      is24Hour,
-    });
-    if (rangeError) {
-      return;
-    }
-    try {
-      const saved = await updateTask(task.taskID, {
-        title: editTitle.trim() || task.title,
-        description: editDescription.trim(),
-        dateTimeScheduled,
-        endDateTimeScheduled,
-        userID: task.userID,
-        statusID: task.statusID,
-        priority: editPriority || null,
-        projectID: editProjectID !== '' ? editProjectID : null,
-      });
-      // Reconcile tag assignments after the base task save succeeds.
-      const currentTagIDs = (task.tags ?? []).map(t => t.tagID);
-      const toAdd = editTaskTagIDs.filter(id => !currentTagIDs.includes(id));
-      const toRemove = currentTagIDs.filter(id => !editTaskTagIDs.includes(id));
-      await Promise.all([
-        ...toAdd.map(tagId => addTagToTask(task.taskID, tagId)),
-        ...toRemove.map(tagId => removeTagFromTask(task.taskID, tagId)),
-      ]);
-      const tagObjects = tags.filter(t => editTaskTagIDs.includes(t.tagID));
-      setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...saved, tags: tagObjects } : t));
-      if (selectedTaskId === null) setEditingId(null);
-      // Save repeat changes separately because recurrence is managed by its own endpoint.
-      if (recurrenceIntervalKey(editRepeat) !== originalRepeatKey) {
-        try {
-          await setRepeat(task.taskID, editRepeat);
-          setOriginalRepeatKey(recurrenceIntervalKey(editRepeat));
-          const freshTask = await getTask(task.taskID);
-          setTasks(prev => prev.map(t => t.taskID === task.taskID ? { ...t, recurrenceRuleID: freshTask.recurrenceRuleID } : t));
-        } catch { /* non-critical */ }
-      }
-    } catch {
-      setError('Failed to update task.');
-    }
   };
 
   const removeTask = async (id: number) => {
@@ -1588,21 +1520,6 @@ function App() {
     });
     return counts;
   }, [tasks]);
-
-  // Tag color changes, deletion, and task assignment handlers.
-  const addProjectInlineEdit = async () => {
-    const saved = await createProjectFromDraft();
-    if (!saved) return;
-    setEditProjectID(saved.projectID);
-    setShowInlineEditProject(false);
-  };
-
-  const addTagInlineEdit = async () => {
-    const saved = await createTagFromDraft();
-    if (!saved) return;
-    setEditTaskTagIDs(prev => [...prev, saved.tagID]);
-    setShowInlineEditTag(false);
-  };
 
   // Task duplication preserves metadata that belongs to the task itself.
   const duplicateTask = async (task: Task) => {
@@ -1699,7 +1616,7 @@ function App() {
   const goMobilePage = (page: MobilePage) => setMobilePage(page);
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (shouldIgnoreSwipeStart(event.target)) {
+    if (ignoreInlineEditPullActions.current || shouldIgnoreSwipeStart(event.target)) {
       swipeStartX.current = null;
       swipeStartY.current = null;
       return;

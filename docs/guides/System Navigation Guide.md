@@ -1607,6 +1607,9 @@ Prevent WKWebView text-entry interactions from shifting the document or leaving 
 **Entry points**
 
 - Automatically active during create, search, inline edit, mobile edit, and detail text focus
+- Mobile inline edit title/description and catalog rename fields additionally
+  use the shared proxy-input focus assist before native focus on mobile/coarse
+  pointer devices
 
 **Components**
 
@@ -1614,6 +1617,7 @@ Prevent WKWebView text-entry interactions from shifting the document or leaving 
 - Mobile edit panel
 - Create-task card
 - Detail editor
+- Catalog management rename rows
 
 **Hooks**
 
@@ -1622,6 +1626,8 @@ Prevent WKWebView text-entry interactions from shifting the document or leaving 
 **Utilities**
 
 - Focus and viewport helpers local to `App.tsx`
+- `mobileFocusAssist.ts` for the WKWebView proxy-input focus assist. Do not
+  replace it with only scroll-reset timers, `touch-action`, or overscroll CSS.
 
 **API endpoints**
 
@@ -1633,7 +1639,7 @@ Prevent WKWebView text-entry interactions from shifting the document or leaving 
 
 **Tests**
 
-- `App.test.tsx`: document-scroll reset, repeated focus transitions, stale blur handling, visual viewport drift, touchmove prevention, textarea bounded scrolling, debug logging, and edit-entry reset
+- `App.test.tsx`: document-scroll reset, repeated focus transitions, stale blur handling, visual viewport drift, proxy-input focus assist, touchmove prevention, textarea bounded scrolling, debug logging, and edit-entry reset
 - Architecture reference: [mobile-focus-system.md](/Users/mipoo/task-manager-fullstack/docs/mobile-focus-system.md)
 
 ---

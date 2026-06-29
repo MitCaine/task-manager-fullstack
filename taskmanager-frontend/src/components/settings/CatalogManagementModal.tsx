@@ -1,6 +1,7 @@
 import { type KeyboardEvent, type TouchEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project, Tag } from '../../types/task';
+import { handleProxyFocusAssistTouchStart } from '../../utils/mobileFocusAssist';
 
 type CatalogSection = 'projects' | 'tags';
 type CatalogSortMode = 'name-asc' | 'usage-desc' | 'usage-asc';
@@ -25,45 +26,6 @@ const formatSelectedNames = (names: string[]) => {
   const remaining = names.length - visibleNames.length;
   return `${visibleNames.join(', ')}${remaining > 0 ? `, +${remaining} more` : ''}`;
 };
-const shouldUseCatalogRenameFocusAssist = () => (
-  typeof window !== 'undefined'
-  && typeof window.matchMedia === 'function'
-  && Boolean(window.matchMedia('(max-width: 720px), (pointer: coarse)')?.matches)
-);
-const focusCatalogRenameWithoutViewportPull = (input: HTMLInputElement) => {
-  const rect = input.getBoundingClientRect();
-  const safeWidth = rect.width > 0 ? `${rect.width}px` : 'calc(100vw - 96px)';
-  const safeHeight = rect.height > 0 ? `${rect.height}px` : '2rem';
-  const proxy = document.createElement('input');
-  proxy.type = 'text';
-  proxy.setAttribute('aria-hidden', 'true');
-  proxy.tabIndex = -1;
-  proxy.style.setProperty('position', 'fixed', 'important');
-  proxy.style.setProperty('top', '204px', 'important');
-  proxy.style.setProperty('left', '48px', 'important');
-  proxy.style.setProperty('width', safeWidth, 'important');
-  proxy.style.setProperty('height', safeHeight, 'important');
-  proxy.style.setProperty('opacity', '0.01', 'important');
-  proxy.style.setProperty('z-index', '99999', 'important');
-  proxy.style.setProperty('pointer-events', 'none', 'important');
-  document.body.appendChild(proxy);
-
-  try {
-    proxy.focus({ preventScroll: true });
-  } catch {
-    proxy.focus();
-  }
-
-  window.setTimeout(() => {
-    try {
-      input.focus({ preventScroll: true });
-    } catch {
-      input.focus();
-    }
-    proxy.remove();
-  }, 250);
-};
-
 const sortOptions: CatalogDropdownOption<CatalogSortMode>[] = [
   { value: 'name-asc', label: 'Name A-Z' },
   { value: 'usage-desc', label: 'Usage High-Low' },
@@ -364,11 +326,10 @@ export default function CatalogManagementModal({
   };
 
   const handleCatalogRenameTouchStart = (event: TouchEvent<HTMLInputElement>) => {
-    if (!shouldUseCatalogRenameFocusAssist()) return;
-    if (event.currentTarget !== event.target) return;
-    event.preventDefault();
-    event.stopPropagation();
-    focusCatalogRenameWithoutViewportPull(event.currentTarget);
+    // Catalog rename fields share the iOS/WKWebView proxy-input focus assist
+    // with mobile inline edit. Do not replace this with scroll reset timers or
+    // touch-action/overscroll CSS; direct focus can pull the modal/page.
+    handleProxyFocusAssistTouchStart(event);
   };
 
   const confirmBulkDelete = async () => {

@@ -2623,6 +2623,107 @@ test('inline edit entry does not prevent outside touchmove before the edit field
   }
 });
 
+test('mobile edit text fields use proxy focus assist before native focus', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  jest.useFakeTimers();
+  const editPanel = await openMobileEditPanel();
+
+  try {
+    const titleInput = within(editPanel).getByLabelText(/^task title$/i) as HTMLInputElement;
+    jest.spyOn(titleInput, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 498,
+      top: 498,
+      bottom: 530,
+      left: 0,
+      right: 180,
+      width: 180,
+      height: 32,
+      toJSON: () => ({}),
+    });
+    const focus = jest.spyOn(titleInput, 'focus');
+    const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
+    const stopPropagation = jest.spyOn(Event.prototype, 'stopPropagation');
+    const bodyChildrenBeforeTouch = document.body.children.length;
+
+    await act(async () => {
+      fireEvent.touchStart(titleInput);
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopPropagation).toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.body.children.length).toBe(bodyChildrenBeforeTouch + 1);
+    const proxy = document.body.lastElementChild;
+    expect(proxy).toBeInstanceOf(HTMLInputElement);
+    expect(proxy).not.toBe(titleInput);
+    expect(proxy).toHaveAttribute('aria-hidden', 'true');
+    expect(proxy).toHaveStyle({ position: 'fixed', top: '204px', left: '48px', width: '180px', height: '32px', opacity: '0.01', zIndex: '99999', pointerEvents: 'none' });
+
+    act(() => {
+      jest.advanceTimersByTime(250);
+    });
+
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.body.children.length).toBe(bodyChildrenBeforeTouch);
+    focus.mockRestore();
+    preventDefault.mockRestore();
+    stopPropagation.mockRestore();
+  } finally {
+    jest.useRealTimers();
+    restoreTouchEnvironment();
+  }
+});
+
+test('create task title does not use mobile edit proxy focus assist', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+
+  try {
+    const titleInput = getCreateTitleInput();
+    const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
+    const stopPropagation = jest.spyOn(Event.prototype, 'stopPropagation');
+    const bodyChildrenBeforeTouch = document.body.children.length;
+
+    await act(async () => {
+      fireEvent.touchStart(titleInput);
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(stopPropagation).not.toHaveBeenCalled();
+    expect(document.body.children.length).toBe(bodyChildrenBeforeTouch);
+    preventDefault.mockRestore();
+    stopPropagation.mockRestore();
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
+test('mobile edit entry temporarily ignores pager swipes during the transition window', async () => {
+  const restoreTouchEnvironment = mockMobileTouchEnvironment();
+  await openMobileEditPanel();
+
+  try {
+    expectMobilePage('Tasks');
+    await act(async () => {
+      swipeOn(mobilePager(), 320, 120);
+    });
+    expectMobilePage('Tasks');
+
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 280));
+    });
+
+    await act(async () => {
+      swipeOn(mobilePager(), 320, 120);
+    });
+    expectMobilePage('Calendar');
+  } finally {
+    restoreTouchEnvironment();
+  }
+});
+
 test('mobile edit renders in a stable panel outside the task list item flow', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const editPanel = await openMobileEditPanel();
@@ -4886,6 +4987,8 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const controlRule = css.match(/\.catalog-manager__control\s*\{[^}]*\}/)?.[0] ?? '';
   const controlSelectRule = css.match(/\.catalog-manager__control-select\s*\{[^}]*\}/)?.[0] ?? '';
   const controlTriggerRule = css.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
+  const sortControlTriggerRule = css.match(/\.catalog-manager__control-trigger--sort\s*\{[^}]*\}/)?.[0] ?? '';
+  const filterControlTriggerRule = css.match(/\.catalog-manager__control-trigger--filter\s*\{[^}]*\}/)?.[0] ?? '';
   const controlDropdownRule = css.match(/\.catalog-manager__control-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
   const controlCheckRule = css.match(/\.catalog-manager__control-check\s*\{[^}]*\}/)?.[0] ?? '';
   const controlLabelRule = css.match(/\.catalog-manager__control-label\s*\{[^}]*\}/)?.[0] ?? '';
@@ -4945,9 +5048,13 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(listControlsRule).toContain('display: flex');
   expect(listControlsRule).toContain('flex-wrap: wrap');
   expect(controlRule).toContain('display: inline-flex');
-  expect(controlSelectRule).toContain('min-width: 8.5rem');
-  expect(controlTriggerRule).toContain('min-width: 8.5rem');
-  expect(controlDropdownRule).toContain('min-width: 8.5rem');
+  expect(controlSelectRule).toContain('position: relative');
+  expect(controlSelectRule).toContain('min-width: 0');
+  expect(controlTriggerRule).toContain('width: auto');
+  expect(sortControlTriggerRule).toContain('width: 8.2rem');
+  expect(filterControlTriggerRule).toContain('width: 6.5rem');
+  expect(controlDropdownRule).toContain('width: max-content');
+  expect(controlDropdownRule).toContain('min-width: 100%');
   expect(controlCheckRule).toContain('flex: 0 0 0.75rem');
   expect(controlLabelRule).toContain('white-space: nowrap');
   expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
