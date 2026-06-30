@@ -1310,13 +1310,17 @@ input[type="datetime-local"] {
 
 .item__title-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.4rem;
 }
 
 .item__status-row {
-  display: contents;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .item__title {
@@ -3570,7 +3574,7 @@ input[type="datetime-local"] {
   flex-shrink: 0;
 }
 
-/* ── Long-press status move ─────────────────────────────── */
+/* ── Press status move ─────────────────────────────── */
 .status-move {
   position: fixed;
   inset: 0;
@@ -3582,6 +3586,19 @@ input[type="datetime-local"] {
   background: rgba(0, 0, 0, 0.28);
 }
 
+.status-move-item {
+  list-style: none;
+}
+
+.status-move--inline {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  padding: 0;
+  background: transparent;
+}
+
 .status-move__panel {
   width: min(100%, 420px);
   border: 1px solid var(--border);
@@ -3589,6 +3606,24 @@ input[type="datetime-local"] {
   background: var(--card-bg);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
   padding: 0.85rem;
+}
+.status-move__panel--inline {
+  --status-move-action-width: calc(9.25ch + 0.75rem);
+  display: grid;
+  grid-template-areas:
+        "label close"
+        "actions actions";
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.55rem;
+  width: fit-content;
+  max-width: 100%;
+  justify-content: start;
+  justify-self: start;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+  padding: 0.4rem;
 }
 
 .status-move__header {
@@ -3612,6 +3647,13 @@ input[type="datetime-local"] {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  grid-area: label;
+}
+
+.status-move__panel--inline .status-move__eyebrow {
+  grid-area: label;
+  margin: 0;
+  align-self: center;
 }
 
 .status-move__title {
@@ -3624,14 +3666,77 @@ input[type="datetime-local"] {
 }
 
 .status-move__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  grid-area: actions;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.status-move__panel--inline .status-move__actions {
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  padding-bottom: 0.1rem;
+  margin-top: -2px;
 }
 
 .status-move__btn {
   min-height: 2.6rem;
   justify-content: center;
+}
+
+.status-move__panel--inline .status-move__btn {
+  width: var(--status-move-action-width);
+  height: 1.85rem;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.status-move__panel--inline .status-move__btn:hover,
+.status-move__panel--inline .status-move__close:hover {
+  box-shadow: none;
+}
+
+.status-move__panel--inline .status-move__btn:focus,
+.status-move__panel--inline .status-move__close:focus {
+  outline: none;
+}
+
+.status-move__panel--inline .status-move__btn:focus-visible,
+.status-move__panel--inline .status-move__close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.status-move__close {
+  flex: 0 0 auto;
+  grid-area: close;
+  justify-self: end;
+}
+
+.status-move__panel--inline .status-move__close {
+  grid-area: close;
+  justify-self: end;
+  width: 1.4rem;
+  height: 1.4rem;
+  min-width: 1.4rem;
+  min-height: 1.4rem;
+  margin-top: 2px;
+}
+
+@media (max-width: 390px) {
+  .status-move__panel--inline {
+    grid-template-columns: repeat(2, var(--status-move-action-width)) auto;
+  }
+
+  .status-move__panel--inline .status-move__eyebrow {
+    grid-column: 1 / -1;
+  }
+
+  .status-move__panel--inline .status-move__btn {
+    width: var(--status-move-action-width);
+  }
 }
 
 /* ── Bulk actions ───────────────────────────────────────── */
@@ -4528,15 +4633,6 @@ input[type="datetime-local"] {
     text-align: center;
     font-size: 0.76rem;
     white-space: nowrap;
-  }
-
-  .item__status-row {
-    display: flex;
-    align-items: center;
-    flex: 0 0 100%;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    min-width: 0;
   }
 
   .item__status-row .item__badge--overdue {

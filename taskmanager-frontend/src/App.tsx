@@ -102,7 +102,7 @@ const SWIPE_IGNORE_SELECTOR = [
   '.status-move',
 ].join(',');
 const TASK_STATUS_OPTIONS = [
-  { label: 'Active', statusID: null as number | null },
+  { label: 'Not started', statusID: null as number | null },
   { label: 'In Progress', statusID: 3 as number | null },
   { label: 'Done', statusID: 2 as number | null },
 ];
@@ -1410,7 +1410,7 @@ function App() {
     }
     closeFloatingControls();
     setOpenActionTaskId(null);
-    setSelectedTaskId(current => current === task.taskID ? null : task.taskID);
+    openStatusMoveDialog(task);
   };
 
   const handleEditTaskAction = (task: Task) => {
@@ -1428,6 +1428,25 @@ function App() {
   const handleDeleteTaskAction = (taskId: number) => {
     setOpenActionTaskId(null);
     setConfirmDeleteId(taskId);
+  };
+
+  const renderStatusMovePanel = (task: Task) => {
+    if (statusMoveTask?.taskID !== task.taskID) return null;
+    const currentTask = tasks.find(t => t.taskID === task.taskID) ?? task;
+    const currentStatusID = normalizeTaskStatus(currentTask.statusID);
+    const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
+    return (
+      <li className="status-move-item" aria-label={`Move task actions for ${currentTask.title}`}>
+        <StatusMoveDialog
+          inline
+          taskTitle={currentTask.title}
+          options={moveOptions}
+          onClose={() => setStatusMoveTask(null)}
+          onMove={statusID => moveTaskToStatus(currentTask, statusID)}
+          firstActionRef={statusFirstActionRef}
+        />
+      </li>
+    );
   };
 
   const focusTaskById = (taskId: number) => {
@@ -1954,7 +1973,6 @@ function App() {
             onLongPressCancel={cancelTaskLongPress}
             onOpenStatusMove={openStatusMoveDialog}
             onToggleBulkSelect={toggleBulkSelection}
-            onToggleComplete={toggleComplete}
             onLoadRecurrenceLabel={loadRecurrenceLabel}
             onToggleTags={toggleTaskTags}
             onToggleActions={taskId => {
@@ -1968,6 +1986,7 @@ function App() {
             onConfirmDelete={removeTask}
             onCancelDelete={() => setConfirmDeleteId(null)}
             renderEditForm={renderInlineEditForm}
+            renderStatusMove={renderStatusMovePanel}
           />
         )}
 
@@ -1988,21 +2007,6 @@ function App() {
 
 
       </div>
-
-      {statusMoveTask && (() => {
-        const currentTask = tasks.find(t => t.taskID === statusMoveTask.taskID) ?? statusMoveTask;
-        const currentStatusID = normalizeTaskStatus(currentTask.statusID);
-        const moveOptions = TASK_STATUS_OPTIONS.filter(option => option.statusID !== currentStatusID);
-        return (
-          <StatusMoveDialog
-            taskTitle={currentTask.title}
-            options={moveOptions}
-            onClose={() => setStatusMoveTask(null)}
-            onMove={statusID => moveTaskToStatus(currentTask, statusID)}
-            firstActionRef={statusFirstActionRef}
-          />
-        );
-      })()}
 
     </div>
   );

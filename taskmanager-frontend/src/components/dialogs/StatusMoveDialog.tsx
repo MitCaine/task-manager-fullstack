@@ -11,6 +11,7 @@ export type StatusMoveDialogProps = {
   onClose: () => void;
   onMove: (statusID: number | null) => void;
   firstActionRef: RefObject<HTMLButtonElement>;
+  inline?: boolean;
 };
 
 export default function StatusMoveDialog({
@@ -19,17 +20,29 @@ export default function StatusMoveDialog({
   onClose,
   onMove,
   firstActionRef,
+  inline = false,
 }: StatusMoveDialogProps): JSX.Element {
   return (
-    <div className="status-move" onClick={onClose}>
-      <div className="status-move__panel" role="dialog" aria-modal="true" aria-labelledby="status-move-title" onClick={e => e.stopPropagation()}>
-        <div className="status-move__header">
-          <div className="status-move__title-wrap" id="status-move-title">
-            <span className="status-move__eyebrow">Move task</span>
-            <span className="status-move__title">{taskTitle}</span>
+    <div className={`status-move${inline ? ' status-move--inline' : ''}`} onClick={inline ? undefined : onClose}>
+      <div
+        className={`status-move__panel${inline ? ' status-move__panel--inline' : ''}`}
+        role="dialog"
+        aria-modal={inline ? undefined : true}
+        aria-label={inline ? `Move task ${taskTitle}` : undefined}
+        aria-labelledby={inline ? undefined : 'status-move-title'}
+        onClick={e => e.stopPropagation()}
+      >
+        {inline ? (
+          <span className="status-move__eyebrow">Task Status</span>
+        ) : (
+          <div className="status-move__header">
+            <div className="status-move__title-wrap" id="status-move-title">
+              <span className="status-move__eyebrow">Move task</span>
+              <span className="status-move__title">{taskTitle}</span>
+            </div>
+            <button className="btn btn--ghost btn--icon" aria-label="Close move task" onClick={onClose}>✕</button>
           </div>
-          <button className="btn btn--ghost btn--icon" aria-label="Close move task" onClick={onClose}>✕</button>
-        </div>
+        )}
         <div className="status-move__actions">
           {options.map(option => (
             <button
@@ -43,6 +56,7 @@ export default function StatusMoveDialog({
             </button>
           ))}
         </div>
+        {inline && <button className="btn btn--ghost btn--icon status-move__close" aria-label="Close move task" onClick={onClose}>✕</button>}
       </div>
     </div>
   );

@@ -164,7 +164,6 @@ type TaskCardMainProps = {
   onLongPressCancel: () => void;
   onOpenStatusMove: () => void;
   onToggleBulkSelect: () => void;
-  onToggleComplete: () => void;
   onLoadRecurrenceLabel: () => void;
   onToggleTags: (taskId: number) => void;
   onToggleActions: () => void;
@@ -195,7 +194,6 @@ function TaskCardMain({
   onLongPressCancel,
   onOpenStatusMove,
   onToggleBulkSelect,
-  onToggleComplete,
   onLoadRecurrenceLabel,
   onToggleTags,
   onToggleActions,
@@ -226,39 +224,28 @@ function TaskCardMain({
           aria-label={`Select task ${task.title}`}
         />
       )}
-      {!bulkMode && (
-        <input
-          type="checkbox"
-          className="item__checkbox"
-          checked={completed}
-          onChange={e => { e.stopPropagation(); onToggleComplete(); }}
-          onClick={e => e.stopPropagation()}
-          title={completed ? 'Mark as active' : 'Mark as done'}
-          aria-label={completed ? `Mark ${task.title} as active` : `Mark ${task.title} as done`}
-        />
-      )}
       <div className="item__body">
         <div className="item__title-row">
+          <div className="item__status-row">
+            <button
+              type="button"
+              className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
+              aria-label={`Change status from ${statusLabel}`}
+              onClick={e => {
+                e.stopPropagation();
+                if (!bulkMode) {
+                  onOpenStatusMove();
+                }
+              }}
+              onMouseDown={e => e.stopPropagation()}
+              onTouchStart={e => e.stopPropagation()}
+            >
+              {statusLabel}
+            </button>
+            {overdue && <span className="item__badge item__badge--overdue">Overdue</span>}
+          </div>
           <div className="item__title-line">
             <span className={`item__title${completed ? ' item__title--done' : ''}`}>{task.title}</span>
-            <div className="item__status-row">
-              <button
-                type="button"
-                className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
-                aria-label={`Change status from ${statusLabel}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  if (!bulkMode) {
-                    onOpenStatusMove();
-                  }
-                }}
-                onMouseDown={e => e.stopPropagation()}
-                onTouchStart={e => e.stopPropagation()}
-              >
-                {statusLabel}
-              </button>
-              {overdue && <span className="item__badge item__badge--overdue">Overdue</span>}
-            </div>
           </div>
           <span className="item__meta item__meta--inline">
             {dateTimeLabel}

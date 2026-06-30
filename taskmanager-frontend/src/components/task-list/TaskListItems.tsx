@@ -36,7 +36,6 @@ type TaskListItemsProps = {
   onLongPressCancel: () => void;
   onOpenStatusMove: (task: Task) => void;
   onToggleBulkSelect: (taskId: number) => void;
-  onToggleComplete: (task: Task) => void;
   onLoadRecurrenceLabel: (taskId: number) => void;
   onToggleTags: (taskId: number) => void;
   onToggleActions: (taskId: number) => void;
@@ -46,6 +45,7 @@ type TaskListItemsProps = {
   onConfirmDelete: (taskId: number) => void;
   onCancelDelete: () => void;
   renderEditForm: (task: Task, variant?: 'inline' | 'mobile') => ReactNode;
+  renderStatusMove: (task: Task) => ReactNode;
 };
 
 function TaskListItems({
@@ -73,7 +73,6 @@ function TaskListItems({
   onLongPressCancel,
   onOpenStatusMove,
   onToggleBulkSelect,
-  onToggleComplete,
   onLoadRecurrenceLabel,
   onToggleTags,
   onToggleActions,
@@ -83,6 +82,7 @@ function TaskListItems({
   onConfirmDelete,
   onCancelDelete,
   renderEditForm,
+  renderStatusMove,
 }: TaskListItemsProps): JSX.Element {
   const firstDoneIdx = filterStatus === 'completed'
     ? -1
@@ -153,7 +153,6 @@ function TaskListItems({
                       onLongPressCancel={onLongPressCancel}
                       onOpenStatusMove={() => onOpenStatusMove(task)}
                       onToggleBulkSelect={() => onToggleBulkSelect(task.taskID)}
-                      onToggleComplete={() => onToggleComplete(task)}
                       onLoadRecurrenceLabel={() => onLoadRecurrenceLabel(task.taskID)}
                       onToggleTags={onToggleTags}
                       onToggleActions={() => onToggleActions(task.taskID)}
@@ -180,6 +179,7 @@ function TaskListItems({
                 {renderEditForm(task, 'mobile')}
               </li>
             )}
+            {renderStatusMove(task)}
           </Fragment>
         );
       })}

@@ -491,7 +491,7 @@ test('recurring mobile task card shows a schedule repeat indicator', async () =>
   }
 });
 
-test('mobile task card groups status and overdue indicators below the title', async () => {
+test('task card groups status and overdue indicators above the title', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([{
     ...sampleTask,
@@ -505,10 +505,13 @@ test('mobile task card groups status and overdue indicators below the title', as
     const titleLine = title.closest('.item__title-line');
     const status = screen.getByRole('button', { name: /change status from active/i });
     const statusRow = status.closest('.item__status-row');
+    const titleRow = title.closest('.item__title-row');
 
     expect(titleLine).toBeInTheDocument();
     expect(title.parentElement).toBe(titleLine);
-    expect(statusRow?.parentElement).toBe(titleLine);
+    expect(statusRow?.parentElement).toBe(titleRow);
+    expect(titleLine?.parentElement).toBe(titleRow);
+    expect(statusRow?.nextElementSibling).toBe(titleLine);
     expect(within(statusRow as HTMLElement).getByText('Overdue')).toHaveClass('item__badge--overdue');
   } finally {
     restoreTouchEnvironment();
@@ -1586,18 +1589,19 @@ test('mobile description textareas keep a 16px font size above the iOS focus zoo
   expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
 });
 
-test('task card status row preserves desktop placement and becomes a full mobile metadata row', () => {
+test('task card status row is a stable row above the title', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const titleLineRule = css.match(/\.item__title-line\s*\{[^}]*\}/)?.[0] ?? '';
-  const statusRowRules = css.match(/\.item__status-row\s*\{[^}]*\}/g) ?? [];
+  const statusRowRule = css.match(/\.item__status-row\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileOverdueRule = css.match(/\.item__status-row \.item__badge--overdue\s*\{[^}]*\}/)?.[0] ?? '';
 
-  expect(titleLineRule).toContain('align-items: center');
+  expect(titleLineRule).toContain('align-items: flex-start');
   expect(titleLineRule).toContain('flex-wrap: wrap');
-  expect(statusRowRules[0]).toContain('display: contents');
-  expect(statusRowRules[1]).toContain('display: flex');
-  expect(statusRowRules[1]).toContain('flex: 0 0 100%');
-  expect(statusRowRules[1]).toContain('flex-wrap: wrap');
+  expect(statusRowRule).toContain('display: flex');
+  expect(statusRowRule).toContain('align-items: center');
+  expect(statusRowRule).toContain('flex-wrap: wrap');
+  expect(statusRowRule).not.toContain('display: contents');
+  expect(css).not.toMatch(/\.item__status-row\s*\{[^}]*flex:\s*0 0 100%/);
   expect(mobileOverdueRule).toContain('border-radius: 999px');
   expect(mobileOverdueRule).toContain('padding: 0.08rem 0.42rem');
   expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
@@ -3072,7 +3076,7 @@ test('desktop edit remains inline in the task list flow', async () => {
   }
 });
 
-test('desktop task selection highlights the task without opening edit panels', async () => {
+test('desktop task click opens status move without opening edit panels', async () => {
   const restoreMedia = mockDesktopMediaEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
@@ -3084,7 +3088,7 @@ test('desktop task selection highlights the task without opening edit panels', a
       userEvent.click(screen.getByText('Buy milk'));
     });
 
-    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
@@ -3212,7 +3216,7 @@ test('mobile edit project search filters and selects without changing panel or s
   }
 });
 
-test('mobile task tap selects without opening edit panels', async () => {
+test('mobile task tap opens status move without opening edit panels', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   mockGetTask.mockResolvedValue(sampleTask);
@@ -3224,7 +3228,7 @@ test('mobile task tap selects without opening edit panels', async () => {
       userEvent.click(screen.getByText('Buy milk'));
     });
 
-    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
+    expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
@@ -5115,25 +5119,123 @@ test('opening the task move menu shows alternate statuses', async () => {
   });
 
   expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
-  expect(screen.getByText('Move task')).toBeInTheDocument();
+  expect(screen.getByText('Status')).toBeInTheDocument();
+  expect(screen.queryByText('Buy milk')).toBeInTheDocument();
   expect(screen.getByText('In Progress')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /in progress/i })).toHaveFocus();
   expect(screen.getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
-  expect(screen.queryByRole('button', { name: /^active$/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^not started$/i })).not.toBeInTheDocument();
 });
 
-test('Escape closes settings without clearing task selection', async () => {
+test('clicking a task card opens the task move menu', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+
+  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+});
+
+test('clicking a task card renders the move menu immediately after that task', async () => {
+  const secondTask = { ...sampleTask, taskID: 2, title: 'Book flight', statusID: null };
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }, secondTask]);
+  render(<App />);
+  const firstTitle = await screen.findByText('Buy milk');
+  const secondTitle = await screen.findByText('Book flight');
+  const firstItem = firstTitle.closest('li');
+  const secondItem = secondTitle.closest('li');
+
+  await act(async () => {
+    userEvent.click(firstTitle);
+  });
+
+  const statusItem = firstItem?.nextElementSibling as HTMLElement | null;
+  expect(statusItem).toHaveClass('status-move-item');
+  expect(within(statusItem as HTMLElement).getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(statusItem?.nextElementSibling).toBe(secondItem);
+  expect(statusItem?.querySelector('.status-move')).toHaveClass('status-move--inline');
+});
+
+test('clicking another task moves the inline move menu below that task', async () => {
+  const secondTask = { ...sampleTask, taskID: 2, title: 'Book flight', statusID: null };
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }, secondTask]);
+  render(<App />);
+  const firstTitle = await screen.findByText('Buy milk');
+  const secondTitle = await screen.findByText('Book flight');
+  const firstItem = firstTitle.closest('li');
+  const secondItem = secondTitle.closest('li');
+
+  await act(async () => {
+    userEvent.click(firstTitle);
+  });
+  expect(firstItem?.nextElementSibling).toHaveClass('status-move-item');
+
+  await act(async () => {
+    userEvent.click(secondTitle);
+  });
+
+  expect(firstItem?.nextElementSibling).toBe(secondItem);
+  const statusItem = secondItem?.nextElementSibling as HTMLElement | null;
+  expect(statusItem).toHaveClass('status-move-item');
+  expect(within(statusItem as HTMLElement).getByRole('dialog', { name: /move task book flight/i })).toBeInTheDocument();
+});
+
+test('closing the inline move menu removes only the move panel', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /close move task/i }));
+  });
+
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.getByText('Buy milk')).toBeInTheDocument();
+});
+
+test('clicking the task action menu does not open the task move menu', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await openTaskActions();
+
+  expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+});
+
+test('clicking inline edit controls does not open the task move menu', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await openTaskActions();
+  await act(async () => {
+    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByDisplayValue('Buy milk'));
+  });
+
+  expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+});
+
+test('Escape closes settings without changing task cards', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
   await screen.findByText('Buy milk');
 
   try {
-    await act(async () => {
-      userEvent.click(screen.getByText('Buy milk'));
-    });
-    await waitFor(() => expect(document.querySelector('.item--selected')).toBeInTheDocument());
-
     await act(async () => {
       userEvent.click(screen.getByRole('button', { name: /settings/i }));
     });
@@ -5144,13 +5246,13 @@ test('Escape closes settings without clearing task selection', async () => {
     });
 
     expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
-    expect(document.querySelector('.item--selected')).toBeInTheDocument();
+    expect(screen.getByText('Buy milk')).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }
 });
 
-test('task move menu updates status', async () => {
+test('not started task can be changed to In Progress or Done', async () => {
   mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
   mockPatchStatus.mockResolvedValue({ ...sampleTask, statusID: 3 });
   render(<App />);
@@ -5160,6 +5262,10 @@ test('task move menu updates status', async () => {
     fireEvent.contextMenu(screen.getByText('Buy milk'));
   });
 
+  expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^done$/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^not started$/i })).not.toBeInTheDocument();
+
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /in progress/i }));
   });
@@ -5167,6 +5273,58 @@ test('task move menu updates status', async () => {
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 3);
   });
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+});
+
+test('In Progress task can be changed to Not started', async () => {
+  const inProgressTask = { ...sampleTask, statusID: 3 };
+  mockGetTasks.mockResolvedValue([inProgressTask]);
+  mockPatchStatus.mockResolvedValue({ ...inProgressTask, statusID: null });
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+
+  expect(within(moveDialog).getByRole('button', { name: /^not started$/i })).toBeInTheDocument();
+  expect(within(moveDialog).getByRole('button', { name: /^done$/i })).toBeInTheDocument();
+  expect(within(moveDialog).queryByRole('button', { name: /in progress/i })).not.toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, null);
+  });
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+});
+
+test('Done task can be changed to Not started', async () => {
+  const doneTask = { ...sampleTask, statusID: 2 };
+  mockGetTasks.mockResolvedValue([doneTask]);
+  mockPatchStatus.mockResolvedValue({ ...doneTask, statusID: null });
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+
+  expect(screen.getByRole('button', { name: /^not started$/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /in progress/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^done$/i })).not.toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^not started$/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, null);
+  });
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 // Task duplication behavior.
@@ -5313,9 +5471,12 @@ test('completing a recurring task with end time creates the next occurrence with
   render(<App />);
   await screen.findByText('Buy milk');
 
-  const statusCheckbox = screen.getByTitle(/mark as done/i);
   await act(async () => {
-    userEvent.click(statusCheckbox);
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  await act(async () => {
+    userEvent.click(within(moveDialog).getByRole('button', { name: /^done$/i }));
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -5365,6 +5526,27 @@ test('bulk action bar is not visible until a task is selected', async () => {
   expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
 });
 
+test('task checkboxes are hidden outside Select mode', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  expect(screen.queryByRole('checkbox', { name: /select task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByTitle(/mark as done/i)).not.toBeInTheDocument();
+});
+
+test('task checkboxes appear in Select mode', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+
+  expect(screen.getByRole('checkbox', { name: /select task buy milk/i })).toBeInTheDocument();
+});
+
 test('selecting a task shows the bulk action bar', async () => {
   mockGetTasks.mockResolvedValue([sampleTask]);
   render(<App />);
@@ -5377,6 +5559,23 @@ test('selecting a task shows the bulk action bar', async () => {
   const checkboxes = screen.getAllByRole('checkbox');
   await act(async () => { userEvent.click(checkboxes[0]); });
   expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+});
+
+test('checkbox in Select mode selects task without marking it done', async () => {
+  mockGetTasks.mockResolvedValue([sampleTask]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+  });
+  await act(async () => {
+    userEvent.click(screen.getByRole('checkbox', { name: /select task buy milk/i }));
+  });
+
+  expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+  expect(mockPatchStatus).not.toHaveBeenCalled();
+  expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
 test('"Mark done" in bulk bar calls patchTaskStatus for each selected task', async () => {
@@ -5538,7 +5737,7 @@ test('bulk mark done on mixed recurring and non-recurring tasks handles both pat
   expect(await screen.findByText(/06\/16\/2099/)).toBeInTheDocument();
 });
 
-test('completed recurring task checkbox toggles back to active without generating a next occurrence', async () => {
+test('completed recurring task status move toggles back to active without generating a next occurrence', async () => {
   const completedRecurringTask: Task = {
     ...sampleTask,
     recurrenceRuleID: 10,
@@ -5552,7 +5751,11 @@ test('completed recurring task checkbox toggles back to active without generatin
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByTitle(/mark as active/i));
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  await act(async () => {
+    userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
   });
 
   await waitFor(() => {
