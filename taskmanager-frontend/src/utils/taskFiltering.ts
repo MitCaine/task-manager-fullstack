@@ -58,8 +58,10 @@ export function deriveVisibleTasks({
   now,
 }: DeriveVisibleTasksInput): Task[] {
   let list = tasks;
+  if (filterStatus === 'completed') list = list.filter(t => t.statusID === 2);
+  else list = list.filter(t => t.statusID !== 2);
+
   if (filterStatus === 'active') list = list.filter(t => t.statusID !== 2);
-  else if (filterStatus === 'completed') list = list.filter(t => t.statusID === 2);
   else if (filterStatus === 'overdue') list = list.filter(t => isOverdueForFilter(t, now));
   else if (filterStatus === 'high') list = list.filter(t => t.priority === 'HIGH');
   else if (filterStatus === 'medium') list = list.filter(t => t.priority === 'MEDIUM');

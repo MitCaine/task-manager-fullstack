@@ -518,11 +518,12 @@ test('task card groups status and overdue indicators above the title', async () 
   }
 });
 
-test('clicking task count badge shows all tasks and updates active styling', async () => {
+test('default task list hides done tasks and counts current tasks separately', async () => {
   mockGetTasks.mockResolvedValue([
     { ...sampleTask, taskID: 1, title: 'Active task', statusID: null },
     { ...sampleTask, taskID: 2, title: 'Done task', statusID: 2 },
     { ...sampleTask, taskID: 3, title: 'Overdue task', statusID: null, dateTimeScheduled: '2026-01-01T09:00:00' },
+    { ...sampleTask, taskID: 4, title: 'Progress task', statusID: 3 },
   ]);
   render(<App />);
   await screen.findByText('Active task');
@@ -530,6 +531,11 @@ test('clicking task count badge shows all tasks and updates active styling', asy
   const taskList = screen.getByRole('list', { name: /task list/i });
   const allBadge = screen.getByRole('button', { name: /3 tasks/i });
   const doneBadge = screen.getByRole('button', { name: /1 done/i });
+  expect(within(taskList).getByText('Active task')).toBeInTheDocument();
+  expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
+  expect(within(taskList).getByText('Progress task')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Done task')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /1 overdue/i })).toBeInTheDocument();
   expect(allBadge).toHaveClass('task-count--active');
 
   await act(async () => {
@@ -543,8 +549,9 @@ test('clicking task count badge shows all tasks and updates active styling', asy
     userEvent.click(allBadge);
   });
   expect(within(taskList).getByText('Active task')).toBeInTheDocument();
-  expect(within(taskList).getByText('Done task')).toBeInTheDocument();
   expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
+  expect(within(taskList).getByText('Progress task')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Done task')).not.toBeInTheDocument();
   expect(allBadge).toHaveClass('task-count--active');
 });
 
@@ -564,6 +571,32 @@ test('clicking done count badge filters to completed tasks', async () => {
   expect(within(taskList).getByText('Done task')).toBeInTheDocument();
   expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /1 done/i })).toHaveClass('task-count--active');
+});
+
+test('search applies within default and done task views', async () => {
+  mockGetTasks.mockResolvedValue([
+    { ...sampleTask, taskID: 1, title: 'Current report', statusID: null },
+    { ...sampleTask, taskID: 2, title: 'Done report', statusID: 2 },
+    { ...sampleTask, taskID: 3, title: 'Current errands', statusID: null },
+  ]);
+  render(<App />);
+  await screen.findByText('Current report');
+
+  const taskList = screen.getByRole('list', { name: /task list/i });
+  await act(async () => {
+    userEvent.type(screen.getByLabelText(/search tasks/i), 'report');
+  });
+
+  expect(within(taskList).getByText('Current report')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Done report')).not.toBeInTheDocument();
+  expect(within(taskList).queryByText('Current errands')).not.toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+  });
+
+  expect(within(taskList).getByText('Done report')).toBeInTheDocument();
+  expect(within(taskList).queryByText('Current report')).not.toBeInTheDocument();
 });
 
 test('clicking overdue count badge filters to overdue tasks', async () => {
@@ -5345,6 +5378,11 @@ test('Done task can be changed to Not started', async () => {
   mockGetTasks.mockResolvedValue([doneTask]);
   mockPatchStatus.mockResolvedValue({ ...doneTask, statusID: null });
   render(<App />);
+  await screen.findByRole('button', { name: /1 done/i });
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+  });
   await screen.findByText('Buy milk');
 
   await act(async () => {
@@ -5786,6 +5824,11 @@ test('completed recurring task status move toggles back to active without genera
   mockPatchStatus.mockResolvedValue({ ...completedRecurringTask, statusID: null });
 
   render(<App />);
+  await screen.findByRole('button', { name: /1 done/i });
+
+  await act(async () => {
+    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+  });
   await screen.findByText('Buy milk');
 
   await act(async () => {

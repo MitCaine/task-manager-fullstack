@@ -32,14 +32,16 @@ export default function useTaskListViewModel({
   sortBy,
   calHideCompleted,
 }: UseTaskListViewModelOptions) {
-  const { completedCount, overdueCount } = useMemo(() => {
+  const { currentTaskCount, completedCount, overdueCount } = useMemo(() => {
+    let currentTaskCount = 0;
     let completedCount = 0;
     let overdueCount = 0;
     for (const task of tasks) {
       if (task.statusID === 2) completedCount += 1;
+      else currentTaskCount += 1;
       if (isTaskOverdue(task)) overdueCount += 1;
     }
-    return { completedCount, overdueCount };
+    return { currentTaskCount, completedCount, overdueCount };
   }, [tasks]);
 
   const tabTasks = useMemo(() => deriveVisibleTasks({
@@ -68,6 +70,7 @@ export default function useTaskListViewModel({
   const { showFilterValue, priorityFilterValue } = splitPriorityFilterValue(filterStatus);
 
   return {
+    currentTaskCount,
     completedCount,
     overdueCount,
     tabTasks,

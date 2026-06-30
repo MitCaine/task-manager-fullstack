@@ -1257,7 +1257,7 @@ function App() {
   const locale = isEuropeanDate ? 'en-GB' : 'en-US';
 
   const {
-    completedCount, overdueCount, tabTasks, calTasks, statsData,
+    currentTaskCount, completedCount, overdueCount, tabTasks, calTasks, statsData,
     hasActiveListFilters, hasModifiedListControls, emptyState, showFilterValue, priorityFilterValue,
   } = useTaskListViewModel({
     tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy, calHideCompleted,
@@ -1936,7 +1936,7 @@ function App() {
           search={search}
           onSearchChange={setSearch}
           searchInputRef={searchInputRef}
-          totalTaskCount={tasks.length}
+          totalTaskCount={currentTaskCount}
           completedCount={completedCount}
           overdueCount={overdueCount}
           bulkMode={bulkMode}

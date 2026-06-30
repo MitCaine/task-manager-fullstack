@@ -38,9 +38,11 @@ describe('deriveVisibleTasks', () => {
       task({ taskID: 1, title: 'Buy milk' }),
       task({ taskID: 2, title: 'Plan trip', description: 'Book milk bar' }),
       task({ taskID: 3, title: 'Read docs' }),
+      task({ taskID: 4, title: 'Done milk', statusID: 2 }),
     ];
 
     expect(visibleTitles(tasks, { search: 'milk' })).toEqual(['Buy milk', 'Plan trip']);
+    expect(visibleTitles(tasks, { search: 'milk', filterStatus: 'completed' })).toEqual(['Done milk']);
   });
 
   it('filters active and completed statuses', () => {
@@ -50,6 +52,7 @@ describe('deriveVisibleTasks', () => {
       task({ taskID: 3, title: 'Done', statusID: 2 }),
     ];
 
+    expect(visibleTitles(tasks, { filterStatus: 'all' })).toEqual(['Active', 'Progress']);
     expect(visibleTitles(tasks, { filterStatus: 'active' })).toEqual(['Active', 'Progress']);
     expect(visibleTitles(tasks, { filterStatus: 'completed' })).toEqual(['Done']);
   });
@@ -70,6 +73,7 @@ describe('deriveVisibleTasks', () => {
       task({ taskID: 2, title: 'Medium', priority: 'MEDIUM' }),
       task({ taskID: 3, title: 'Low', priority: 'LOW' }),
       task({ taskID: 4, title: 'None', priority: null }),
+      task({ taskID: 5, title: 'Done high', statusID: 2, priority: 'HIGH' }),
     ];
 
     expect(visibleTitles(tasks, { filterStatus: 'high' })).toEqual(['High']);
@@ -134,14 +138,14 @@ describe('deriveVisibleTasks', () => {
     expect(visibleTitles(tasks, { sortBy: 'overdueFirst' })).toEqual(['Older overdue', 'Recent overdue', 'Future']);
   });
 
-  it('moves done tasks to the bottom except in completed-only filtering', () => {
+  it('hides done tasks except in completed-only filtering', () => {
     const tasks = [
       task({ taskID: 1, title: 'Done early', statusID: 2, dateTimeScheduled: '2026-06-01T09:00:00' }),
       task({ taskID: 2, title: 'Active later', statusID: null, dateTimeScheduled: '2026-06-05T09:00:00' }),
       task({ taskID: 3, title: 'Active sooner', statusID: null, dateTimeScheduled: '2026-06-02T09:00:00' }),
     ];
 
-    expect(visibleTitles(tasks, { sortBy: 'dueAsc' })).toEqual(['Active sooner', 'Active later', 'Done early']);
+    expect(visibleTitles(tasks, { sortBy: 'dueAsc' })).toEqual(['Active sooner', 'Active later']);
     expect(visibleTitles(tasks, { filterStatus: 'completed', sortBy: 'dueAsc' })).toEqual(['Done early']);
   });
 });
