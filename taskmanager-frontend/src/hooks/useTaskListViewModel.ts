@@ -9,7 +9,7 @@ import {
 } from '../utils/taskFiltering';
 import { splitPriorityFilterValue } from '../utils/taskDisplayHelpers';
 import { deriveTaskStatistics } from '../utils/taskStatistics';
-import { isTaskOverdue } from '../utils/taskUtils';
+import { isTaskDone, isTaskOverdue } from '../utils/taskUtils';
 
 type UseTaskListViewModelOptions = {
   tasks: Task[];
@@ -37,7 +37,7 @@ export default function useTaskListViewModel({
     let completedCount = 0;
     let overdueCount = 0;
     for (const task of tasks) {
-      if (task.statusID === 2) completedCount += 1;
+      if (isTaskDone(task)) completedCount += 1;
       else currentTaskCount += 1;
       if (isTaskOverdue(task)) overdueCount += 1;
     }
@@ -55,7 +55,7 @@ export default function useTaskListViewModel({
   }), [tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy]);
 
   const calTasks = useMemo(
-    () => calHideCompleted ? tasks.filter(task => task.statusID !== 2) : tasks,
+    () => calHideCompleted ? tasks.filter(task => !isTaskDone(task)) : tasks,
     [tasks, calHideCompleted]
   );
 

@@ -1953,7 +1953,6 @@ function App() {
             tasks={tabTasks}
             emptyState={emptyState}
             hasActiveListFilters={hasActiveListFilters}
-            filterStatus={filterStatus}
             selectedTaskId={selectedTaskId}
             editingId={editingId}
             mobileEditLayout={mobileEditLayout}

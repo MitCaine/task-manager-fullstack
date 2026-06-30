@@ -1,6 +1,6 @@
 import type { Task } from '../types/task';
 import { isInLocalMonth, isInLocalWeek, isSameLocalDate, parseLocalDateTime } from './dateTime';
-import { isTaskOverdue } from './taskUtils';
+import { isTaskDone, isTaskOverdue } from './taskUtils';
 
 export type TaskSortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
 export type TaskFilterStatus = 'all' | 'active' | 'completed' | 'overdue' | 'high' | 'medium' | 'low';
@@ -21,12 +21,7 @@ const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
 function isOverdueForFilter(task: Task, now?: Date): boolean {
   if (!now) return isTaskOverdue(task);
-  return task.statusID !== 2 && !!task.dateTimeScheduled && parseLocalDateTime(task.dateTimeScheduled) < now;
-}
-
-function moveDoneToBottom(tasks: Task[], filterStatus: TaskFilterStatus): Task[] {
-  if (filterStatus === 'completed') return tasks;
-  return tasks.sort((a, b) => (a.statusID === 2 ? 1 : 0) - (b.statusID === 2 ? 1 : 0));
+  return !isTaskDone(task) && !!task.dateTimeScheduled && parseLocalDateTime(task.dateTimeScheduled) < now;
 }
 
 function applyViewTab(tasks: Task[], viewTab: TaskViewTab, now: Date): Task[] {
@@ -58,11 +53,10 @@ export function deriveVisibleTasks({
   now,
 }: DeriveVisibleTasksInput): Task[] {
   let list = tasks;
-  if (filterStatus === 'completed') list = list.filter(t => t.statusID === 2);
-  else list = list.filter(t => t.statusID !== 2);
+  if (filterStatus === 'completed') list = list.filter(isTaskDone);
+  else list = list.filter(t => !isTaskDone(t));
 
-  if (filterStatus === 'active') list = list.filter(t => t.statusID !== 2);
-  else if (filterStatus === 'overdue') list = list.filter(t => isOverdueForFilter(t, now));
+  if (filterStatus === 'overdue') list = list.filter(t => isOverdueForFilter(t, now));
   else if (filterStatus === 'high') list = list.filter(t => t.priority === 'HIGH');
   else if (filterStatus === 'medium') list = list.filter(t => t.priority === 'MEDIUM');
   else if (filterStatus === 'low') list = list.filter(t => t.priority === 'LOW');
@@ -76,21 +70,21 @@ export function deriveVisibleTasks({
   }
 
   if (sortBy === 'dueDesc') {
-    list = moveDoneToBottom([...list].sort((a, b) => (b.dateTimeScheduled ?? '').localeCompare(a.dateTimeScheduled ?? '')), filterStatus);
+    list = [...list].sort((a, b) => (b.dateTimeScheduled ?? '').localeCompare(a.dateTimeScheduled ?? ''));
   } else if (sortBy === 'titleAsc') {
-    list = moveDoneToBottom([...list].sort((a, b) => a.title.localeCompare(b.title)), filterStatus);
+    list = [...list].sort((a, b) => a.title.localeCompare(b.title));
   } else if (sortBy === 'priorityDesc') {
-    list = moveDoneToBottom([...list].sort((a, b) =>
+    list = [...list].sort((a, b) =>
       (PRIORITY_ORDER[a.priority ?? ''] ?? 3) - (PRIORITY_ORDER[b.priority ?? ''] ?? 3)
-    ), filterStatus);
+    );
   } else if (sortBy === 'overdueFirst') {
-    list = moveDoneToBottom([...list].sort((a, b) => {
+    list = [...list].sort((a, b) => {
       const aO = isOverdueForFilter(a, now) ? 0 : 1;
       const bO = isOverdueForFilter(b, now) ? 0 : 1;
       return aO - bO || (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '');
-    }), filterStatus);
+    });
   } else {
-    list = moveDoneToBottom([...list].sort((a, b) => (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? '')), filterStatus);
+    list = [...list].sort((a, b) => (a.dateTimeScheduled ?? '').localeCompare(b.dateTimeScheduled ?? ''));
   }
 
   if (filterProjectID !== '') list = list.filter(t => Number(t.projectID) === Number(filterProjectID));

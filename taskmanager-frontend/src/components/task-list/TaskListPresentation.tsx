@@ -1,17 +1,3 @@
-type DoneDividerProps = {
-  doneCount: number;
-};
-
-export function DoneDivider({ doneCount }: DoneDividerProps) {
-  return (
-    <li className="done-divider" aria-label="Completed tasks">
-      <span className="done-divider__line" />
-      <span className="done-divider__label">Done ({doneCount})</span>
-      <span className="done-divider__line" />
-    </li>
-  );
-}
-
 type TaskListDateLabelProps = {
   isEuropeanDate: boolean;
 };

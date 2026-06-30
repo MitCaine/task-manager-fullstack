@@ -1,12 +1,11 @@
 import { Fragment, type ReactNode } from 'react';
 import type { Project, Subtask, Task } from '../../types/task';
-import { isTaskOverdue } from '../../utils/taskUtils';
+import { isTaskDone, isTaskOverdue } from '../../utils/taskUtils';
 import { normalizeTaskStatus } from '../../utils/taskDisplay';
 import { findProjectById, formatPriorityLabel, formatTaskDateRange } from '../../utils/taskDisplayHelpers';
 import ConfirmDelete from '../shared/ConfirmDelete';
 import TaskCardMain from './TaskCardMain';
-import { DoneDivider, TaskListEmptyState } from './TaskListPresentation';
-import type { FilterStatus } from './TaskListControls';
+import { TaskListEmptyState } from './TaskListPresentation';
 
 type TaskListItemsProps = {
   tasks: Task[];
@@ -15,7 +14,6 @@ type TaskListItemsProps = {
     body: string;
   };
   hasActiveListFilters: boolean;
-  filterStatus: FilterStatus;
   selectedTaskId: number | null;
   editingId: number | null;
   mobileEditLayout: boolean;
@@ -52,7 +50,6 @@ function TaskListItems({
   tasks,
   emptyState,
   hasActiveListFilters,
-  filterStatus,
   selectedTaskId,
   editingId,
   mobileEditLayout,
@@ -84,11 +81,6 @@ function TaskListItems({
   renderEditForm,
   renderStatusMove,
 }: TaskListItemsProps): JSX.Element {
-  const firstDoneIdx = filterStatus === 'completed'
-    ? -1
-    : tasks.findIndex(task => task.statusID === 2);
-  const doneCount = firstDoneIdx >= 0 ? tasks.length - firstDoneIdx : 0;
-
   return (
     <ul className="list" aria-label="Task list">
       {tasks.length === 0 && (
@@ -100,9 +92,9 @@ function TaskListItems({
         />
       )}
 
-      {tasks.map((task, idx) => {
+      {tasks.map(task => {
         const overdue = isTaskOverdue(task);
-        const completed = task.statusID === 2;
+        const completed = isTaskDone(task);
         const statusID = normalizeTaskStatus(task.statusID);
         const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
         const isSelected = selectedTaskId === task.taskID;
@@ -115,7 +107,6 @@ function TaskListItems({
 
         return (
           <Fragment key={task.taskID}>
-            {idx === firstDoneIdx && <DoneDivider doneCount={doneCount} />}
             {!(isEditingTask && mobileEditLayout) && (
               <li
                 key={`task-${task.taskID}`}
