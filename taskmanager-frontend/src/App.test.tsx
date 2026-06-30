@@ -5119,7 +5119,7 @@ test('opening the task move menu shows alternate statuses', async () => {
   });
 
   expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
-  expect(screen.getByText('Status')).toBeInTheDocument();
+  expect(screen.getByText(/status/i)).toBeInTheDocument();
   expect(screen.queryByText('Buy milk')).toBeInTheDocument();
   expect(screen.getByText('In Progress')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /in progress/i })).toHaveFocus();
@@ -5137,6 +5137,23 @@ test('clicking a task card opens the task move menu', async () => {
   });
 
   expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+});
+
+test('clicking the same task card again closes the inline move menu', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  render(<App />);
+  const title = await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(title);
+  });
+  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+
+  await act(async () => {
+    userEvent.click(title);
+  });
+
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('clicking a task card renders the move menu immediately after that task', async () => {
@@ -5268,6 +5285,27 @@ test('not started task can be changed to In Progress or Done', async () => {
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /in progress/i }));
+  });
+
+  await waitFor(() => {
+    expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 3);
+  });
+  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+});
+
+test('clicking an inline status action updates status without reopening the move menu', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  mockPatchStatus.mockResolvedValue({ ...sampleTask, statusID: 3 });
+  render(<App />);
+  await screen.findByText('Buy milk');
+
+  await act(async () => {
+    userEvent.click(screen.getByText('Buy milk'));
+  });
+  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+
+  await act(async () => {
+    userEvent.click(within(moveDialog).getByRole('button', { name: /in progress/i }));
   });
 
   await waitFor(() => {

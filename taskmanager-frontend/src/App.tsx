@@ -1282,9 +1282,10 @@ function App() {
   };
 
   const openStatusMoveDialog = (task: Task) => {
+    const sameTaskOpen = statusMoveTask?.taskID === task.taskID;
     rememberStatusMoveFocus();
-    closeFloatingControls();
-    setStatusMoveTask(task);
+    if (!sameTaskOpen) closeFloatingControls();
+    setStatusMoveTask(sameTaskOpen ? null : task);
   };
 
   // Task update, completion, and focus handlers.
