@@ -26,7 +26,7 @@ export default function StatusMoveDialog({
     <div className={`status-move${inline ? ' status-move--inline' : ''}`} onClick={inline ? undefined : onClose}>
       <div
         className={`status-move__panel${inline ? ' status-move__panel--inline' : ''}`}
-        role="dialog"
+        role={inline ? 'group' : 'dialog'}
         aria-modal={inline ? undefined : true}
         aria-label={inline ? `Move task ${taskTitle}` : undefined}
         aria-labelledby={inline ? undefined : 'status-move-title'}

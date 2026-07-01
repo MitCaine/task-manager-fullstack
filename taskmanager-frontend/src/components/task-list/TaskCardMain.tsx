@@ -204,7 +204,17 @@ function TaskCardMain({
   return (
     <div
       className="item__main"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open status actions for ${task.title}`}
       onClick={onOpenTask}
+      onKeyDown={event => {
+        if (event.currentTarget !== event.target) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenTask();
+        }
+      }}
       onTouchStart={onLongPressStart}
       onTouchMove={onLongPressCancel}
       onTouchEnd={onLongPressCancel}

@@ -3121,7 +3121,7 @@ test('desktop task click opens status move without opening edit panels', async (
       userEvent.click(screen.getByText('Buy milk'));
     });
 
-    expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
@@ -3261,7 +3261,7 @@ test('mobile task tap opens status move without opening edit panels', async () =
       userEvent.click(screen.getByText('Buy milk'));
     });
 
-    expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-panel')).not.toBeInTheDocument();
     expect(document.querySelector('.mobile-edit-row')).not.toBeInTheDocument();
     expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
@@ -5151,7 +5151,7 @@ test('opening the task move menu shows alternate statuses', async () => {
     fireEvent.contextMenu(screen.getByText('Buy milk'));
   });
 
-  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
   expect(screen.getByText(/status/i)).toBeInTheDocument();
   expect(screen.queryByText('Buy milk')).toBeInTheDocument();
   expect(screen.getByText('In Progress')).toBeInTheDocument();
@@ -5169,7 +5169,32 @@ test('clicking a task card opens the task move menu', async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
 
-  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
+});
+
+test('task card keyboard opens inline move menu and close restores focus', async () => {
+  mockGetTasks.mockResolvedValue([{ ...sampleTask, statusID: null }]);
+  render(<App />);
+  await screen.findByText('Buy milk');
+  const taskCard = screen.getByRole('button', { name: /open status actions for buy milk/i });
+
+  taskCard.focus();
+  expect(taskCard).toHaveFocus();
+
+  await act(async () => {
+    userEvent.keyboard('{Enter}');
+  });
+
+  const moveGroup = screen.getByRole('group', { name: /move task buy milk/i });
+  const firstStatusAction = within(moveGroup).getByRole('button', { name: /in progress/i });
+  expect(firstStatusAction).toHaveFocus();
+
+  await act(async () => {
+    userEvent.click(within(moveGroup).getByRole('button', { name: /close move task/i }));
+  });
+
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(taskCard).toHaveFocus();
 });
 
 test('clicking the same task card again closes the inline move menu', async () => {
@@ -5180,13 +5205,13 @@ test('clicking the same task card again closes the inline move menu', async () =
   await act(async () => {
     userEvent.click(title);
   });
-  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
 
   await act(async () => {
     userEvent.click(title);
   });
 
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('clicking a task card renders the move menu immediately after that task', async () => {
@@ -5204,7 +5229,7 @@ test('clicking a task card renders the move menu immediately after that task', a
 
   const statusItem = firstItem?.nextElementSibling as HTMLElement | null;
   expect(statusItem).toHaveClass('status-move-item');
-  expect(within(statusItem as HTMLElement).getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(within(statusItem as HTMLElement).getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
   expect(statusItem?.nextElementSibling).toBe(secondItem);
   expect(statusItem?.querySelector('.status-move')).toHaveClass('status-move--inline');
 });
@@ -5230,7 +5255,7 @@ test('clicking another task moves the inline move menu below that task', async (
   expect(firstItem?.nextElementSibling).toBe(secondItem);
   const statusItem = secondItem?.nextElementSibling as HTMLElement | null;
   expect(statusItem).toHaveClass('status-move-item');
-  expect(within(statusItem as HTMLElement).getByRole('dialog', { name: /move task book flight/i })).toBeInTheDocument();
+  expect(within(statusItem as HTMLElement).getByRole('group', { name: /move task book flight/i })).toBeInTheDocument();
 });
 
 test('closing the inline move menu removes only the move panel', async () => {
@@ -5241,13 +5266,13 @@ test('closing the inline move menu removes only the move panel', async () => {
   await act(async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
-  expect(screen.getByRole('dialog', { name: /move task buy milk/i })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
 
   await act(async () => {
     userEvent.click(screen.getByRole('button', { name: /close move task/i }));
   });
 
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
   expect(screen.getByText('Buy milk')).toBeInTheDocument();
 });
 
@@ -5259,7 +5284,7 @@ test('clicking the task action menu does not open the task move menu', async () 
   await openTaskActions();
 
   expect(screen.getByRole('menuitem', { name: /edit/i })).toBeInTheDocument();
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('clicking inline edit controls does not open the task move menu', async () => {
@@ -5276,7 +5301,7 @@ test('clicking inline edit controls does not open the task move menu', async () 
   });
 
   expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('Escape closes settings without changing task cards', async () => {
@@ -5323,7 +5348,7 @@ test('not started task can be changed to In Progress or Done', async () => {
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 3);
   });
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('clicking an inline status action updates status without reopening the move menu', async () => {
@@ -5335,7 +5360,7 @@ test('clicking an inline status action updates status without reopening the move
   await act(async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
-  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
 
   await act(async () => {
     userEvent.click(within(moveDialog).getByRole('button', { name: /in progress/i }));
@@ -5344,7 +5369,7 @@ test('clicking an inline status action updates status without reopening the move
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, 3);
   });
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('In Progress task can be changed to Not started', async () => {
@@ -5357,7 +5382,7 @@ test('In Progress task can be changed to Not started', async () => {
   await act(async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
-  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
 
   expect(within(moveDialog).getByRole('button', { name: /^not started$/i })).toBeInTheDocument();
   expect(within(moveDialog).getByRole('button', { name: /^done$/i })).toBeInTheDocument();
@@ -5370,7 +5395,7 @@ test('In Progress task can be changed to Not started', async () => {
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, null);
   });
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 test('Done task can be changed to Not started', async () => {
@@ -5400,7 +5425,7 @@ test('Done task can be changed to Not started', async () => {
   await waitFor(() => {
     expect(mockPatchStatus).toHaveBeenCalledWith(sampleTask.taskID, null);
   });
-  expect(screen.queryByRole('dialog', { name: /move task buy milk/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
 });
 
 // Task duplication behavior.
@@ -5550,7 +5575,7 @@ test('completing a recurring task with end time creates the next occurrence with
   await act(async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
-  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
   await act(async () => {
     userEvent.click(within(moveDialog).getByRole('button', { name: /^done$/i }));
   });
@@ -5834,7 +5859,7 @@ test('completed recurring task status move toggles back to active without genera
   await act(async () => {
     userEvent.click(screen.getByText('Buy milk'));
   });
-  const moveDialog = screen.getByRole('dialog', { name: /move task buy milk/i });
+  const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
   await act(async () => {
     userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
   });
