@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Task } from '../../types/task';
+import { TASK_STATUS } from '../../utils/taskUtils';
 import { ProjectBadge } from '../create-task/TagProjectChips';
 import TaskTags from '../create-task/TaskTags';
 
@@ -239,7 +240,7 @@ function TaskCardMain({
           <div className="item__status-row">
             <button
               type="button"
-              className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === 3 ? 'progress' : 'active'}`}
+              className={`item__status-pill item__status-pill--${completed ? 'done' : statusID === TASK_STATUS.IN_PROGRESS ? 'progress' : 'active'}`}
               aria-label={`Change status from ${statusLabel}`}
               onClick={e => {
                 e.stopPropagation();

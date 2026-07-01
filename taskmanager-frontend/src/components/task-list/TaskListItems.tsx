@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import type { Project, Subtask, Task } from '../../types/task';
-import { isTaskDone, isTaskOverdue } from '../../utils/taskUtils';
-import { normalizeTaskStatus } from '../../utils/taskDisplay';
+import { isTaskDone, isTaskOverdue, normalizeTaskStatus, TASK_STATUS } from '../../utils/taskUtils';
 import { findProjectById, formatPriorityLabel, formatTaskDateRange } from '../../utils/taskDisplayHelpers';
 import ConfirmDelete from '../shared/ConfirmDelete';
 import TaskCardMain from './TaskCardMain';
@@ -96,13 +95,13 @@ function TaskListItems({
         const overdue = isTaskOverdue(task);
         const completed = isTaskDone(task);
         const statusID = normalizeTaskStatus(task.statusID);
-        const statusLabel = completed ? 'Done' : statusID === 3 ? 'In progress' : 'Active';
+        const statusLabel = completed ? 'Done' : statusID === TASK_STATUS.IN_PROGRESS ? 'In progress' : 'Active';
         const isSelected = selectedTaskId === task.taskID;
         const isEditingTask =
           editingId === task.taskID &&
           selectedTaskId === null;
         const taskSubtasks = subtasks[task.taskID] ?? [];
-        const subtaskDone = taskSubtasks.filter(subtask => subtask.statusID === 2).length;
+        const subtaskDone = taskSubtasks.filter(subtask => subtask.statusID === TASK_STATUS.DONE).length;
         const taskProjectTitle = task.projectID ? findProjectById(projects, task.projectID)?.title ?? null : null;
 
         return (

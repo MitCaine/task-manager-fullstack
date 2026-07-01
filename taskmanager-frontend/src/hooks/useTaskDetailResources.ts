@@ -19,6 +19,7 @@ import {
 import type { Attachment, Note, Reminder, Subtask } from '../types/task';
 import { buildDateTimeString } from '../utils/dateTime';
 import type { Ampm } from '../utils/taskForm';
+import { TASK_STATUS } from '../utils/taskUtils';
 
 type UseTaskDetailResourcesOptions = {
   is24Hour: boolean;
@@ -140,7 +141,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   };
 
   const toggleSubtask = async (taskId: number, subtask: Subtask) => {
-    const newStatusID = subtask.statusID === 2 ? 1 : 2;
+    const newStatusID = subtask.statusID === TASK_STATUS.DONE ? TASK_STATUS.LEGACY_ACTIVE : TASK_STATUS.DONE;
     try {
       const saved = await patchSubtaskStatus(subtask.subTaskID, newStatusID);
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].map(s => s.subTaskID === saved.subTaskID ? saved : s) }));

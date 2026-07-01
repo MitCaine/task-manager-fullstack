@@ -12,7 +12,6 @@ import {
   parseLocalDateTime,
   toLocalDateTimeString,
 } from './utils/dateTime';
-import { normalizeTaskStatus } from './utils/taskDisplay';
 import { convertHourForTimeMode } from './utils/taskForm';
 import { nextCopyTitle } from './utils/taskCopyTitle';
 import {
@@ -24,6 +23,7 @@ import {
   formatCreateDateDisplayLabel,
   formatTaskDateRange,
 } from './utils/taskDisplayHelpers';
+import { normalizeTaskStatus, TASK_STATUS } from './utils/taskUtils';
 import Calendar from './components/Calendar';
 import CreateTaskCard from './components/create-task/CreateTaskCard';
 import StatsModal from './components/settings/StatsModal';
@@ -103,8 +103,8 @@ const SWIPE_IGNORE_SELECTOR = [
 ].join(',');
 const TASK_STATUS_OPTIONS = [
   { label: 'Not started', statusID: null as number | null },
-  { label: 'In Progress', statusID: 3 as number | null },
-  { label: 'Done', statusID: 2 as number | null },
+  { label: 'In Progress', statusID: TASK_STATUS.IN_PROGRESS as number | null },
+  { label: 'Done', statusID: TASK_STATUS.DONE as number | null },
 ];
 
 function shouldIgnoreSwipeStart(target: EventTarget | null): boolean {
@@ -1358,7 +1358,7 @@ function App() {
   const toggleComplete = async (task: Task) => {
     const currentStatusID = normalizeTaskStatus(task.statusID);
     // Completing an active recurring task creates its next scheduled occurrence.
-    if (task.recurrenceRuleID && currentStatusID !== 2) {
+    if (task.recurrenceRuleID && currentStatusID !== TASK_STATUS.DONE) {
       try {
         const rule = await getRecurrence(task.taskID);
         await completeRecurringTask(task, rule);
@@ -1369,7 +1369,7 @@ function App() {
     }
 
     // Non-recurring tasks only toggle between active and done.
-    const newStatusID = currentStatusID === 2 ? null : 2;
+    const newStatusID = currentStatusID === TASK_STATUS.DONE ? null : TASK_STATUS.DONE;
     try {
       const saved = await patchTaskStatus(task.taskID, newStatusID);
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
@@ -1380,7 +1380,7 @@ function App() {
 
   const moveTaskToStatus = async (task: Task, statusID: number | null) => {
     setStatusMoveTask(null);
-    if (statusID === 2 && task.recurrenceRuleID && normalizeTaskStatus(task.statusID) !== 2) {
+    if (statusID === TASK_STATUS.DONE && task.recurrenceRuleID && normalizeTaskStatus(task.statusID) !== TASK_STATUS.DONE) {
       await toggleComplete(task);
       return;
     }
@@ -1586,11 +1586,11 @@ function App() {
         if (!fallbackTask) continue;
         const currentTask = await getTask(id).catch(() => fallbackTask);
         const currentStatusID = normalizeTaskStatus(currentTask.statusID);
-        const recurrenceRule = currentStatusID !== 2 ? await getExistingRecurrenceRule(currentTask) : null;
+        const recurrenceRule = currentStatusID !== TASK_STATUS.DONE ? await getExistingRecurrenceRule(currentTask) : null;
         if (recurrenceRule) {
           await completeRecurringTask(currentTask, recurrenceRule);
         } else {
-          const saved = await patchTaskStatus(id, 2);
+          const saved = await patchTaskStatus(id, TASK_STATUS.DONE);
           setTasks(prev => prev.map(task => task.taskID === saved.taskID ? saved : task));
         }
       }

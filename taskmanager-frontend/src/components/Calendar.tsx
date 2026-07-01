@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Task, Project } from '../types/task';
 import { formatTime } from '../utils/dateTime';
-import { isTaskOverdue } from '../utils/taskUtils';
+import { isTaskDone, isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
 
 type CalView = 'year' | 'month' | 'week' | 'day';
@@ -64,7 +64,7 @@ type DayTaskStatus = 'none' | 'upcoming' | 'overdue' | 'mixed' | 'completed';
 
 function getDayTaskStatus(dayTasks: Task[]): DayTaskStatus {
   if (dayTasks.length === 0) return 'none';
-  const allCompleted = dayTasks.every(t => t.statusID === 2);
+  const allCompleted = dayTasks.every(isTaskDone);
   if (allCompleted) return 'completed';
   const hasOverdue  = dayTasks.some(t => isTaskOverdue(t));
   const hasUpcoming = dayTasks.some(t => !isTaskOverdue(t));
@@ -444,7 +444,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
     const now = Date.now();
     return [...tasks]
       .filter(t => {
-        if (!t.dateTimeScheduled || t.statusID === 2) return false;
+        if (!t.dateTimeScheduled || isTaskDone(t)) return false;
         return new Date(t.dateTimeScheduled).getTime() >= now;
       })
       .sort((a, b) => a.dateTimeScheduled!.localeCompare(b.dateTimeScheduled!));
@@ -457,7 +457,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       <ul className="cal-list">
         {items.map(t => {
           const overdue    = isTaskOverdue(t);
-          const completed  = t.statusID === 2;
+          const completed  = isTaskDone(t);
           const timeLabel = t.dateTimeScheduled ? fmtTimeRange(t.dateTimeScheduled, t.endDateTimeScheduled) : '—';
           const dateLabel = t.dateTimeScheduled ? fmtShortDate(t.dateTimeScheduled) : null;
           const taskTags = t.tags ?? [];

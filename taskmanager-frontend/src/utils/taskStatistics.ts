@@ -19,7 +19,7 @@ export function deriveTaskStatistics(tasks: Task[], now = new Date()): TaskStati
   const total = tasks.length;
   const done = tasks.filter(isTaskDone).length;
   const active = tasks.filter(t => !isTaskDone(t)).length;
-  const overdue = tasks.filter(t => isTaskOverdue(t)).length;
+  const overdue = tasks.filter(t => isTaskOverdue(t, now)).length;
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
   const doneThisWeek = tasks.filter(t => isTaskDone(t) && t.createdAt && parseLocalDateTime(t.createdAt) >= weekAgo).length;
