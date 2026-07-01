@@ -102,7 +102,7 @@ afterEach(() => {
 
 /** Open the settings panel (⚙ Settings button). */
 function openSettings() {
-  userEvent.click(screen.getByRole('button', { name: /settings/i }));
+  fireEvent.click(screen.getByRole('button', { name: /settings/i }));
 }
 
 async function openTaskActions(item?: HTMLElement) {
@@ -395,7 +395,7 @@ async function openInlineEditCard(task: Task = sampleTask): Promise<HTMLElement>
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -411,7 +411,7 @@ async function openMobileEditPanel(task: Task = sampleTask): Promise<HTMLElement
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editPanel = document.querySelector('.mobile-edit-panel');
@@ -539,14 +539,14 @@ test('default task list hides done tasks and counts current tasks separately', a
   expect(allBadge).toHaveClass('task-count--active');
 
   await act(async () => {
-    userEvent.click(doneBadge);
+    await userEvent.click(doneBadge);
   });
   expect(within(taskList).getByText('Done task')).toBeInTheDocument();
   expect(within(taskList).queryByText('Active task')).not.toBeInTheDocument();
   expect(doneBadge).toHaveClass('task-count--active');
 
   await act(async () => {
-    userEvent.click(allBadge);
+    await userEvent.click(allBadge);
   });
   expect(within(taskList).getByText('Active task')).toBeInTheDocument();
   expect(within(taskList).getByText('Overdue task')).toBeInTheDocument();
@@ -564,7 +564,7 @@ test('clicking done count badge filters to completed tasks', async () => {
   await screen.findByText('Active task');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /1 done/i }));
   });
 
   const taskList = screen.getByRole('list', { name: /task list/i });
@@ -584,7 +584,7 @@ test('search applies within default and done task views', async () => {
 
   const taskList = screen.getByRole('list', { name: /task list/i });
   await act(async () => {
-    userEvent.type(screen.getByLabelText(/search tasks/i), 'report');
+    await userEvent.type(screen.getByLabelText(/search tasks/i), 'report');
   });
 
   expect(within(taskList).getByText('Current report')).toBeInTheDocument();
@@ -592,7 +592,7 @@ test('search applies within default and done task views', async () => {
   expect(within(taskList).queryByText('Current errands')).not.toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /1 done/i }));
   });
 
   expect(within(taskList).getByText('Done report')).toBeInTheDocument();
@@ -608,7 +608,7 @@ test('clicking overdue count badge filters to overdue tasks', async () => {
   await screen.findByText('Active task');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /1 overdue/i }));
+    await userEvent.click(screen.getByRole('button', { name: /1 overdue/i }));
   });
 
   const taskList = screen.getByRole('list', { name: /task list/i });
@@ -625,10 +625,10 @@ test('completed filter empty state explains completed tasks', async () => {
   await screen.findByText('Active task');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitemradio', { name: 'Done' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Done' }));
   });
 
   expect(screen.getByText('No completed tasks yet')).toBeInTheDocument();
@@ -643,10 +643,10 @@ test('overdue filter empty state reinforces progress', async () => {
   await screen.findByText('Future task');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Show filter:/ }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitemradio', { name: 'Overdue' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Overdue' }));
   });
 
   expect(screen.getByText('No overdue tasks')).toBeInTheDocument();
@@ -674,7 +674,7 @@ test('12-hour task time uses uppercase PM in US and European date formats', asyn
   expect(screen.getByText(/9:00 PM/)).toBeInTheDocument();
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /dd\/mm\/yyyy/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /dd\/mm\/yyyy/i })); });
 
   expect(screen.getByText(/9:00 PM/)).toBeInTheDocument();
   expect(screen.queryByText(/pm/)).not.toBeInTheDocument();
@@ -686,7 +686,7 @@ test('24-hour task time converts PM storage to 21:00 for display', async () => {
   await screen.findByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
 
   expect(screen.getByText(/21:00/)).toBeInTheDocument();
   expect(screen.queryByText(/9:00 PM/)).not.toBeInTheDocument();
@@ -704,7 +704,7 @@ test('end time ranges format correctly in 12-hour and 24-hour modes', async () =
   expect(screen.getByText(/9:00 PM - 10:00 PM/)).toBeInTheDocument();
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
 
   expect(screen.getByText(/21:00 - 22:00/)).toBeInTheDocument();
 });
@@ -727,7 +727,7 @@ test('format toggle buttons are rendered inside the settings panel', async () =>
 test('typing in the title input updates its value', async () => {
   render(<App />);
   const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
-  userEvent.type(input, 'New task');
+  await userEvent.type(input, 'New task');
   expect(input.value).toBe('New task');
 });
 
@@ -735,8 +735,8 @@ test('clicking Add calls createTask and appends task to list', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk');
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk');
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
   expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -747,8 +747,8 @@ test('clicking Add shows a non-disruptive task-created toast', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Toast task');
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Toast task');
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   const toastMessage = await screen.findByText('Task added.');
   const toast = toastMessage.closest('.toast');
@@ -788,7 +788,7 @@ test('pressing Enter in title input calls createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk{enter}');
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk{enter}');
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
 });
@@ -802,12 +802,12 @@ test('clicking delete button then confirming removes the task', async () => {
   // Step 1: click the ✕ icon to show confirmation
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
 
   // Step 2: wait for confirmation to appear, then click Delete
   const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
-  await act(async () => { userEvent.click(confirmBtn); });
+  await act(async () => { await userEvent.click(confirmBtn); });
 
   await waitFor(() => {
     expect(mockDeleteTask).toHaveBeenCalledWith(1);
@@ -823,10 +823,10 @@ test('clicking delete then Cancel leaves the task in place', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
   const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
-  userEvent.click(cancelBtn);
+  await userEvent.click(cancelBtn);
 
   expect(screen.getByText('Buy milk')).toBeInTheDocument();
   expect(mockDeleteTask).not.toHaveBeenCalled();
@@ -836,14 +836,14 @@ test('toggling 24-hour format hides the AM/PM selector while editing time', asyn
   render(<App />);
   // Start time is summarized by default; open the editor from the summary.
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   // In default 12h mode the AM/PM segment should be available.
   expect(await screen.findByRole('button', { name: /^(AM|PM)$/ })).toBeInTheDocument();
 
   // Switch to 24-hour in settings
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
 
   // AM/PM segment should be gone in 24h mode
   await waitFor(() => {
@@ -855,10 +855,10 @@ test('12-hour mode shows AM and PM options while editing time', async () => {
   render(<App />);
   // Default is 12-hour; the compact summary opens the time editor.
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   await act(async () => {
-    userEvent.click(await screen.findByRole('button', { name: /^(AM|PM)$/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^(AM|PM)$/ }));
   });
   expect(screen.getAllByRole('button', { name: 'AM' }).length).toBeGreaterThanOrEqual(1);
   expect(screen.getAllByRole('button', { name: 'PM' }).length).toBeGreaterThanOrEqual(1);
@@ -868,12 +868,12 @@ test('start time editor opens in one tap when priority menu is open', async () =
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
   expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
   });
 
   expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
@@ -884,7 +884,7 @@ test('end time editor opens in one tap when start time editor is open', async ()
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
   const activeStartSummary = screen.getByRole('button', { name: /^start:/i });
@@ -894,7 +894,7 @@ test('end time editor opens in one tap when start time editor is open', async ()
   expect(inactiveEndSummary).not.toHaveClass('datetime-row__time-summary--active');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -911,12 +911,12 @@ test('expanded start and end time editor labels keep the fixed-width label hook'
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expect(getExpandedEditorLabel('Start')).toHaveClass('datetime-row__end-label', 'datetime-row__end-label--fixed');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
   });
   expect(getExpandedEditorLabel('End')).toHaveClass('datetime-row__end-label', 'datetime-row__end-label--fixed');
 });
@@ -925,12 +925,12 @@ test('start time editor opens in one tap when end time editor is open', async ()
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ End time/i));
+    await userEvent.click(await screen.findByText(/\+ End time/i));
   });
   expectOpenTimeEditor('End');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
   });
 
   expectNoOpenTimeEditor('End');
@@ -941,12 +941,12 @@ test('tapping the active start time summary toggles the editor closed', async ()
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^start:/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^start:/i }));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -956,12 +956,12 @@ test('priority opens in one tap when start time editor is open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -972,12 +972,12 @@ test('project opens in one tap when start time editor is open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^project$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^project$/i }));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -988,12 +988,12 @@ test('tags opens in one tap when start time editor is open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -1004,12 +1004,12 @@ test('priority opens in one tap when end time editor is open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ End time/i));
+    await userEvent.click(await screen.findByText(/\+ End time/i));
   });
   expectOpenTimeEditor('End');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
   expectNoOpenTimeEditor('End');
@@ -1020,12 +1020,12 @@ test('priority closes when clicking the create title input', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
   expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByPlaceholderText(/task title/i));
+    await userEvent.click(screen.getByPlaceholderText(/task title/i));
   });
 
   expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
@@ -1035,12 +1035,12 @@ test('project opens in one tap when priority is open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
   expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^project$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^project$/i }));
   });
 
   expect(screen.queryByText(/remove priority/i)).not.toBeInTheDocument();
@@ -1051,7 +1051,7 @@ test('priority menu options are real buttons', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
   expect(screen.getByRole('button', { name: /remove priority/i })).toBeInTheDocument();
@@ -1071,12 +1071,12 @@ test('open create dropdown controls close when their trigger is clicked again', 
 
   for (const trigger of triggers) {
     await act(async () => {
-      userEvent.click(trigger);
+      await userEvent.click(trigger);
     });
     expect(createCard.querySelector('.tag-select__dropdown')).toBeInTheDocument();
 
     await act(async () => {
-      userEvent.click(trigger);
+      await userEvent.click(trigger);
     });
     expect(createCard.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
   }
@@ -1086,12 +1086,12 @@ test('start time editor closes when clicking the create title input', async () =
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
   await act(async () => {
-    userEvent.click(screen.getByPlaceholderText(/task title/i));
+    await userEvent.click(screen.getByPlaceholderText(/task title/i));
   });
 
   expectNoOpenTimeEditor('Start');
@@ -1103,7 +1103,7 @@ test('date closes when clicking the create title input', async () => {
   await openCreateDateInput();
 
   await act(async () => {
-    userEvent.click(screen.getByPlaceholderText(/task title/i));
+    await userEvent.click(screen.getByPlaceholderText(/task title/i));
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
@@ -1113,7 +1113,7 @@ test('date opens from priority in one tap', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
   expect(await screen.findByText(/remove priority/i)).toBeInTheDocument();
 
@@ -1129,7 +1129,7 @@ test('start time editor opens from date in one tap', async () => {
   await openCreateDateInput();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ start time/i }));
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
@@ -1142,7 +1142,7 @@ test('end time editor opens from date in one tap', async () => {
   await openCreateDateInput();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(screen.getByRole('button', { name: /\+ end time/i }));
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
@@ -1153,7 +1153,7 @@ test('date opens from start time editor in one tap', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   expectOpenTimeEditor('Start');
 
@@ -1169,7 +1169,7 @@ test('priority opens from date in one tap', async () => {
   await openCreateDateInput();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^priority$/i }));
   });
 
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
@@ -1180,15 +1180,15 @@ test('closing start hour dropdown keeps the start editor open', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
 
   const hourButton = screen.getAllByRole('button', { name: /^\d{2}$/ })[0];
   await act(async () => {
-    userEvent.click(hourButton);
+    await userEvent.click(hourButton);
   });
   await act(async () => {
-    userEvent.click(hourButton);
+    await userEvent.click(hourButton);
   });
 
   expectOpenTimeEditor('Start');
@@ -1198,7 +1198,7 @@ test('date input remains usable after create control switching', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   await openCreateDateInput();
   await act(async () => {
@@ -1274,29 +1274,29 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
   render(<App />);
 
   const projectFilter = await screen.findByLabelText(/Project filter:/);
-  userEvent.click(projectFilter);
+  await userEvent.click(projectFilter);
 
   const projectMenu = await screen.findByRole('menu', { name: 'Project options' });
   expect(projectMenu).toHaveClass('tag-select__dropdown', 'filter-field__dropdown');
   const projectMenuScope = within(projectMenu);
   expect(projectMenuScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
   const projectSearch = projectMenuScope.getByRole('searchbox', { name: 'Search project filters' });
-  userEvent.type(projectSearch, 'TASK');
+  await userEvent.type(projectSearch, 'TASK');
   expect(await projectMenuScope.findByRole('menuitemradio', { name: 'Task Manager' })).toBeInTheDocument();
   expect(projectMenuScope.queryByRole('menuitemradio', { name: 'Wedding Planning' })).not.toBeInTheDocument();
   await act(async () => {
-    userEvent.click(projectMenuScope.getByRole('menuitemradio', { name: 'Task Manager' }));
+    await userEvent.click(projectMenuScope.getByRole('menuitemradio', { name: 'Task Manager' }));
   });
   expect(screen.getByLabelText('Project filter: Task Manager')).toBeInTheDocument();
 
-  userEvent.click(screen.getByLabelText('Project filter: Task Manager'));
+  await userEvent.click(screen.getByLabelText('Project filter: Task Manager'));
   const reopenedProjectMenu = await screen.findByRole('menu', { name: 'Project options' });
   const reopenedProjectScope = within(reopenedProjectMenu);
-  userEvent.type(reopenedProjectScope.getByRole('searchbox', { name: 'Search project filters' }), 'missing');
+  await userEvent.type(reopenedProjectScope.getByRole('searchbox', { name: 'Search project filters' }), 'missing');
   expect(reopenedProjectScope.getByText('No projects match your search.')).toBeInTheDocument();
   expect(reopenedProjectScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
 
-  userEvent.click(screen.getByLabelText(/Tag filter:/));
+  await userEvent.click(screen.getByLabelText(/Tag filter:/));
   const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
   expect(within(tagMenu).getAllByRole('menuitemradio').map(item => item.textContent)).toEqual([
     'All',
@@ -1304,7 +1304,7 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
     'Deep Work',
   ]);
   const tagSearch = within(tagMenu).getByRole('searchbox', { name: 'Search tag filters' });
-  userEvent.type(tagSearch, 'CAR');
+  await userEvent.type(tagSearch, 'CAR');
   expect(await within(tagMenu).findByRole('menuitemradio', { name: 'Car Maintenance' })).toBeInTheDocument();
   expect(within(tagMenu).queryByRole('menuitemradio', { name: 'Deep Work' })).not.toBeInTheDocument();
   const tagColor = within(tagMenu).getByRole('menuitemradio', { name: 'Car Maintenance' }).querySelector('.tag-dot');
@@ -1319,7 +1319,7 @@ test('repeat dropdown uses a value-aligned dropdown hook', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+    await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
 
   const dropdown = document.querySelector('.recurrence-select__dropdown');
@@ -1330,22 +1330,22 @@ test('create repeat dropdown keeps interval edits open until Done closes it', as
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+    await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   const dropdown = document.querySelector('.recurrence-select__dropdown');
   if (!(dropdown instanceof HTMLElement)) throw new Error('Create repeat dropdown not found');
   const dropdownScope = within(dropdown);
 
   await act(async () => {
-    userEvent.click(dropdownScope.getByRole('button', { name: /^unit day$/i }));
+    await userEvent.click(dropdownScope.getByRole('button', { name: /^unit day$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('option', { name: /^week$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^week$/i }));
   });
   expect(dropdown).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(dropdownScope.getByRole('button', { name: /^done$/i }));
+    await userEvent.click(dropdownScope.getByRole('button', { name: /^done$/i }));
   });
   expect(document.querySelector('.recurrence-select__dropdown')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /repeat.*every week/i })).toBeInTheDocument();
@@ -1355,7 +1355,7 @@ test('create tags dropdown uses the generic dropdown sizing', async () => {
   render(<App />);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^tags$/i }));
   });
 
   const dropdown = document.querySelector('.tag-select--create-tags .tag-select__dropdown');
@@ -1373,7 +1373,7 @@ test('create project assignment searches case-insensitively and preserves projec
   const createCard = getCreateCard();
   const createScope = within(createCard);
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
   });
 
   const dropdown = createCard.querySelector('.tag-select__dropdown');
@@ -1381,15 +1381,15 @@ test('create project assignment searches case-insensitively and preserves projec
   const dropdownScope = within(dropdown);
   expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
   const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create projects' });
-  userEvent.type(searchInput, 'WEDDING');
+  await userEvent.type(searchInput, 'WEDDING');
 
   expect(dropdownScope.getByLabelText('📁 Wedding Planning')).toBeInTheDocument();
   expect(dropdownScope.queryByLabelText('📁 Home')).not.toBeInTheDocument();
-  userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
+  await userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
   expect(createScope.getByLabelText('Remove project Wedding Planning')).toBeInTheDocument();
 
-  userEvent.clear(searchInput);
-  userEvent.type(searchInput, 'missing');
+  await userEvent.clear(searchInput);
+  await userEvent.type(searchInput, 'missing');
   expect(dropdownScope.getByText('No projects match your search.')).toBeInTheDocument();
   expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
 });
@@ -1405,7 +1405,7 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   const createCard = getCreateCard();
   const createScope = within(createCard);
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
   });
 
   const dropdown = createCard.querySelector('.tag-select--create-tags .tag-select__dropdown');
@@ -1413,29 +1413,29 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   const dropdownScope = within(dropdown);
   const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create tags' });
 
-  userEvent.type(searchInput, 'DEEP');
+  await userEvent.type(searchInput, 'DEEP');
   expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
   expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
 
   const colorButton = dropdownScope.getByRole('button', { name: 'Change tag color' });
   expect(colorButton).toHaveStyle({ background: '#6366f1' });
-  userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+  await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
 
   expect(dropdown).toBeInTheDocument();
   expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
 
-  userEvent.clear(searchInput);
+  await userEvent.clear(searchInput);
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
     'Deep Work',
     'Errand',
     'Planning',
   ]);
 
-  userEvent.type(searchInput, 'work');
+  await userEvent.type(searchInput, 'work');
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual(['Deep Work']);
 
-  userEvent.clear(searchInput);
-  userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+  await userEvent.clear(searchInput);
+  await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
     'Errand',
     'Deep Work',
@@ -1443,7 +1443,7 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   ]);
   await waitFor(() => expect(createScope.queryByLabelText('Remove tag Deep Work')).not.toBeInTheDocument());
 
-  userEvent.type(searchInput, 'missing');
+  await userEvent.type(searchInput, 'missing');
   expect(dropdownScope.getByText('No tags match your search.')).toBeInTheDocument();
 });
 
@@ -1467,8 +1467,8 @@ test('selected create date is used when creating the task', async () => {
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
   });
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Dated task');
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Dated task');
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
   expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -1481,8 +1481,8 @@ test('create task defaults to no recurrence', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'One-time task');
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'One-time task');
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
   expect(mockSetRepeat).not.toHaveBeenCalled();
@@ -1508,18 +1508,18 @@ test('create task can select daily recurrence and saves it', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Daily task');
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Daily task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+    await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^every 1$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^every 1$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('option', { name: /^1$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^1$/i }));
   });
   expect(within(screen.getByLabelText(/task preview/i)).getByText('Every day')).toBeInTheDocument();
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(45, { intervalUnit: 'day', intervalValue: 1 }));
 });
@@ -1530,31 +1530,31 @@ test('create task can select weekly and monthly recurrence', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Weekly task');
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Weekly task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+    await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('option', { name: /^week$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^week$/i }));
   });
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, { intervalUnit: 'week', intervalValue: 1 }));
   await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*never repeat/i })).toBeInTheDocument());
 
-  userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
+    await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^unit day$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('option', { name: /^month$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(47, { intervalUnit: 'month', intervalValue: 1 }));
 });
 
@@ -1572,7 +1572,7 @@ test('swipe starting on the page area changes mobile view', async () => {
 test('swipe starting on the task creation card background changes back to task list', async () => {
   render(<App />);
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
   });
   expectMobilePage('Add');
 
@@ -1589,7 +1589,7 @@ test('swipe starting on the task creation card background changes back to task l
 test('swipe starting on the calendar background changes back to task list', async () => {
   render(<App />);
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
   });
   expectMobilePage('Calendar');
 
@@ -2153,7 +2153,7 @@ test('entering inline edit from a scrolled task list resets stale document scrol
   dirtyElementScroll(taskList, 88);
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   expectDocumentScrollReset();
@@ -2199,7 +2199,7 @@ test('search to inline edit title keeps text mode active and corrects document s
   await focusTextField(search);
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Edit card not found');
@@ -2238,7 +2238,7 @@ test('opening inline edit after search blur does not inherit the task list text 
   await focusTextField(search);
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Edit card not found');
@@ -2520,7 +2520,7 @@ test('mobile edit title-style description keeps save semantics', async () => {
 
     fireEvent.change(editDescription, { target: { value: 'new description' } });
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
     });
 
     await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
@@ -2537,15 +2537,15 @@ test('mobile edit can change priority and save it', async () => {
 
   try {
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /^low$/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /^low$/i }));
     });
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /^high$/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /^high$/i }));
     });
     expect(within(editPanel).getByRole('button', { name: /^high$/i })).toBeInTheDocument();
     expect(mockUpdateTask).not.toHaveBeenCalled();
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
     });
 
     await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
@@ -2571,12 +2571,12 @@ test('open mobile edit dropdown controls close when their trigger is tapped agai
 
     for (const trigger of triggers) {
       await act(async () => {
-        userEvent.click(trigger);
+        await userEvent.click(trigger);
       });
       expect(editPanel.querySelector('.tag-select__dropdown')).toBeInTheDocument();
 
       await act(async () => {
-        userEvent.click(trigger);
+        await userEvent.click(trigger);
       });
       expect(editPanel.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
     }
@@ -2592,16 +2592,16 @@ test('canceling mobile edit does not persist a dropdown draft change', async () 
   try {
     const editScope = within(editPanel);
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: /^low$/i }));
+      await userEvent.click(editScope.getByRole('button', { name: /^low$/i }));
     });
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: /^high$/i }));
+      await userEvent.click(editScope.getByRole('button', { name: /^high$/i }));
     });
     expect(editScope.getByRole('button', { name: /^high$/i })).toBeInTheDocument();
     expect(mockUpdateTask).not.toHaveBeenCalled();
 
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: /^cancel$/i }));
+      await userEvent.click(editScope.getByRole('button', { name: /^cancel$/i }));
     });
 
     expect(mockUpdateTask).not.toHaveBeenCalled();
@@ -2812,13 +2812,13 @@ test('desktop edit switches cleanly between task cards', async () => {
 
     await openTaskActions(firstItem);
     await act(async () => {
-      userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
+      await userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
     });
     expect(within(firstItem).getByDisplayValue('First task')).toBeInTheDocument();
 
     await openTaskActions(secondItem);
     await act(async () => {
-      userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
+      await userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
     });
 
     expect(firstItem.querySelector('.item__edit-card')).not.toBeInTheDocument();
@@ -2848,13 +2848,13 @@ test('mobile edit switches cleanly between task replacement rows', async () => {
 
     await openTaskActions(firstItem);
     await act(async () => {
-      userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
+      await userEvent.click(within(firstItem).getByRole('menuitem', { name: /edit/i }));
     });
     expect(document.querySelector('#task-1.mobile-edit-row')).toBeInTheDocument();
 
     await openTaskActions(secondItem);
     await act(async () => {
-      userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
+      await userEvent.click(within(secondItem).getByRole('menuitem', { name: /edit/i }));
     });
 
     expect(document.querySelector('#task-1.mobile-edit-row')).not.toBeInTheDocument();
@@ -2908,7 +2908,7 @@ test('cancel edit restores the original task card', async () => {
 
   try {
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
     });
 
     const taskItem = document.querySelector(`#task-${task.taskID}`);
@@ -2935,7 +2935,7 @@ test('desktop edit can be opened and canceled repeatedly without duplicate edit 
       if (!(taskItem instanceof HTMLElement)) throw new Error('Task item not found');
       await openTaskActions(taskItem);
       await act(async () => {
-        userEvent.click(within(taskItem).getByRole('menuitem', { name: /edit/i }));
+        await userEvent.click(within(taskItem).getByRole('menuitem', { name: /edit/i }));
       });
       const editCard = document.querySelector('.item__edit-card');
       if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
@@ -2943,7 +2943,7 @@ test('desktop edit can be opened and canceled repeatedly without duplicate edit 
       expect(document.querySelectorAll('.item__edit-card')).toHaveLength(1);
 
       await act(async () => {
-        userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
+        await userEvent.click(within(editCard).getByRole('button', { name: /^cancel$/i }));
       });
       expect(document.querySelector('.item__edit-card')).not.toBeInTheDocument();
       expect(screen.getByText('Repeat edit description')).toBeInTheDocument();
@@ -2964,7 +2964,7 @@ test('saving mobile edit restores the updated task card', async () => {
     if (!(titleInput instanceof HTMLInputElement)) throw new Error('Mobile edit title input not found');
     fireEvent.change(titleInput, { target: { value: 'Updated mobile title' } });
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /^save$/i }));
     });
 
     await screen.findByText('Updated mobile title');
@@ -3003,7 +3003,7 @@ test('desktop edit opens for a long task near the bottom without scrolling the l
 
     await openTaskActions(bottomItem);
     await act(async () => {
-      userEvent.click(within(bottomItem).getByRole('menuitem', { name: /edit/i }));
+      await userEvent.click(within(bottomItem).getByRole('menuitem', { name: /edit/i }));
     });
 
     expect(within(bottomItem).getByDisplayValue('Very long bottom task title that should remain editable without layout jumps')).toBeInTheDocument();
@@ -3048,7 +3048,7 @@ test('mobile edit time controls keep Clear Time and Done compact on the selector
 
   try {
     await act(async () => {
-      userEvent.click(within(editPanel).getByRole('button', { name: /\+ start time/i }));
+      await userEvent.click(within(editPanel).getByRole('button', { name: /\+ start time/i }));
     });
 
     const editor = getOpenTimeEditor(editPanel);
@@ -3118,7 +3118,7 @@ test('desktop task click opens status move without opening edit panels', async (
 
   try {
     await act(async () => {
-      userEvent.click(screen.getByText('Buy milk'));
+      await userEvent.click(screen.getByText('Buy milk'));
     });
 
     expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
@@ -3173,18 +3173,18 @@ test('mobile edit tag search filters and selects without changing panel or scrol
   try {
     const editScope = within(editPanel);
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
+      await userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
     });
 
     const dropdown = editPanel.querySelector('.tag-select__dropdown');
     if (!(dropdown instanceof HTMLElement)) throw new Error('Mobile edit tag dropdown not found');
     const dropdownScope = within(dropdown);
     const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit tags' });
-    userEvent.type(searchInput, 'deep');
+    await userEvent.type(searchInput, 'deep');
 
     expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
     expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
-    userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+    await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
 
     expect(dropdown).toBeInTheDocument();
     expect(editScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
@@ -3210,7 +3210,7 @@ test('mobile edit project search filters and selects without changing panel or s
   try {
     const editScope = within(editPanel);
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
+      await userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
     });
 
     const dropdown = editPanel.querySelector('.tag-select__dropdown');
@@ -3219,23 +3219,23 @@ test('mobile edit project search filters and selects without changing panel or s
     expect(dropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
     expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
     const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit projects' });
-    userEvent.type(searchInput, 'wedding');
+    await userEvent.type(searchInput, 'wedding');
 
     expect(dropdownScope.getByRole('button', { name: 'Wedding Planning' })).toBeInTheDocument();
     expect(dropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
     await act(async () => {
-      userEvent.click(dropdownScope.getByRole('button', { name: 'Wedding Planning' }));
+      await userEvent.click(dropdownScope.getByRole('button', { name: 'Wedding Planning' }));
     });
 
     expect(editScope.getByRole('button', { name: 'Wedding Planning' })).toBeInTheDocument();
     expect(editPanel.querySelector('.tag-select__dropdown')).not.toBeInTheDocument();
     await act(async () => {
-      userEvent.click(editScope.getByRole('button', { name: 'Wedding Planning' }));
+      await userEvent.click(editScope.getByRole('button', { name: 'Wedding Planning' }));
     });
     const reopenedDropdown = editPanel.querySelector('.tag-select__dropdown');
     if (!(reopenedDropdown instanceof HTMLElement)) throw new Error('Reopened mobile edit project dropdown not found');
     await act(async () => {
-      userEvent.click(within(reopenedDropdown).getByRole('button', { name: /no project/i }));
+      await userEvent.click(within(reopenedDropdown).getByRole('button', { name: /no project/i }));
     });
     expect(editScope.getByRole('button', { name: /^project$/i })).toBeInTheDocument();
     expect(editPanel).toHaveClass('mobile-edit-panel');
@@ -3258,7 +3258,7 @@ test('mobile task tap opens status move without opening edit panels', async () =
 
   try {
     await act(async () => {
-      userEvent.click(screen.getByText('Buy milk'));
+      await userEvent.click(screen.getByText('Buy milk'));
     });
 
     expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
@@ -3418,12 +3418,12 @@ test('mobile text focus touch guard does not block horizontal pager swipes when 
 test('swipe starting inside a time dropdown does not change mobile view', async () => {
   render(<App />);
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
   });
   expectMobilePage('Add');
 
   await act(async () => {
-    userEvent.click(await screen.findByText(/\+ Start time/i));
+    await userEvent.click(await screen.findByText(/\+ Start time/i));
   });
   const firstTimeButton = document.querySelector('.time-select__btn');
   if (!(firstTimeButton instanceof HTMLElement)) throw new Error('Time selector button not found');
@@ -3443,7 +3443,7 @@ test('swipe starting inside a time dropdown does not change mobile view', async 
 test('swipe starting on a calendar navigation button does not change mobile view', async () => {
   render(<App />);
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
   });
   expectMobilePage('Calendar');
   const calendarTodayButton = document.querySelector('.cal-today-btn');
@@ -3487,33 +3487,33 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
   await setActiveEditorTime(createCard, '10', '00', 'AM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
   });
   await setActiveEditorTime(createCard, '11', '00', 'AM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^priority$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^priority$/i }));
   });
   await act(async () => {
-    userEvent.click(createScope.getByText(/^High$/i));
+    await userEvent.click(createScope.getByText(/^High$/i));
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^project$/i }));
   });
   await act(async () => {
-    userEvent.click(createScope.getByLabelText(/home/i));
+    await userEvent.click(createScope.getByLabelText(/home/i));
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^tags$/i }));
   });
   await act(async () => {
-    userEvent.click(createScope.getByLabelText(/errand/i));
+    await userEvent.click(createScope.getByLabelText(/errand/i));
   });
-  userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Full task');
-  userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Full task');
+  await userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
   expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -3535,24 +3535,24 @@ test('create task blocks end time before start time', async () => {
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid range');
+    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid range');
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
   await setActiveEditorTime(createCard, '09', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
-    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
   });
   await setActiveEditorTime(createCard, '08', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
 
   expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
   });
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
@@ -3566,32 +3566,32 @@ test('create task blocks end time equal to start time and clears when valid', as
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Equal range');
+    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Equal range');
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
-  });
-  await setActiveEditorTime(createCard, '09', '00', 'PM');
-  await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
-    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
   await setActiveEditorTime(createCard, '09', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+  });
+  await setActiveEditorTime(createCard, '09', '00', 'PM');
+  await act(async () => {
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
   expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
   });
   expect(mockCreateTask).not.toHaveBeenCalled();
 
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /end:\s*09:00 PM/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /end:\s*09:00 PM/i }));
   });
   await setActiveEditorTime(createCard, '10', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
   await waitFor(() => expect(createScope.queryByText('End time must be after start time.')).not.toBeInTheDocument());
 });
@@ -3607,25 +3607,25 @@ test('create warning appears when start time changes after end time exists', asy
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
   await setActiveEditorTime(createCard, '09', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
-    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
   });
   await setActiveEditorTime(createCard, '10', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
   expect(createScope.queryByText('End time must be after start time.')).not.toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /start:\s*09:00 PM/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /start:\s*09:00 PM/i }));
   });
   await setActiveEditorTime(createCard, '11', '00', 'PM');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
 
   expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
@@ -3680,12 +3680,12 @@ test('editing a task with end time preserves endDateTimeScheduled and metadata',
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
   expect(await screen.findByRole('button', { name: /^end:/i })).toHaveTextContent(/10:45 AM/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(50, expect.objectContaining({
@@ -3721,7 +3721,7 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -3731,19 +3731,19 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   expect(editScope.getByText('Errand')).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: 'Home' }));
+    await userEvent.click(editScope.getByRole('button', { name: 'Home' }));
   });
   const projectDropdown = editCard.querySelector('.tag-select__dropdown');
   if (!(projectDropdown instanceof HTMLElement)) throw new Error('Project dropdown not found');
   const projectDropdownScope = within(projectDropdown);
   expect(projectDropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
-  userEvent.type(projectDropdownScope.getByRole('searchbox', { name: 'Search edit projects' }), 'WORK');
+  await userEvent.type(projectDropdownScope.getByRole('searchbox', { name: 'Search edit projects' }), 'WORK');
   expect(projectDropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
   await act(async () => {
-    userEvent.click(projectDropdownScope.getByRole('button', { name: 'Work' }));
+    await userEvent.click(projectDropdownScope.getByRole('button', { name: 'Work' }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /1 tag/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /1 tag/i }));
   });
   const tagDropdown = editCard.querySelector('.tag-select__dropdown');
   if (!(tagDropdown instanceof HTMLElement)) throw new Error('Tag dropdown not found');
@@ -3752,11 +3752,11 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   const tagOptions = within(tagDropdown).getAllByRole('checkbox');
   expect(tagOptions.map(input => input.closest('label')?.textContent)).toEqual(['Errand', 'Focus']);
   await act(async () => {
-    userEvent.click(tagOptions[0]);
-    userEvent.click(tagOptions[1]);
+    await userEvent.click(tagOptions[0]);
+    await userEvent.click(tagOptions[1]);
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(52, expect.objectContaining({
@@ -3772,13 +3772,13 @@ test('desktop inline edit can change priority and save it', async () => {
 
   try {
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^low$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^low$/i }));
     });
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^medium$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^medium$/i }));
     });
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
     });
 
     await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
@@ -3795,13 +3795,13 @@ test('inline edit can clear priority', async () => {
 
   try {
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^high$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^high$/i }));
     });
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /remove priority/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /remove priority/i }));
     });
     await act(async () => {
-      userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+      await userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
     });
 
     await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(1, expect.objectContaining({
@@ -3827,7 +3827,7 @@ test('inline edit uses compact start and end time summaries', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -3840,13 +3840,13 @@ test('inline edit uses compact start and end time summaries', async () => {
   expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
 
   await act(async () => {
-    userEvent.click(endSummary);
+    await userEvent.click(endSummary);
   });
   expect(endSummary).toHaveClass('datetime-row__time-summary--active');
   expectOpenTimeEditor('End', editCard);
 
   await act(async () => {
-    userEvent.click(endSummary);
+    await userEvent.click(endSummary);
   });
   expectNoOpenTimeEditor('End', editCard);
   expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
@@ -3866,7 +3866,7 @@ test('inline edit date input updates the edited task date without opening an emp
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -3877,7 +3877,7 @@ test('inline edit date input updates the edited task date without opening an emp
   expect(editCard.querySelector('.datetime-row__editor:empty')).toBeNull();
 
   await act(async () => {
-    userEvent.click(dateInput);
+    await userEvent.click(dateInput);
   });
   expect(dateInput).toHaveAttribute('data-open', 'true');
   await act(async () => {
@@ -3885,7 +3885,7 @@ test('inline edit date input updates the edited task date without opening an emp
   });
   expect(dateInput).not.toHaveAttribute('data-open');
   await act(async () => {
-    userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
+    await userEvent.click(within(editCard).getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(57, expect.objectContaining({
@@ -3908,29 +3908,29 @@ test('inline edit end time can be changed and saved', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
   });
   const editor = editCard.querySelector('.datetime-row__editor');
   if (!(editor instanceof HTMLElement)) throw new Error('Time editor not found');
   const editorScope = within(editor);
   await act(async () => {
-    userEvent.click(editorScope.getByRole('button', { name: '10' }));
+    await userEvent.click(editorScope.getByRole('button', { name: '10' }));
   });
   await act(async () => {
-    userEvent.click(editorScope.getByRole('button', { name: '11' }));
+    await userEvent.click(editorScope.getByRole('button', { name: '11' }));
   });
   await act(async () => {
-    userEvent.click(editorScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(editorScope.getByRole('button', { name: /done/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(54, expect.objectContaining({
@@ -3961,7 +3961,7 @@ test('inline edit hydrates existing recurrence', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -3992,7 +3992,7 @@ test('inline edit can change recurrence', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -4000,23 +4000,23 @@ test('inline edit can change recurrence', async () => {
   const editScope = within(editCard);
   await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*every week/i })).toBeInTheDocument());
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /repeat.*every week/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /repeat.*every week/i }));
   });
   const dropdown = editCard.querySelector('.recurrence-select__dropdown');
   if (!(dropdown instanceof HTMLElement)) throw new Error('Inline repeat dropdown not found');
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^unit week$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^unit week$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('option', { name: /^month$/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
   expect(dropdown).toBeInTheDocument();
   await act(async () => {
-    userEvent.click(within(dropdown).getByRole('button', { name: /^done$/i }));
+    await userEvent.click(within(dropdown).getByRole('button', { name: /^done$/i }));
   });
   expect(editCard.querySelector('.recurrence-select__dropdown')).not.toBeInTheDocument();
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(61, { intervalUnit: 'month', intervalValue: 1 }));
@@ -4045,7 +4045,7 @@ test('inline edit can remove recurrence', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -4053,13 +4053,13 @@ test('inline edit can remove recurrence', async () => {
   const editScope = within(editCard);
   await waitFor(() => expect(editScope.getByRole('button', { name: /repeat.*every day/i })).toBeInTheDocument());
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /repeat.*every day/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /repeat.*every day/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('menuitem', { name: /never repeat/i }));
+    await userEvent.click(editScope.getByRole('menuitem', { name: /never repeat/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(62, null));
@@ -4080,23 +4080,23 @@ test('edit task blocks end time before start time', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
   });
   await setActiveEditorTime(editCard, '08', '00', 'PM');
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /done/i }));
   });
 
   expect(editScope.getByText('End time must be after start time.')).toBeInTheDocument();
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
   expect(mockUpdateTask).not.toHaveBeenCalled();
 });
@@ -4116,26 +4116,26 @@ test('edit warning clears when end time is removed', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /end:\s*10:40 PM/i }));
   });
   await setActiveEditorTime(editCard, '08', '00', 'PM');
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /done/i }));
   });
   expect(editScope.getByText('End time must be after start time.')).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /end:\s*08:00 PM/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /end:\s*08:00 PM/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
   });
   expect(editScope.queryByText('End time must be after start time.')).not.toBeInTheDocument();
 });
@@ -4144,31 +4144,31 @@ test('24-hour create validation still blocks end time before start time', async 
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const createScope = within(createCard);
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid 24 hour range');
+    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid 24 hour range');
   });
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
   });
   await setActiveEditorTime(createCard, '21', '00');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
-    userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /\+ end time/i }));
   });
   await setActiveEditorTime(createCard, '20', '00');
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /done/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /done/i }));
   });
 
   expect(createScope.getByText('End time must be after start time.')).toBeInTheDocument();
   await act(async () => {
-    userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
+    await userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
   });
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
@@ -4183,26 +4183,26 @@ test('creating a new project from inline edit applies it on save', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^project$/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /\+ new project/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /\+ new project/i }));
   });
   await act(async () => {
-    userEvent.type(editScope.getByLabelText(/project name/i), 'Office');
+    await userEvent.type(editScope.getByLabelText(/project name/i), 'Office');
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
@@ -4221,26 +4221,26 @@ test('creating a new tag from inline edit applies it on save', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^tags$/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /\+ new tag/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /\+ new tag/i }));
   });
   await act(async () => {
-    userEvent.type(editScope.getByLabelText(/tag name/i), 'Deep Work');
+    await userEvent.type(editScope.getByLabelText(/tag name/i), 'Deep Work');
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /^save$/i }));
   });
 
   expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Deep Work', color: '#6366f1' });
@@ -4262,19 +4262,19 @@ test('editing a task and clearing end time sends null endDateTimeScheduled', asy
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
   const editCard = document.querySelector('.item__edit-card');
   if (!(editCard instanceof HTMLElement)) throw new Error('Inline edit card not found');
   const editScope = within(editCard);
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /end:\s*10:45 AM/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /end:\s*10:45 AM/i }));
   });
   await act(async () => {
-    userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
+    await userEvent.click(editScope.getByRole('button', { name: /clear time/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
   });
 
   await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith(51, expect.objectContaining({
@@ -4290,7 +4290,7 @@ test('existing task without end time still opens edit without an end summary', a
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   const editCard = document.querySelector('.item__edit-card');
@@ -4305,15 +4305,15 @@ test('clicking Add with empty title does NOT call createTask', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
 
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
 test('clicking Add with whitespace-only title does NOT call createTask', async () => {
   render(<App />);
-  userEvent.type(screen.getByPlaceholderText(/task title/i), '   ');
-  userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await userEvent.type(screen.getByPlaceholderText(/task title/i), '   ');
+  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
@@ -4333,9 +4333,9 @@ test('createTask rejection shows error banner, list unchanged', async () => {
   mockCreateTask.mockRejectedValue(new Error('Server error'));
   const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
 
-  userEvent.type(input, 'Failing task');
+  await userEvent.type(input, 'Failing task');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalled());
@@ -4353,10 +4353,10 @@ test('deleteTask rejection shows error banner — task remains in list', async (
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
   const confirmBtn = await screen.findByRole('button', { name: /^delete$/i });
-  await act(async () => { userEvent.click(confirmBtn); });
+  await act(async () => { await userEvent.click(confirmBtn); });
 
   await waitFor(() => expect(mockDeleteTask).toHaveBeenCalled());
   expect(screen.getByText('Buy milk')).toBeInTheDocument();
@@ -4373,7 +4373,7 @@ test('Stats button is rendered in the header', async () => {
 test('clicking Stats button opens the stats modal', async () => {
   render(<App />);
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /stats/i }));
+    await userEvent.click(screen.getByRole('button', { name: /stats/i }));
   });
   expect(await screen.findByRole('dialog', { name: /stats/i })).toBeInTheDocument();
   const heading = await screen.findByRole('heading', { name: /stats/i });
@@ -4389,12 +4389,12 @@ test('closing the stats modal removes it from the DOM', async () => {
   render(<App />);
   const statsButton = screen.getByRole('button', { name: /stats/i });
   await act(async () => {
-    userEvent.click(statsButton);
+    await userEvent.click(statsButton);
   });
   await screen.findByRole('heading', { name: /stats/i });
   const closeBtn = screen.getByRole('button', { name: /close stats/i });
   expect(closeBtn).toHaveFocus();
-  await act(async () => { userEvent.click(closeBtn); });
+  await act(async () => { await userEvent.click(closeBtn); });
   await waitFor(() => {
     expect(screen.queryByRole('heading', { name: /stats/i })).not.toBeInTheDocument();
   });
@@ -4409,7 +4409,7 @@ test('Settings trigger exposes popover state and controls', async () => {
   expect(settingsButton).toHaveAttribute('aria-controls', 'task-card-settings-panel');
 
   await act(async () => {
-    userEvent.click(settingsButton);
+    await userEvent.click(settingsButton);
   });
 
   expect(settingsButton).toHaveAttribute('aria-expanded', 'true');
@@ -4451,7 +4451,7 @@ test('project management searches creates renames and confirms deletion with usa
   await screen.findByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
   expect(dialog.parentElement?.parentElement).toBe(document.body);
@@ -4462,38 +4462,38 @@ test('project management searches creates renames and confirms deletion with usa
   expect(dialog.querySelector('.catalog-manager__body')).toBeInTheDocument();
   expect(scope.queryByLabelText('New project name')).not.toBeInTheDocument();
   expect(scope.getByText('1 task')).toBeInTheDocument();
-  userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
+  await userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
   expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
   expect(scope.queryByText('Home')).not.toBeInTheDocument();
-  userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
+  await userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
 
-  userEvent.type(scope.getByLabelText('Project names'), 'Office');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
+  await userEvent.type(scope.getByLabelText('Project names'), 'Office');
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
   expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
 
   const homeRow = scope.getByText('Home').closest('.catalog-manager__item');
   if (!(homeRow instanceof HTMLElement)) throw new Error('Home project row not found');
   expect(within(homeRow).queryByRole('button', { name: /rename/i })).not.toBeInTheDocument();
-  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
   expect(within(homeRow).queryByText('1 task')).not.toBeInTheDocument();
   const renameInput = within(homeRow).getByLabelText('Rename project Home');
   expect(renameInput).toHaveAttribute('type', 'text');
   expect(renameInput).toHaveClass('input');
   expect(renameInput).toHaveClass('catalog-manager__edit-input');
   expect(renameInput).not.toHaveClass('input--sm');
-  userEvent.clear(renameInput);
-  userEvent.type(renameInput, 'House');
-  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^save$/i })); });
+  await userEvent.clear(renameInput);
+  await userEvent.type(renameInput, 'House');
+  await act(async () => { await userEvent.click(within(homeRow).getByRole('button', { name: /^save$/i })); });
   expect(mockUpdateProject).toHaveBeenCalledWith(7, expect.objectContaining({ title: 'House' }));
 
   const renamedProject = await scope.findByText('House');
   const renamedProjectRow = renamedProject.closest('.catalog-manager__item');
   if (!(renamedProjectRow instanceof HTMLElement)) throw new Error('Renamed project row not found');
-  await act(async () => { userEvent.click(within(renamedProjectRow).getByRole('button', { name: /delete/i })); });
+  await act(async () => { await userEvent.click(within(renamedProjectRow).getByRole('button', { name: /delete/i })); });
   expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
   expect(mockDeleteProject).toHaveBeenCalledWith(7);
-  await act(async () => { userEvent.keyboard('{Escape}'); });
+  await act(async () => { await userEvent.keyboard('{Escape}'); });
   expect(screen.queryByRole('dialog', { name: /manage projects and tags/i })).not.toBeInTheDocument();
 });
 
@@ -4509,12 +4509,12 @@ test('project management multiline add creates multiple projects and summarizes 
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  userEvent.type(scope.getByLabelText('Project names'), ' Office \nHome\nOffice\n\nTask Manager\nhome ');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
+  await userEvent.type(scope.getByLabelText('Project names'), ' Office \nHome\nOffice\n\nTask Manager\nhome ');
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
   expect(mockCreateProject).toHaveBeenCalledTimes(2);
   expect(mockCreateProject).toHaveBeenNthCalledWith(1, { title: 'Office' });
@@ -4534,12 +4534,12 @@ test('project management multiline add truncates long skipped duplicate lists', 
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  userEvent.type(scope.getByLabelText('Project names'), 'Alpha\nBeta\nGamma\nDelta\nalpha');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
+  await userEvent.type(scope.getByLabelText('Project names'), 'Alpha\nBeta\nGamma\nDelta\nalpha');
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
   expect(mockCreateProject).not.toHaveBeenCalled();
   expect(scope.getByRole('status')).toHaveTextContent('Created 0 projects. Skipped 5 duplicates: Alpha, Beta, Gamma, +1 more. Failed 0.');
@@ -4555,20 +4555,20 @@ test('project management bulk delete confirms affected tasks and clears selectio
   await screen.findByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Wedding Planning')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Wedding Planning')); });
   expect(scope.getByText('2 projects selected')).toBeInTheDocument();
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
   const confirm = scope.getByRole('alert');
   expect(confirm).toHaveTextContent('Delete 2 projects: Home, Wedding Planning?');
   expect(confirm).toHaveTextContent('1 affected task will become unassigned.');
 
-  await act(async () => { userEvent.click(within(confirm).getByRole('button', { name: /^delete selected projects$/i })); });
+  await act(async () => { await userEvent.click(within(confirm).getByRole('button', { name: /^delete selected projects$/i })); });
   expect(mockDeleteProject).toHaveBeenCalledWith(7);
   expect(mockDeleteProject).toHaveBeenCalledWith(9);
   expect(scope.queryByText('2 projects selected')).not.toBeInTheDocument();
@@ -4590,30 +4590,30 @@ test('project management composes search usage filter and sort controls', async 
   await screen.findAllByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
   const listNames = () => Array.from(dialog.querySelectorAll('.catalog-manager__name')).map(item => item.textContent);
 
   expect(listNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
   expect(scope.getByRole('menuitem', { name: /usage high-low/i })).toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
   expect(scope.queryByRole('menuitem', { name: /usage high-low/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Alpha', 'Gamma', 'Beta']);
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*usage high-low/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /sort.*usage high-low/i })); });
   expect(scope.getByRole('menuitem', { name: /name a-z/i })).toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
   expect(scope.queryByRole('menuitem', { name: /name a-z/i })).not.toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /unused only/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('menuitem', { name: /unused only/i })); });
   expect(scope.queryByRole('menuitem', { name: /unused only/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Beta']);
   expect(scope.getByText('0 tasks')).toBeInTheDocument();
   expect(dialog.querySelector('select')).not.toBeInTheDocument();
 
-  await act(async () => { userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'ga'); });
+  await act(async () => { await userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'ga'); });
   expect(scope.getByText('No projects match your search.')).toBeInTheDocument();
 });
 
@@ -4626,44 +4626,44 @@ test('catalog management edit search and selection modes are mutually exclusive'
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
   const search = scope.getByRole('searchbox', { name: /search managed projects/i });
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Home')); });
   expect(scope.getByText('1 project selected')).toBeInTheDocument();
 
   const weddingRow = scope.getByText('Wedding Planning').closest('.catalog-manager__item');
   if (!(weddingRow instanceof HTMLElement)) throw new Error('Wedding Planning project row not found');
-  await act(async () => { userEvent.click(within(weddingRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(weddingRow).getByRole('button', { name: /^edit$/i })); });
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
   expect(scope.getByLabelText('Rename project Wedding Planning')).toBeInTheDocument();
 
-  await act(async () => { userEvent.type(search, 'home'); });
+  await act(async () => { await userEvent.type(search, 'home'); });
   expect(scope.queryByLabelText('Rename project Wedding Planning')).not.toBeInTheDocument();
   expect(search).toHaveValue('home');
   expect(scope.getByText('Home')).toBeInTheDocument();
   expect(scope.queryByText('Wedding Planning')).not.toBeInTheDocument();
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Home')); });
   expect(search).toHaveValue('');
   expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
   expect(scope.getByText('1 project selected')).toBeInTheDocument();
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
   expect(scope.getByRole('alert')).toHaveTextContent('Delete 1 project: Home?');
   await act(async () => { fireEvent.focus(search); });
   expect(scope.queryByRole('alert')).not.toBeInTheDocument();
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^delete selected projects$/i })); });
   expect(scope.getByRole('alert')).toHaveTextContent('Delete 1 project: Home?');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
-  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('menuitem', { name: /usage high-low/i })); });
   expect(scope.queryByRole('alert')).not.toBeInTheDocument();
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
@@ -4677,11 +4677,11 @@ test('catalog rename touch focus uses a proxy input and leaves the real input in
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const homeRow = within(dialog).getByText('Home').closest('.catalog-manager__item');
   if (!(homeRow instanceof HTMLElement)) throw new Error('Home project row not found');
-  await act(async () => { userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(homeRow).getByRole('button', { name: /^edit$/i })); });
   const renameInput = within(homeRow).getByLabelText('Rename project Home') as HTMLInputElement;
   renameInput.style.position = 'absolute';
   renameInput.style.top = '12px';
@@ -4753,11 +4753,11 @@ test('catalog rename focus assist does not run for tag color or edit actions', a
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const errandRow = within(dialog).getByText('Errand').closest('.catalog-manager__item');
   if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
-  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
   const renameInput = within(errandRow).getByLabelText('Rename tag Errand') as HTMLInputElement;
   const focus = jest.spyOn(renameInput, 'focus');
   const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
@@ -4801,11 +4801,11 @@ test('catalog rename touch focus assist does not intercept desktop pointer input
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const errandRow = within(dialog).getByText('Errand').closest('.catalog-manager__item');
   if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
-  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
   const renameInput = within(errandRow).getByLabelText('Rename tag Errand') as HTMLInputElement;
   const focus = jest.spyOn(renameInput, 'focus');
   const preventDefault = jest.spyOn(Event.prototype, 'preventDefault');
@@ -4830,13 +4830,13 @@ test('catalog management selection clears when switching between project and tag
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage projects/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select project Home')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select project Home')); });
   expect(scope.getByText('1 project selected')).toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^tags$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^tags$/i })); });
   expect(scope.queryByText('1 project selected')).not.toBeInTheDocument();
   expect(scope.getByText('Errand')).toBeInTheDocument();
   expect(scope.getByLabelText('Select tag Errand')).not.toBeChecked();
@@ -4852,30 +4852,30 @@ test('tag management creates edits color and confirms deletion with usage count'
   await screen.findByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'focus');
+  await userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'focus');
   expect(scope.getByText('Focus')).toBeInTheDocument();
   expect(scope.queryByText('Errand')).not.toBeInTheDocument();
-  userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
+  await userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
 
   expect(scope.queryByLabelText('New tag name')).not.toBeInTheDocument();
-  userEvent.type(scope.getByLabelText('Tag names'), 'Docs');
+  await userEvent.type(scope.getByLabelText('Tag names'), 'Docs');
   const newTagColor = scope.getByLabelText('New tag color');
   expect(newTagColor).toHaveClass('catalog-manager__color-input');
   expect(newTagColor.closest('.catalog-manager__create-actions')).toBeInTheDocument();
   expect(newTagColor.closest('.catalog-manager__color-control')).toHaveTextContent('Tag Color');
   fireEvent.change(newTagColor, { target: { value: '#f97316' } });
   expect(newTagColor.closest('.catalog-manager__color-control')?.querySelector('.catalog-manager__color-swatch')).toHaveStyle({ background: '#f97316' });
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
   expect(mockCreateTag).toHaveBeenCalledWith({ title: 'Docs', color: '#f97316' });
 
   const errandRow = scope.getByText('Errand').closest('.catalog-manager__item');
   if (!(errandRow instanceof HTMLElement)) throw new Error('Errand tag row not found');
   expect(within(errandRow).getByText('1 task')).toBeInTheDocument();
-  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
+  await act(async () => { await userEvent.click(within(errandRow).getByRole('button', { name: /^edit$/i })); });
   expect(within(errandRow).queryByText('1 task')).not.toBeInTheDocument();
   expect(errandRow.querySelector('.tag-dot')).not.toBeInTheDocument();
   const renameInput = within(errandRow).getByLabelText('Rename tag Errand');
@@ -4886,18 +4886,18 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(within(errandRow).getByLabelText('Color for tag Errand')).toHaveClass('catalog-manager__color-input');
   expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__main')).toBeInTheDocument();
   expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__color-control')).toHaveTextContent('Tag Color');
-  userEvent.clear(renameInput);
-  userEvent.type(renameInput, 'Chores');
+  await userEvent.clear(renameInput);
+  await userEvent.type(renameInput, 'Chores');
   fireEvent.change(within(errandRow).getByLabelText('Color for tag Errand'), { target: { value: '#ef4444' } });
-  await act(async () => { userEvent.click(within(errandRow).getByRole('button', { name: /^save$/i })); });
+  await act(async () => { await userEvent.click(within(errandRow).getByRole('button', { name: /^save$/i })); });
   expect(mockUpdateTag).toHaveBeenCalledWith(8, { title: 'Chores', color: '#ef4444' });
 
   const renamedTag = await scope.findByText('Chores');
   const renamedTagRow = renamedTag.closest('.catalog-manager__item');
   if (!(renamedTagRow instanceof HTMLElement)) throw new Error('Renamed tag row not found');
-  await act(async () => { userEvent.click(within(renamedTagRow).getByRole('button', { name: /delete/i })); });
+  await act(async () => { await userEvent.click(within(renamedTagRow).getByRole('button', { name: /delete/i })); });
   expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
 });
 
@@ -4911,20 +4911,20 @@ test('tag management bulk delete confirms assignment removal and clears selectio
   await screen.findByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await act(async () => { userEvent.click(scope.getByLabelText('Select tag Errand')); });
-  await act(async () => { userEvent.click(scope.getByLabelText('Select tag Focus')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select tag Errand')); });
+  await act(async () => { await userEvent.click(scope.getByLabelText('Select tag Focus')); });
   expect(scope.getByText('2 tags selected')).toBeInTheDocument();
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^delete selected tags$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^delete selected tags$/i })); });
   const confirm = scope.getByRole('alert');
   expect(confirm).toHaveTextContent('Delete 2 tags: Errand, Focus?');
   expect(confirm).toHaveTextContent('These tags will be removed from 1 task assignment.');
 
-  await act(async () => { userEvent.click(within(confirm).getByRole('button', { name: /^delete selected tags$/i })); });
+  await act(async () => { await userEvent.click(within(confirm).getByRole('button', { name: /^delete selected tags$/i })); });
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
   expect(mockDeleteTag).toHaveBeenCalledWith(9);
   expect(scope.queryByText('2 tags selected')).not.toBeInTheDocument();
@@ -4945,24 +4945,24 @@ test('tag management composes search usage filter and sort controls', async () =
   await screen.findAllByText('Buy milk');
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
   const listNames = () => Array.from(dialog.querySelectorAll('.catalog-manager__name')).map(item => item.textContent);
 
   expect(listNames()).toEqual(['Docs', 'Errand', 'Work']);
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
-  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /usage low-high/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /sort.*name a-z/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('menuitem', { name: /usage low-high/i })); });
   expect(scope.queryByRole('menuitem', { name: /usage low-high/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Docs', 'Errand', 'Work']);
 
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
-  await act(async () => { userEvent.click(scope.getByRole('menuitem', { name: /^used only$/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /filter.*all/i })); });
+  await act(async () => { await userEvent.click(scope.getByRole('menuitem', { name: /^used only$/i })); });
   expect(scope.queryByRole('menuitem', { name: /^used only$/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Errand', 'Work']);
 
-  await act(async () => { userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'wo'); });
+  await act(async () => { await userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'wo'); });
   expect(listNames()).toEqual(['Work']);
   expect(scope.getByText('2 tasks')).toBeInTheDocument();
 });
@@ -4980,13 +4980,13 @@ test('tag management multiline add uses selected color and skips existing or rep
   await screen.findByRole('button', { name: /settings/i });
 
   await act(async () => { openSettings(); });
-  await act(async () => { userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
+  await act(async () => { await userEvent.click(screen.getByRole('button', { name: /manage tags/i })); });
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
   fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
-  userEvent.type(scope.getByLabelText('Tag names'), 'Docs\nErrand\ndocs\nFocus\n');
-  await act(async () => { userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
+  await userEvent.type(scope.getByLabelText('Tag names'), 'Docs\nErrand\ndocs\nFocus\n');
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
 
   expect(mockCreateTag).toHaveBeenCalledTimes(2);
   expect(mockCreateTag).toHaveBeenNthCalledWith(1, { title: 'Docs', color: '#f97316' });
@@ -5166,7 +5166,7 @@ test('clicking a task card opens the task move menu', async () => {
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
 
   expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
@@ -5182,7 +5182,7 @@ test('task card keyboard opens inline move menu and close restores focus', async
   expect(taskCard).toHaveFocus();
 
   await act(async () => {
-    userEvent.keyboard('{Enter}');
+    await userEvent.keyboard('{Enter}');
   });
 
   const moveGroup = screen.getByRole('group', { name: /move task buy milk/i });
@@ -5190,7 +5190,7 @@ test('task card keyboard opens inline move menu and close restores focus', async
   expect(firstStatusAction).toHaveFocus();
 
   await act(async () => {
-    userEvent.click(within(moveGroup).getByRole('button', { name: /close move task/i }));
+    await userEvent.click(within(moveGroup).getByRole('button', { name: /close move task/i }));
   });
 
   expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
@@ -5203,12 +5203,12 @@ test('clicking the same task card again closes the inline move menu', async () =
   const title = await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(title);
+    await userEvent.click(title);
   });
   expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(title);
+    await userEvent.click(title);
   });
 
   expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
@@ -5224,7 +5224,7 @@ test('clicking a task card renders the move menu immediately after that task', a
   const secondItem = secondTitle.closest('li');
 
   await act(async () => {
-    userEvent.click(firstTitle);
+    await userEvent.click(firstTitle);
   });
 
   const statusItem = firstItem?.nextElementSibling as HTMLElement | null;
@@ -5244,12 +5244,12 @@ test('clicking another task moves the inline move menu below that task', async (
   const secondItem = secondTitle.closest('li');
 
   await act(async () => {
-    userEvent.click(firstTitle);
+    await userEvent.click(firstTitle);
   });
   expect(firstItem?.nextElementSibling).toHaveClass('status-move-item');
 
   await act(async () => {
-    userEvent.click(secondTitle);
+    await userEvent.click(secondTitle);
   });
 
   expect(firstItem?.nextElementSibling).toBe(secondItem);
@@ -5264,12 +5264,12 @@ test('closing the inline move menu removes only the move panel', async () => {
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
   expect(screen.getByRole('group', { name: /move task buy milk/i })).toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /close move task/i }));
+    await userEvent.click(screen.getByRole('button', { name: /close move task/i }));
   });
 
   expect(screen.queryByRole('group', { name: /move task buy milk/i })).not.toBeInTheDocument();
@@ -5294,10 +5294,10 @@ test('clicking inline edit controls does not open the task move menu', async () 
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByDisplayValue('Buy milk'));
+    await userEvent.click(screen.getByDisplayValue('Buy milk'));
   });
 
   expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
@@ -5312,12 +5312,12 @@ test('Escape closes settings without changing task cards', async () => {
 
   try {
     await act(async () => {
-      userEvent.click(screen.getByRole('button', { name: /settings/i }));
+      await userEvent.click(screen.getByRole('button', { name: /settings/i }));
     });
     expect(screen.getByRole('region', { name: /settings/i })).toBeInTheDocument();
 
     await act(async () => {
-      userEvent.keyboard('{Escape}');
+      await userEvent.keyboard('{Escape}');
     });
 
     expect(screen.queryByRole('region', { name: /settings/i })).not.toBeInTheDocument();
@@ -5342,7 +5342,7 @@ test('not started task can be changed to In Progress or Done', async () => {
   expect(screen.queryByRole('button', { name: /^not started$/i })).not.toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /in progress/i }));
+    await userEvent.click(screen.getByRole('button', { name: /in progress/i }));
   });
 
   await waitFor(() => {
@@ -5358,12 +5358,12 @@ test('clicking an inline status action updates status without reopening the move
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
   const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
 
   await act(async () => {
-    userEvent.click(within(moveDialog).getByRole('button', { name: /in progress/i }));
+    await userEvent.click(within(moveDialog).getByRole('button', { name: /in progress/i }));
   });
 
   await waitFor(() => {
@@ -5380,7 +5380,7 @@ test('In Progress task can be changed to Not started', async () => {
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
   const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
 
@@ -5389,7 +5389,7 @@ test('In Progress task can be changed to Not started', async () => {
   expect(within(moveDialog).queryByRole('button', { name: /in progress/i })).not.toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
+    await userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
   });
 
   await waitFor(() => {
@@ -5406,12 +5406,12 @@ test('Done task can be changed to Not started', async () => {
   await screen.findByRole('button', { name: /1 done/i });
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /1 done/i }));
   });
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
 
   expect(screen.getByRole('button', { name: /^not started$/i })).toBeInTheDocument();
@@ -5419,7 +5419,7 @@ test('Done task can be changed to Not started', async () => {
   expect(screen.queryByRole('button', { name: /^done$/i })).not.toBeInTheDocument();
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^not started$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^not started$/i }));
   });
 
   await waitFor(() => {
@@ -5449,7 +5449,7 @@ test('clicking edit opens an inline task edit card', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /edit/i }));
   });
 
   expect(screen.getByDisplayValue('Buy milk')).toBeInTheDocument();
@@ -5466,7 +5466,7 @@ test('clicking duplicate calls createTask with " (copy)" appended to the title',
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -5489,7 +5489,7 @@ test('clicking duplicate increments copy suffix when duplicating a copy', async 
 
   await openTaskActions(copiedItem as HTMLElement);
   await act(async () => {
-    userEvent.click(within(copiedItem as HTMLElement).getByRole('menuitem', { name: /copy/i }));
+    await userEvent.click(within(copiedItem as HTMLElement).getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -5509,7 +5509,7 @@ test('clicking duplicate reuses the lowest missing copy suffix', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -5540,7 +5540,7 @@ test('clicking duplicate carries over the recurrence rule', async () => {
 
   await openTaskActions();
   await act(async () => {
-    userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /copy/i }));
   });
 
   await waitFor(() => {
@@ -5573,11 +5573,11 @@ test('completing a recurring task with end time creates the next occurrence with
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
   const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
   await act(async () => {
-    userEvent.click(within(moveDialog).getByRole('button', { name: /^done$/i }));
+    await userEvent.click(within(moveDialog).getByRole('button', { name: /^done$/i }));
   });
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -5599,7 +5599,7 @@ test('clicking Select shows Cancel button', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
 });
@@ -5608,10 +5608,10 @@ test('clicking Cancel exits bulk mode', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }));
   });
   expect(screen.getByRole('button', { name: /^select$/i })).toBeInTheDocument();
 });
@@ -5621,7 +5621,7 @@ test('bulk action bar is not visible until a task is selected', async () => {
   render(<App />);
   await screen.findByText('Buy milk');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   // Bar only appears after selecting something
   expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
@@ -5642,7 +5642,7 @@ test('task checkboxes appear in Select mode', async () => {
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
 
   expect(screen.getByRole('checkbox', { name: /select task buy milk/i })).toBeInTheDocument();
@@ -5653,12 +5653,12 @@ test('selecting a task shows the bulk action bar', async () => {
   render(<App />);
   await screen.findByText('Buy milk');
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   // Click the bulk checkbox for the task
   // The bulk-select checkbox renders first in the DOM (before the status checkbox)
   const checkboxes = screen.getAllByRole('checkbox');
-  await act(async () => { userEvent.click(checkboxes[0]); });
+  await act(async () => { await userEvent.click(checkboxes[0]); });
   expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
 });
 
@@ -5668,10 +5668,10 @@ test('checkbox in Select mode selects task without marking it done', async () =>
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   await act(async () => {
-    userEvent.click(screen.getByRole('checkbox', { name: /select task buy milk/i }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /select task buy milk/i }));
   });
 
   expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
@@ -5686,14 +5686,14 @@ test('"Mark done" in bulk bar calls patchTaskStatus for each selected task', asy
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   const checkboxes = screen.getAllByRole('checkbox');
-  await act(async () => { userEvent.click(checkboxes[0]); });
+  await act(async () => { await userEvent.click(checkboxes[0]); });
   await screen.findByText(/1 selected/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /mark done/i }));
   });
 
   await waitFor(() => {
@@ -5739,14 +5739,14 @@ test('bulk mark done on a recurring task generates the next occurrence', async (
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   const checkboxes = screen.getAllByRole('checkbox');
-  await act(async () => { userEvent.click(checkboxes[0]); });
+  await act(async () => { await userEvent.click(checkboxes[0]); });
   await screen.findByText(/1 selected/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /mark done/i }));
   });
 
   await waitFor(() => {
@@ -5812,17 +5812,17 @@ test('bulk mark done on mixed recurring and non-recurring tasks handles both pat
   await screen.findByText('One-time task');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   const checkboxes = screen.getAllByRole('checkbox');
   await act(async () => {
-    userEvent.click(checkboxes[0]);
-    userEvent.click(checkboxes[1]);
+    await userEvent.click(checkboxes[0]);
+    await userEvent.click(checkboxes[1]);
   });
   await screen.findByText(/2 selected/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /mark done/i }));
   });
 
   await waitFor(() => {
@@ -5852,16 +5852,16 @@ test('completed recurring task status move toggles back to active without genera
   await screen.findByRole('button', { name: /1 done/i });
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /1 done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /1 done/i }));
   });
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByText('Buy milk'));
+    await userEvent.click(screen.getByText('Buy milk'));
   });
   const moveDialog = screen.getByRole('group', { name: /move task buy milk/i });
   await act(async () => {
-    userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
+    await userEvent.click(within(moveDialog).getByRole('button', { name: /^not started$/i }));
   });
 
   await waitFor(() => {
@@ -5905,14 +5905,14 @@ test('bulk mark done probes recurrence when selected task data has no recurrence
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   const checkboxes = screen.getAllByRole('checkbox');
-  await act(async () => { userEvent.click(checkboxes[0]); });
+  await act(async () => { await userEvent.click(checkboxes[0]); });
   await screen.findByText(/1 selected/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /mark done/i }));
+    await userEvent.click(screen.getByRole('button', { name: /mark done/i }));
   });
 
   await waitFor(() => {
@@ -5930,14 +5930,14 @@ test('"Delete" in bulk bar calls deleteTask for each selected task', async () =>
   await screen.findByText('Buy milk');
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^select$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
   const checkboxes = screen.getAllByRole('checkbox');
-  await act(async () => { userEvent.click(checkboxes[0]); });
+  await act(async () => { await userEvent.click(checkboxes[0]); });
   await screen.findByText(/1 selected/i);
 
   await act(async () => {
-    userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^delete$/i }));
   });
 
   await waitFor(() => {
