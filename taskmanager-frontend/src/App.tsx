@@ -170,10 +170,9 @@ function App() {
   const {
     bulkMode,
     bulkSelectedIds,
-    setBulkMode,
-    setBulkSelectedIds,
     clearBulkSelection,
     toggleBulkMode,
+    cancelBulkMode,
     toggleBulkSelection,
   } = useBulkSelection();
   const [statusMoveTask, setStatusMoveTask] = useState<Task | null>(null);
@@ -1141,7 +1140,7 @@ function App() {
           return;
         }
         if (search !== '') { setSearch(''); return; }
-        if (bulkMode) { setBulkMode(false); setBulkSelectedIds(new Set()); return; }
+        if (bulkMode) { cancelBulkMode(); return; }
       }
       if (inInput) return;
       if ((e.key === 'n' || e.key === 'N') && !inInput) {
@@ -1156,10 +1155,10 @@ function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [
-    selectedTaskId,
     statusMoveTask,
     search,
     bulkMode,
+    cancelBulkMode,
     showStats,
     catalogManagerSection,
     showSettings,
@@ -1286,6 +1285,14 @@ function App() {
     rememberStatusMoveFocus();
     if (!sameTaskOpen) closeFloatingControls();
     setStatusMoveTask(sameTaskOpen ? null : task);
+  };
+
+  const resetListControls = () => {
+    setSortBy('dueAsc');
+    setFilterStatus('all');
+    setFilterProjectID('');
+    setFilterTagID('');
+    setSearch('');
   };
 
   // Task update, completion, and focus handlers.
@@ -1932,7 +1939,7 @@ function App() {
           projects={projects}
           tags={tags}
           hasModifiedListControls={hasModifiedListControls}
-          onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+          onResetFilters={resetListControls}
           search={search}
           onSearchChange={setSearch}
           searchInputRef={searchInputRef}
@@ -1967,7 +1974,7 @@ function App() {
             is24Hour={is24Hour}
             recurrenceLabels={recurrenceLabels}
             visibleTagCount={VISIBLE_TASK_TAGS}
-            onResetFilters={() => { setSortBy('dueAsc'); setFilterStatus('all'); setFilterProjectID(''); setFilterTagID(''); setSearch(''); }}
+            onResetFilters={resetListControls}
             onOpenTask={handleTaskCardClick}
             onLongPressStart={beginTaskLongPress}
             onLongPressCancel={cancelTaskLongPress}

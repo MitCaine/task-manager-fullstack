@@ -14,6 +14,11 @@ export default function useBulkSelection() {
     setBulkSelectedIds(new Set());
   }, []);
 
+  const cancelBulkMode = useCallback(() => {
+    setBulkMode(false);
+    setBulkSelectedIds(new Set());
+  }, []);
+
   const toggleBulkSelection = useCallback((taskId: number) => {
     setBulkSelectedIds(current => {
       const next = new Set(current);
@@ -25,10 +30,9 @@ export default function useBulkSelection() {
   return {
     bulkMode,
     bulkSelectedIds,
-    setBulkMode,
-    setBulkSelectedIds,
     clearBulkSelection,
     toggleBulkMode,
+    cancelBulkMode,
     toggleBulkSelection,
   };
 }
