@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import Calendar from './Calendar';
@@ -38,8 +38,14 @@ const mockDesktopCalendarQuery = (matches: boolean) => {
   });
 };
 
+const clickCalendar = async (element: Element) => {
+  await act(async () => {
+    await userEvent.click(element);
+  });
+};
+
 const openYearOverview = async () => {
-  await userEvent.click(screen.getByRole('button', { name: String(new Date().getFullYear()) }));
+  await clickCalendar(screen.getByRole('button', { name: String(new Date().getFullYear()) }));
 };
 
 const futureTask = (overrides: Partial<Task> = {}): Task => {
@@ -78,7 +84,7 @@ test('calendar month view shows month empty state', async () => {
   const monthName = now.toLocaleDateString('en-US', { month: 'long' });
   const { container } = renderCalendar();
 
-  await userEvent.click(screen.getByRole('button', { name: monthName }));
+  await clickCalendar(screen.getByRole('button', { name: monthName }));
 
   expect(container.querySelector('.cal-table')).toBeInTheDocument();
   expect(screen.getByText('No tasks scheduled this month.')).toBeInTheDocument();
@@ -87,10 +93,10 @@ test('calendar month view shows month empty state', async () => {
 test('calendar day view shows day empty state', async () => {
   const { container } = renderCalendar();
 
-  await userEvent.click(screen.getByRole('button', { name: new Date().toLocaleDateString('en-US', { month: 'long' }) }));
+  await clickCalendar(screen.getByRole('button', { name: new Date().toLocaleDateString('en-US', { month: 'long' }) }));
   const dayButton = container.querySelector<HTMLButtonElement>('.cal-day-btn');
   if (!dayButton) throw new Error('Expected a calendar day button');
-  await userEvent.click(dayButton);
+  await clickCalendar(dayButton);
 
   expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
 });
@@ -199,7 +205,7 @@ test('calendar task entry uses a stacked schedule title description and metadata
   expect(body).toContainElement(metadata);
   expect(statusBadges.querySelector('.cal-item__tag-chip')).not.toBeInTheDocument();
 
-  await userEvent.click(taskEntry);
+  await clickCalendar(taskEntry);
   expect(onEditTask).toHaveBeenCalledWith(1);
 
   const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
@@ -214,13 +220,13 @@ test('month and day calendar task entries use the shared tag overflow display', 
   const { container } = renderCalendar([futureTask({ tags: calendarTags.slice(0, 3) })]);
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
-  await userEvent.click(screen.getByRole('button', { name: monthName }));
+  await clickCalendar(screen.getByRole('button', { name: monthName }));
   expect(within(getCalendarTaskEntry()).getByLabelText('More tags: Third')).toHaveTextContent('+1');
 
   const taskDayButton = Array.from(container.querySelectorAll<HTMLButtonElement>('.cal-day-btn'))
     .find(button => button.getAttribute('aria-label')?.includes(', 1 task'));
   if (!taskDayButton) throw new Error('Expected a calendar day button with one task');
-  await userEvent.click(taskDayButton);
+  await clickCalendar(taskDayButton);
 
   expect(within(getCalendarTaskEntry()).getByLabelText('More tags: Third')).toHaveTextContent('+1');
 });

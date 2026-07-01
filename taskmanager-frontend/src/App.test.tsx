@@ -423,6 +423,7 @@ async function openMobileEditPanel(task: Task = sampleTask): Promise<HTMLElement
 
 test('does not render the old Task Manager heading', async () => {
   render(<App />);
+  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   expect(screen.queryByRole('heading', { name: /task manager/i })).not.toBeInTheDocument();
 });
 
