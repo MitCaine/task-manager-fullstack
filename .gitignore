@@ -1,16 +1,53 @@
-# Ignore compiled files
+# Backend build output
 /target/
+**/target/
+*.jar
+*.war
+*.ear
 
-# Ignore IntelliJ files
+# Frontend dependencies and generated output
+node_modules/
+**/node_modules/
+build/
+**/build/
+coverage/
+**/coverage/
+
+# Archives and handoff clutter
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+__MACOSX/
+**/__MACOSX/
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+**/.DS_Store
+
+# IDE files
 .idea/
 *.iml
 
-# Ignore OS files
-.DS_Store
-
-# Ignore logs
-*.log
-
-# Ignore env
+# Local environment and assistant cache
 .env
+.env.local
+.env.*.local
 .aider*
+
+# Required project files that must remain trackable
+!mvnw
+!mvnw.cmd
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.properties
+!taskmanager-frontend/package-lock.json

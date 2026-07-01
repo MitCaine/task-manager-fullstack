@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 echo "=== Backend tests ==="
 ./mvnw test
 
@@ -15,7 +18,7 @@ echo "=== iOS sync ==="
 npm run ios:sync
 
 echo "=== Diff check ==="
-cd ..
+cd "$ROOT_DIR"
 git diff --check
 
-echo "=== Full verification passed ==="mvn test
+echo "=== Full verification passed ==="

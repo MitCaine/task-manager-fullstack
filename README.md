@@ -118,7 +118,8 @@ Frontend:
 
 Maven does not need to be installed globally for normal backend work. Use the
 checked-in Maven Wrapper from the repository root; it downloads Maven 3.9.16 on
-first use.
+first use. Clean checkouts and source archives must include `mvnw`, `mvnw.cmd`,
+and `.mvn/wrapper/maven-wrapper.properties`.
 
 The backend is configured for:
 
@@ -222,6 +223,18 @@ npm test -- --watchAll=false
 ```
 
 Frontend tests run in GitHub Actions on push and pull request.
+
+## Full Verification
+
+From the repository root, run the shared verification script:
+
+```bash
+scripts/verify-all.sh
+```
+
+The script anchors itself at the repository root, runs backend tests with
+`./mvnw test`, then runs frontend tests and build steps from
+`taskmanager-frontend`.
 
 ## iOS App
 
