@@ -44,8 +44,6 @@
   --overdue-badge-bg:rgba(239, 68, 68, 0.15);
   --overdue-badge-fg:#f87171;
   --overdue-badge-bd:rgba(239, 68, 68, 0.3);
-  --overdue-count:   #f87171;
-
   --shadow-card:     0 12px 40px rgba(0, 0, 0, 0.55);
   --shadow-item:     0 3px 12px rgba(0, 0, 0, 0.25);
 }
@@ -86,8 +84,6 @@
     --overdue-badge-bg:rgba(239, 68, 68, 0.09);
     --overdue-badge-fg:#dc2626;
     --overdue-badge-bd:rgba(239, 68, 68, 0.22);
-    --overdue-count:   #dc2626;
-
     --shadow-card:     0 4px 24px rgba(0, 0, 0, 0.09);
     --shadow-item:     0 2px 8px  rgba(0, 0, 0, 0.06);
   }
@@ -128,8 +124,6 @@
   --overdue-badge-bg:rgba(239, 68, 68, 0.09);
   --overdue-badge-fg:#dc2626;
   --overdue-badge-bd:rgba(239, 68, 68, 0.22);
-  --overdue-count:   #dc2626;
-
   --shadow-card:     0 4px 24px rgba(0, 0, 0, 0.09);
   --shadow-item:     0 2px 8px  rgba(0, 0, 0, 0.06);
 }
@@ -1294,13 +1288,6 @@ input[type="datetime-local"] {
   gap: 0.3rem;
 }
 
-.item__title-row__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
 .item__badges {
   display: flex;
   align-items: center;
@@ -1693,12 +1680,6 @@ input[type="datetime-local"] {
   line-height: 1.5;
 }
 
-/* ── Footer ─────────────────────────────────────────────── */
-.overdue-count {
-  font-size: 0.82rem;
-  color: var(--overdue-count);
-}
-
 .footer-done {
   display: inline-flex;
   align-items: center;
@@ -1860,76 +1841,6 @@ input[type="datetime-local"] {
 .filter-field__dropdown .tag-select__item {
   white-space: normal;
   overflow-wrap: anywhere;
-}
-
-.list-controls__group {
-  display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  width: 100%;
-  padding-left: 3.8rem;
-  position: relative;
-}
-
-.list-controls__label {
-  position: absolute;
-  left: 0;
-  top: 0.35rem;
-  width: 3.2rem;
-  font-size: 0.76rem;
-  color: var(--text-faint);
-  white-space: nowrap;
-}
-
-.list-controls__group .btn,
-.list-controls__group .select {
-  min-height: 2rem;
-  padding: 0.32rem 0.58rem;
-  font-size: 0.8rem;
-  border-radius: 7px;
-}
-
-.list-controls__group .btn {
-  min-width: 3.45rem;
-}
-
-.list-controls__group--split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.75rem;
-  padding-left: 0;
-}
-
-.list-controls__half {
-  display: grid;
-  grid-template-columns: 3.2rem auto;
-  align-items: center;
-  column-gap: 0.3rem;
-  min-width: 0;
-  padding-left: 0;
-}
-
-.list-controls__half .list-controls__label {
-  position: static;
-  width: auto;
-  text-align: left;
-}
-
-.list-controls__group--split .list-controls__half:nth-child(2) {
-  grid-template-columns: 1.9rem auto;
-  transform: translateX(-0.875rem);
-}
-
-.list-controls__group .priority-dot {
-  margin-right: 0;
-}
-
-.list-controls__select {
-  min-width: 5.25rem;
-  max-width: 100%;
-  text-align: center;
-  text-align-last: center;
 }
 
 .btn--reset-filters {
@@ -2720,44 +2631,6 @@ input[type="datetime-local"] {
   color: var(--text-faint);
   pointer-events: none;
   user-select: none;
-}
-
-/* ── Section tabs (Subtasks / Notes / Reminders) ─────────── */
-.item__sections {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-item);
-  margin-top: 0.5rem;
-}
-
-.item__sec-btn {
-  font-size: 0.78rem;
-  padding: 0.3rem 0.65rem;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.item__sec-btn--active {
-  background: var(--surface) !important;
-  border-color: var(--accent) !important;
-  color: var(--accent) !important;
-}
-
-.sec-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  border-radius: 10px;
-  padding: 0 5px;
-  min-width: 16px;
-  height: 16px;
 }
 
 /* ── Header actions ─────────────────────────────────────── */
@@ -4687,10 +4560,6 @@ input[type="datetime-local"] {
     min-height: 1.65rem;
     padding: 0.18rem 0.28rem;
     font-size: 0.58rem;
-  }
-
-  .list-controls__group {
-    width: 100%;
   }
 
   .time-select__item {
