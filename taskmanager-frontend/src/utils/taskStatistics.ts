@@ -1,5 +1,5 @@
 import type { Task } from '../types/task';
-import { parseLocalDateTime } from './dateTime';
+import { getLocalWeekRange, isInLocalWeek } from './dateTime';
 import { isTaskDone, isTaskOverdue } from './taskUtils';
 
 export type TaskStatistics = {
@@ -20,9 +20,8 @@ export function deriveTaskStatistics(tasks: Task[], now = new Date()): TaskStati
   const done = tasks.filter(isTaskDone).length;
   const active = tasks.filter(t => !isTaskDone(t)).length;
   const overdue = tasks.filter(t => isTaskOverdue(t, now)).length;
-  const weekAgo = new Date(now);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const doneThisWeek = tasks.filter(t => isTaskDone(t) && t.createdAt && parseLocalDateTime(t.createdAt) >= weekAgo).length;
+  const week = getLocalWeekRange(now);
+  const doneThisWeek = tasks.filter(t => isTaskDone(t) && t.createdAt && isInLocalWeek(t.createdAt, week.start, week.end)).length;
   const high = tasks.filter(t => t.priority === 'HIGH').length;
   const medium = tasks.filter(t => t.priority === 'MEDIUM').length;
   const low = tasks.filter(t => t.priority === 'LOW').length;

@@ -105,6 +105,20 @@ describe('deriveVisibleTasks', () => {
     expect(visibleTitles(tasks, { viewTab: 'month' })).toEqual(['Today', 'This week', 'This month']);
   });
 
+  it('uses Monday-start week boundaries for this week filtering', () => {
+    const tasks = [
+      task({ taskID: 1, title: 'Previous Sunday', dateTimeScheduled: '2026-04-05T23:59:00' }),
+      task({ taskID: 2, title: 'Boundary Monday', dateTimeScheduled: '2026-04-06T00:00:00' }),
+      task({ taskID: 3, title: 'Boundary Sunday', dateTimeScheduled: '2026-04-12T23:59:00' }),
+      task({ taskID: 4, title: 'Next Monday', dateTimeScheduled: '2026-04-13T00:00:00' }),
+    ];
+
+    expect(visibleTitles(tasks, { viewTab: 'week', now: new Date(2026, 3, 8, 12, 0, 0) })).toEqual([
+      'Boundary Monday',
+      'Boundary Sunday',
+    ]);
+  });
+
   it('sorts by due date ascending and descending using existing empty-date behavior', () => {
     const tasks = [
       task({ taskID: 1, title: 'Later', dateTimeScheduled: '2026-06-06T09:00:00' }),

@@ -50,12 +50,13 @@ describe('deriveTaskStatistics', () => {
     expect(stats.overdue).toBe(1);
   });
 
-  it('counts tasks completed within the previous seven days', () => {
+  it('counts tasks completed within the current Monday-start week', () => {
     const stats = deriveTaskStatistics([
-      task({ taskID: 1, statusID: 2, createdAt: '2026-06-03T12:00:00' }),
-      task({ taskID: 2, statusID: 2, createdAt: '2026-05-28T12:00:00' }),
-      task({ taskID: 3, statusID: 2, createdAt: '2026-05-27T12:00:00' }),
-      task({ taskID: 4, statusID: null, createdAt: '2026-06-03T12:00:00' }),
+      task({ taskID: 1, statusID: 2, createdAt: '2026-05-31T23:59:00' }),
+      task({ taskID: 2, statusID: 2, createdAt: '2026-06-01T00:00:00' }),
+      task({ taskID: 3, statusID: 2, createdAt: '2026-06-07T23:59:00' }),
+      task({ taskID: 4, statusID: 2, createdAt: '2026-06-08T00:00:00' }),
+      task({ taskID: 5, statusID: null, createdAt: '2026-06-03T12:00:00' }),
     ], new Date('2026-06-04T12:00:00'));
 
     expect(stats.doneThisWeek).toBe(2);

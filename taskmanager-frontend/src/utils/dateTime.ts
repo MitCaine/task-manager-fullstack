@@ -93,6 +93,26 @@ export function isSameLocalDate(dt: string, date: Date): boolean {
   return parseLocalDateTime(dt).toDateString() === date.toDateString();
 }
 
+export function getLocalWeekStart(date: Date): Date {
+  const start = new Date(date);
+  start.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+export function getLocalWeekEnd(date: Date): Date {
+  const end = getLocalWeekStart(date);
+  end.setDate(end.getDate() + 7);
+  return end;
+}
+
+export function getLocalWeekRange(date: Date): { start: Date; end: Date } {
+  return {
+    start: getLocalWeekStart(date),
+    end: getLocalWeekEnd(date),
+  };
+}
+
 export function isInLocalWeek(dt: string, weekStart: Date, weekEnd: Date): boolean {
   const d = parseLocalDateTime(dt);
   return d >= weekStart && d < weekEnd;

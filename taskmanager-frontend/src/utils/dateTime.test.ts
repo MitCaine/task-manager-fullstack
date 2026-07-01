@@ -6,6 +6,8 @@ import {
   extractDateParts,
   formatDate,
   formatTime,
+  getLocalWeekRange,
+  getLocalWeekStart,
   isInLocalMonth,
   isInLocalWeek,
   isMidnightLocalDateTime,
@@ -121,6 +123,19 @@ describe('local datetime helpers', () => {
     expect(isInLocalWeek('2026-04-13T00:00:00', weekStart, weekEnd)).toBe(false);
     expect(isInLocalMonth('2026-04-30T12:00:00', reference)).toBe(true);
     expect(isInLocalMonth('2026-05-01T00:00:00', reference)).toBe(false);
+  });
+
+  test('local week helpers use Monday start and exclude the following Monday', () => {
+    const reference = new Date(2026, 3, 8, 12, 0, 0);
+    const week = getLocalWeekRange(reference);
+
+    expect(getLocalWeekStart(reference)).toEqual(new Date(2026, 3, 6, 0, 0, 0));
+    expect(week.start).toEqual(new Date(2026, 3, 6, 0, 0, 0));
+    expect(week.end).toEqual(new Date(2026, 3, 13, 0, 0, 0));
+    expect(isInLocalWeek('2026-04-05T23:59:00', week.start, week.end)).toBe(false);
+    expect(isInLocalWeek('2026-04-06T00:00:00', week.start, week.end)).toBe(true);
+    expect(isInLocalWeek('2026-04-12T23:59:00', week.start, week.end)).toBe(true);
+    expect(isInLocalWeek('2026-04-13T00:00:00', week.start, week.end)).toBe(false);
   });
 });
 

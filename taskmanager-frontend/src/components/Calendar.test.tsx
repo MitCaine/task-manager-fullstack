@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import Calendar from './Calendar';
 import type { Task } from '../types/task';
+import { getLocalWeekStart, toLocalDateTimeString } from '../utils/dateTime';
 
 const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Array<{ projectID: number; title: string }> = []) => {
   const onEditTask = jest.fn();
@@ -67,6 +68,20 @@ const calendarTags = [
   { tagID: 4, title: 'Fourth', color: '#a855f7' },
 ];
 
+const currentWeekTask = (dayOffset: number, overrides: Partial<Task> = {}): Task => {
+  const date = getLocalWeekStart(new Date());
+  date.setDate(date.getDate() + dayOffset);
+  date.setHours(9, 0, 0, 0);
+  return {
+    taskID: dayOffset + 10,
+    title: `Week task ${dayOffset}`,
+    dateTimeScheduled: toLocalDateTimeString(date),
+    recurrenceRuleID: null,
+    statusID: null,
+    ...overrides,
+  };
+};
+
 const getCalendarTaskEntry = () => {
   const taskEntry = screen.getByText('Recurring calendar task').closest('.cal-item');
   if (!(taskEntry instanceof HTMLElement)) throw new Error('Calendar task entry not found');
@@ -77,6 +92,21 @@ test('calendar week view shows a week-level empty state', () => {
   renderCalendar();
 
   expect(screen.getByText('No tasks scheduled this week.')).toHaveClass('cal-empty--week');
+});
+
+test('calendar week view uses Monday-start boundaries through Sunday', () => {
+  renderCalendar([
+    currentWeekTask(0, { taskID: 101, title: 'Monday boundary task' }),
+    currentWeekTask(6, { taskID: 102, title: 'Sunday boundary task' }),
+  ]);
+
+  const labels = screen.getAllByRole('button')
+    .filter(button => button.classList.contains('cal-week-row__lbl'));
+
+  expect(labels[0]).toHaveTextContent(/^Mon\b/);
+  expect(labels[6]).toHaveTextContent(/^Sun\b/);
+  expect(screen.getByText('Monday boundary task')).toBeInTheDocument();
+  expect(screen.getByText('Sunday boundary task')).toBeInTheDocument();
 });
 
 test('calendar month view shows month empty state', async () => {

@@ -1,5 +1,5 @@
 import type { Task } from '../types/task';
-import { isInLocalMonth, isInLocalWeek, isSameLocalDate } from './dateTime';
+import { getLocalWeekRange, isInLocalMonth, isInLocalWeek, isSameLocalDate } from './dateTime';
 import { isTaskDone, isTaskOverdue } from './taskUtils';
 
 export type TaskSortBy = 'dueAsc' | 'dueDesc' | 'titleAsc' | 'overdueFirst' | 'priorityDesc';
@@ -24,12 +24,8 @@ function applyViewTab(tasks: Task[], viewTab: TaskViewTab, now: Date): Task[] {
     return tasks.filter(t => Boolean(t.dateTimeScheduled) && isSameLocalDate(t.dateTimeScheduled!, now));
   }
   if (viewTab === 'week') {
-    const mon = new Date(now);
-    mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    mon.setHours(0, 0, 0, 0);
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 7);
-    return tasks.filter(t => Boolean(t.dateTimeScheduled) && isInLocalWeek(t.dateTimeScheduled!, mon, sun));
+    const week = getLocalWeekRange(now);
+    return tasks.filter(t => Boolean(t.dateTimeScheduled) && isInLocalWeek(t.dateTimeScheduled!, week.start, week.end));
   }
   if (viewTab === 'month') {
     return tasks.filter(t => Boolean(t.dateTimeScheduled) && isInLocalMonth(t.dateTimeScheduled!, now));

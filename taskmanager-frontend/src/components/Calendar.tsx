@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Task, Project } from '../types/task';
-import { formatTime } from '../utils/dateTime';
+import { formatTime, getLocalWeekStart } from '../utils/dateTime';
 import { isTaskDone, isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
 
@@ -16,8 +16,8 @@ const YEAR_RANGE_LABELS_BY_SIZE: Record<number, string[]> = {
   3: ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'],
   4: ['Jan - Apr', 'May - Aug', 'Sep - Dec'],
 };
-const DAY_ABBR  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const DAY_SHORT = ['S','M','T','W','T','F','S'];
+const DAY_ABBR  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_SHORT = ['M','T','W','T','F','S','S'];
 
 function tagAccentStyle(color?: string | null): CSSProperties {
   return { '--tag-color': color ?? '#6366f1' } as CSSProperties;
@@ -42,7 +42,7 @@ const activateOnEnterOrSpace = (event: KeyboardEvent, action: () => void) => {
 };
 
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
-  const firstDay    = new Date(year, month, 1).getDay();
+  const firstDay    = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (Date | null)[] = Array(firstDay).fill(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
@@ -77,9 +77,7 @@ function toKey(date: Date): string {
 }
 
 function weekStart(date: Date): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
+  return getLocalWeekStart(date);
 }
 
 function sameDate(a: Date, b: Date): boolean {
