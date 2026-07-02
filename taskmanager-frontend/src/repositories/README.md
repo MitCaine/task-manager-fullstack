@@ -1,13 +1,29 @@
 # Repository Migration Boundary
 
-Stage 1 defines repository contracts only. Runtime code still uses the
-existing REST API module until Stage 2/3.
+The repository layer is being introduced in small stages so the web app can
+continue using the existing Spring Boot REST backend while native builds later
+gain SQLite persistence.
 
-Planned ownership:
+Current ownership:
 
 - `domain/` owns persistence-independent frontend domain models and inputs.
 - `repositories/contracts.ts` owns split repository interfaces.
-- REST repositories will map REST DTOs to domain models.
+- `repositories/api/` owns REST-backed repository implementations.
+- `repositories/api/mappers/` maps REST DTOs to domain models and domain inputs
+  back to REST payloads.
+- `RepositoryProvider` exposes a repository set through React context and
+  defaults to `createRestRepositories()`.
+
+Runtime migration status:
+
+- REST repositories exist and are available through `RepositoryProvider`.
+- The React root is wrapped with `RepositoryProvider`.
+- App and hooks still call the existing REST API functions directly until the
+  next migration stage.
+- SQLite repositories and the database layer do not exist yet.
+
+Planned ownership:
+
 - SQLite repositories will map SQLite rows to domain models.
 - The future database layer will own SQLite connection lifecycle, migrations,
   and transactions.
