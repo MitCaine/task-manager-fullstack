@@ -1,16 +1,8 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import {
-  createProject,
-  createTag,
-  deleteProject as deleteProjectAPI,
-  deleteTag as deleteTagAPI,
-  getProjects,
-  getTags,
-  updateProject as updateProjectAPI,
-  updateTag as updateTagAPI,
-} from '../api/tasks';
 import type { Project, Tag } from '../types/task';
+import type { Project as DomainProject, Tag as DomainTag } from '../domain/models';
+import { useRepositories } from '../repositories';
 
 type UseProjectTagCatalogOptions = {
   setError: (message: string) => void;
@@ -50,7 +42,28 @@ type UseProjectTagCatalogResult = {
   };
 };
 
+function toUiProject(project: DomainProject): Project {
+  const uiProject: Project = {
+    projectID: Number(project.id),
+    title: project.title,
+  };
+
+  if (project.description !== undefined) uiProject.description = project.description;
+  if (project.dueDate !== undefined) uiProject.dueDate = project.dueDate;
+
+  return uiProject;
+}
+
+function toUiTag(tag: DomainTag): Tag {
+  return {
+    tagID: Number(tag.id),
+    title: tag.title,
+    color: tag.color ?? null,
+  };
+}
+
 export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogOptions): UseProjectTagCatalogResult {
+  const repositories = useRepositories();
   const [projects, setProjects] = useState<Project[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [newProjectTitle, setNewProjectTitle] = useState('');
@@ -59,12 +72,12 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const loadProjectTagCatalog = async () => {
     const [projectResult, tagResult] = await Promise.allSettled([
-      getProjects(),
-      getTags(),
+      repositories.projects.list(),
+      repositories.tags.list(),
     ]);
 
-    if (projectResult.status === 'fulfilled') setProjects(projectResult.value);
-    if (tagResult.status === 'fulfilled') setTags(tagResult.value);
+    if (projectResult.status === 'fulfilled') setProjects(projectResult.value.map(toUiProject));
+    if (tagResult.status === 'fulfilled') setTags(tagResult.value.map(toUiTag));
 
     if (projectResult.status === 'rejected' || tagResult.status === 'rejected') {
       setError('Failed to load projects or tags.');
@@ -75,7 +88,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     const title = rawTitle.trim();
     if (!title) return null;
     try {
-      const saved = await createProject({ title });
+      const saved = toUiProject(await repositories.projects.create({ title }));
       setProjects(prev => [...prev, saved]);
       return saved;
     } catch {
@@ -94,7 +107,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     const title = rawTitle.trim();
     if (!title) return null;
     try {
-      const saved = await createTag({ title, color });
+      const saved = toUiTag(await repositories.tags.create({ title, color }));
       setTags(prev => [...prev, saved]);
       return saved;
     } catch {
@@ -117,8 +130,11 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     const project = projects.find(item => item.projectID === projectID);
     if (!title || !project) return false;
     try {
-      const { projectID: _projectID, ...projectFields } = project;
-      const saved = await updateProjectAPI(projectID, { ...projectFields, title });
+      const saved = toUiProject(await repositories.projects.update(String(projectID), {
+        title,
+        description: project.description,
+        dueDate: project.dueDate,
+      }));
       setProjects(prev => prev.map(item => item.projectID === projectID ? saved : item));
       return true;
     } catch {
@@ -129,7 +145,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const updateTagDetails = async (tagID: number, update: Pick<Tag, 'title' | 'color'>) => {
     try {
-      const saved = await updateTagAPI(tagID, update);
+      const saved = toUiTag(await repositories.tags.update(String(tagID), update));
       setTags(prev => prev.map(tag => tag.tagID === tagID ? saved : tag));
       return true;
     } catch {
@@ -146,7 +162,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const deleteTagFromCatalog = async (tagID: number) => {
     try {
-      await deleteTagAPI(tagID);
+      await repositories.tags.delete(String(tagID));
       setTags(prev => prev.filter(t => t.tagID !== tagID));
       return true;
     } catch {
@@ -157,7 +173,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const deleteProjectFromCatalog = async (projectID: number) => {
     try {
-      await deleteProjectAPI(projectID);
+      await repositories.projects.delete(String(projectID));
       setProjects(prev => prev.filter(p => p.projectID !== projectID));
       return true;
     } catch {

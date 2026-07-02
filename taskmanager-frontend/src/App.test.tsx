@@ -1,7 +1,8 @@
-import { render, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import App from './App';
+import { RepositoryProvider } from './repositories';
 import {
   getTasks, getTask, createTask, updateTask, deleteTask, patchTaskStatus,
   getProjects, createProject, updateProject, deleteProject, getTags, createTag, updateTag, deleteTag, getRecurrence, setRepeat, addTagToTask, removeTagFromTask,
@@ -99,6 +100,9 @@ afterEach(() => {
 });
 
 // Render helper supplies the common app setup for interaction tests.
+function render(ui: Parameters<typeof rtlRender>[0], options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(ui, { wrapper: RepositoryProvider, ...options });
+}
 
 /** Open the settings panel (⚙ Settings button). */
 function openSettings() {
