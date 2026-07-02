@@ -88,7 +88,7 @@ function toUiNote(note: DomainNote): Note {
     taskID: toLegacyNumericId(note.taskId, 'taskID'),
     title: note.title ?? '',
     context: note.context,
-    timestamp: note.timestamp ?? note.createdAt ?? '',
+    timestamp: note.timestamp ?? note.createdAt ?? null,
   };
 }
 

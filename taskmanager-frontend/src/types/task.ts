@@ -41,7 +41,7 @@ export interface Note {
   noteID: number;
   title: string;
   context: string;
-  timestamp: string;
+  timestamp?: string | null;
   taskID: number;
 }
 
