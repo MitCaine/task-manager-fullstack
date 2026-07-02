@@ -12,10 +12,12 @@ Known mismatches:
 - REST uses backend field names such as `statusID`, `projectID`,
   `recurrenceRuleID`, and `fileORLink`. Domain models use `statusId`,
   `projectId`, `recurrenceRuleId`, and `fileOrLink`.
-- Domain entities require `createdAt` and `updatedAt`. Most REST DTOs do not
-  expose `updatedAt`, and only task/note-like data may expose a useful creation
-  or timestamp field. Mappers use `MISSING_REST_TIMESTAMP` for missing REST
+- Domain entities allow nullable `createdAt` and `updatedAt`. Most REST DTOs do
+  not expose `updatedAt`, and only task/note-like data may expose a useful
+  creation or timestamp field. Mappers return `null` for unavailable REST
   timestamp data rather than inventing a date.
+- Required REST entity IDs throw mapper errors when absent. Optional relation
+  IDs map to `null`.
 - REST DTOs may include `userID`. The Stage 1 domain model intentionally omits
   user ownership because the current frontend does not own multi-user behavior.
 - Domain attachments include future local fields (`mimeType`, `localFilePath`)

@@ -6,4 +6,4 @@ export { ApiReminderRepository } from './ApiReminderRepository';
 export { ApiSubtaskRepository } from './ApiSubtaskRepository';
 export { ApiTagRepository } from './ApiTagRepository';
 export { ApiTaskRepository } from './ApiTaskRepository';
-export { createApiRepositories } from './createApiRepositories';
+export { createRestRepositories } from './createRestRepositories';

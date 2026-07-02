@@ -16,7 +16,7 @@ import { mapReminderDtoToDomain } from './ReminderMapper';
 import { mapSubtaskDtoToDomain } from './SubtaskMapper';
 import { mapTagDtoToDomain } from './TagMapper';
 import { mapCreateTaskInputToDto, mapTaskDtoToDomain, mapUpdateTaskInputToDto } from './TaskMapper';
-import { MISSING_REST_TIMESTAMP, toApiId } from './mapperUtils';
+import { toApiId } from './mapperUtils';
 
 describe('API repository mappers', () => {
   it('maps task DTOs to domain tasks without dropping nullable fields', () => {
@@ -51,12 +51,32 @@ describe('API repository mappers', () => {
         id: '5',
         title: 'Release',
         color: null,
-        createdAt: MISSING_REST_TIMESTAMP,
-        updatedAt: MISSING_REST_TIMESTAMP,
+        createdAt: null,
+        updatedAt: null,
       }],
       createdAt: '2026-07-01T09:30:00',
-      updatedAt: '2026-07-01T09:30:00',
+      updatedAt: null,
     });
+  });
+
+  it('maps missing optional task relation IDs to null without fake IDs', () => {
+    const task: Task = {
+      taskID: 42,
+      title: 'No relations',
+      description: '',
+      scheduleID: undefined,
+      recurrenceRuleID: null,
+      projectID: null,
+    };
+
+    expect(mapTaskDtoToDomain(task)).toEqual(expect.objectContaining({
+      id: '42',
+      scheduleId: null,
+      recurrenceRuleId: null,
+      projectId: null,
+      createdAt: null,
+      updatedAt: null,
+    }));
   });
 
   it('maps task domain inputs back to REST DTO shapes', () => {
@@ -95,15 +115,15 @@ describe('API repository mappers', () => {
       title: 'Work',
       description: null,
       dueDate: null,
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapTagDtoToDomain(tag)).toEqual({
       id: '2',
       title: 'Focus',
       color: '#6366f1',
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapUpdateProjectInputToDto({ title: 'Home', description: null, dueDate: '2026-08-01T00:00:00' }))
       .toEqual({ title: 'Home', description: null, dueDate: '2026-08-01T00:00:00' });
@@ -121,8 +141,8 @@ describe('API repository mappers', () => {
       title: 'Step',
       statusId: 2,
       dateTimeScheduled: null,
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapNoteDtoToDomain(note)).toEqual({
       id: '2',
@@ -139,8 +159,8 @@ describe('API repository mappers', () => {
       dueDate: '2026-07-03T09:00:00',
       notificationMethod: 'browser',
       message: null,
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapAttachmentDtoToDomain(attachment)).toEqual({
       id: '4',
@@ -150,8 +170,8 @@ describe('API repository mappers', () => {
       fileSize: 0,
       mimeType: null,
       localFilePath: null,
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapCreateAttachmentInputToApiArgs({ taskId: '42', fileOrLink: 'https://example.com' }))
       .toEqual({ taskId: 42, fileOrLink: 'https://example.com', metadata: '' });
@@ -176,8 +196,8 @@ describe('API repository mappers', () => {
       timesOfRecurrence: 0,
       startDateTime: '2026-07-01T09:00:00',
       endDateTime: '2036-07-01T09:00:00',
-      createdAt: MISSING_REST_TIMESTAMP,
-      updatedAt: MISSING_REST_TIMESTAMP,
+      createdAt: null,
+      updatedAt: null,
     });
     expect(mapRecurrenceIntervalInputToDto({ intervalUnit: 'month', intervalValue: 1 }))
       .toEqual({ intervalUnit: 'month', intervalValue: 1 });
@@ -186,5 +206,30 @@ describe('API repository mappers', () => {
 
   it('rejects non-numeric IDs when converting domain IDs for REST', () => {
     expect(() => toApiId('local-task-id')).toThrow('Expected numeric REST id');
+  });
+
+  it('throws a clear mapper error when a required REST ID is missing', () => {
+    expect(() => mapTaskDtoToDomain({ taskID: undefined as unknown as number, title: 'Bad DTO' }))
+      .toThrow('Missing required REST id field "taskID"');
+    expect(() => mapTagDtoToDomain({ tagID: undefined as unknown as number, title: 'Bad tag' }))
+      .toThrow('Missing required REST id field "tagID"');
+  });
+
+  it('tolerates nullable recurrence date fields at the mapper boundary', () => {
+    const recurrence: RecurrenceRule = {
+      recurrenceRuleID: 7,
+      frequency: null,
+      intervalUnit: 'week',
+      intervalValue: 1,
+      timesOfRecurrence: 0,
+      startDateTime: null as unknown as string,
+      endDateTime: null as unknown as string,
+    };
+
+    expect(mapRecurrenceDtoToDomain(recurrence)).toEqual(expect.objectContaining({
+      id: '7',
+      startDateTime: null,
+      endDateTime: null,
+    }));
   });
 });

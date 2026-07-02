@@ -1,15 +1,15 @@
 import type { Project as DomainProject, CreateProjectInput, UpdateProjectInput } from '../../../domain/models';
 import type { Project as RestProject } from '../../../types/task';
-import { MISSING_REST_TIMESTAMP, toDomainId } from './mapperUtils';
+import { toRequiredDomainId } from './mapperUtils';
 
 export function mapProjectDtoToDomain(dto: RestProject): DomainProject {
   return {
-    id: toDomainId(dto.projectID),
+    id: toRequiredDomainId(dto.projectID, 'projectID'),
     title: dto.title,
     description: dto.description ?? null,
     dueDate: dto.dueDate ?? null,
-    createdAt: MISSING_REST_TIMESTAMP,
-    updatedAt: MISSING_REST_TIMESTAMP,
+    createdAt: null,
+    updatedAt: null,
   };
 }
 

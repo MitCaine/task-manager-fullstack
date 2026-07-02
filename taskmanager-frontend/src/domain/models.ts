@@ -3,8 +3,8 @@ export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type RecurrenceUnit = 'day' | 'week' | 'month' | 'year';
 
 export interface EntityTimestamps {
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface Tag extends EntityTimestamps {

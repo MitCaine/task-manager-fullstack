@@ -1,16 +1,16 @@
 import type { CreateNoteInput, Note as DomainNote } from '../../../domain/models';
 import type { Note as RestNote } from '../../../types/task';
-import { MISSING_REST_TIMESTAMP, toApiId, toDomainId } from './mapperUtils';
+import { toApiId, toRequiredDomainId } from './mapperUtils';
 
 export function mapNoteDtoToDomain(dto: RestNote): DomainNote {
   return {
-    id: toDomainId(dto.noteID),
-    taskId: toDomainId(dto.taskID),
+    id: toRequiredDomainId(dto.noteID, 'noteID'),
+    taskId: toRequiredDomainId(dto.taskID, 'taskID'),
     title: dto.title ?? null,
     context: dto.context,
     timestamp: dto.timestamp ?? null,
-    createdAt: dto.timestamp ?? MISSING_REST_TIMESTAMP,
-    updatedAt: dto.timestamp ?? MISSING_REST_TIMESTAMP,
+    createdAt: dto.timestamp ?? null,
+    updatedAt: dto.timestamp ?? null,
   };
 }
 

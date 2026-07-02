@@ -1,16 +1,16 @@
 import type { CreateReminderInput, Reminder as DomainReminder } from '../../../domain/models';
 import type { Reminder as RestReminder } from '../../../types/task';
-import { MISSING_REST_TIMESTAMP, toApiId, toDomainId } from './mapperUtils';
+import { toApiId, toRequiredDomainId } from './mapperUtils';
 
 export function mapReminderDtoToDomain(dto: RestReminder): DomainReminder {
   return {
-    id: toDomainId(dto.reminderID),
-    taskId: toDomainId(dto.taskID),
+    id: toRequiredDomainId(dto.reminderID, 'reminderID'),
+    taskId: toRequiredDomainId(dto.taskID, 'taskID'),
     dueDate: dto.dueDate,
     notificationMethod: dto.notificationMethod ?? null,
     message: dto.message ?? null,
-    createdAt: MISSING_REST_TIMESTAMP,
-    updatedAt: MISSING_REST_TIMESTAMP,
+    createdAt: null,
+    updatedAt: null,
   };
 }
 

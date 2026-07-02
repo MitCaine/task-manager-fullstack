@@ -1,7 +1,12 @@
-export const MISSING_REST_TIMESTAMP = '';
+export function toRequiredDomainId(id: number | string | null | undefined, fieldName: string): string {
+  if (id === null || id === undefined) {
+    throw new Error(`Missing required REST id field "${fieldName}".`);
+  }
+  return String(id);
+}
 
-export function toDomainId(id: number | string | null | undefined): string {
-  if (id === null || id === undefined) return '';
+export function toOptionalDomainId(id: number | string | null | undefined): string | null {
+  if (id === null || id === undefined) return null;
   return String(id);
 }
 
@@ -14,14 +19,14 @@ export function toApiId(id: string): number {
 }
 
 export function optionalToApiId(id: string | null | undefined): number | null {
-  if (id === null || id === undefined || id === '') return null;
+  if (id === null || id === undefined) return null;
   return toApiId(id);
 }
 
-export function createdAtOrMissing(createdAt?: string | null): string {
-  return createdAt ?? MISSING_REST_TIMESTAMP;
+export function createdAtFromRest(createdAt?: string | null): string | null {
+  return createdAt ?? null;
 }
 
-export function updatedAtFromRest(createdAt?: string | null): string {
-  return createdAt ?? MISSING_REST_TIMESTAMP;
+export function updatedAtFromRest(updatedAt?: string | null): string | null {
+  return updatedAt ?? null;
 }

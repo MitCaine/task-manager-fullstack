@@ -1,28 +1,29 @@
 import type { CreateTaskInput, Task as DomainTask, UpdateTaskInput } from '../../../domain/models';
 import type { Task as RestTask } from '../../../types/task';
 import {
-  createdAtOrMissing,
+  createdAtFromRest,
   optionalToApiId,
-  toDomainId,
+  toOptionalDomainId,
+  toRequiredDomainId,
   updatedAtFromRest,
 } from './mapperUtils';
 import { mapTagDtoToDomain } from './TagMapper';
 
 export function mapTaskDtoToDomain(dto: RestTask): DomainTask {
   return {
-    id: toDomainId(dto.taskID),
+    id: toRequiredDomainId(dto.taskID, 'taskID'),
     title: dto.title,
     description: dto.description ?? '',
     dateTimeScheduled: dto.dateTimeScheduled ?? null,
     endDateTimeScheduled: dto.endDateTimeScheduled ?? null,
     statusId: dto.statusID ?? null,
-    scheduleId: dto.scheduleID === null || dto.scheduleID === undefined ? null : toDomainId(dto.scheduleID),
-    recurrenceRuleId: dto.recurrenceRuleID === null || dto.recurrenceRuleID === undefined ? null : toDomainId(dto.recurrenceRuleID),
-    projectId: dto.projectID === null || dto.projectID === undefined ? null : toDomainId(dto.projectID),
+    scheduleId: toOptionalDomainId(dto.scheduleID),
+    recurrenceRuleId: toOptionalDomainId(dto.recurrenceRuleID),
+    projectId: toOptionalDomainId(dto.projectID),
     priority: dto.priority ?? null,
     tags: dto.tags?.map(mapTagDtoToDomain),
-    createdAt: createdAtOrMissing(dto.createdAt),
-    updatedAt: updatedAtFromRest(dto.createdAt),
+    createdAt: createdAtFromRest(dto.createdAt),
+    updatedAt: updatedAtFromRest(null),
   };
 }
 

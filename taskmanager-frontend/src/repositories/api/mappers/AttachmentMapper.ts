@@ -1,18 +1,18 @@
 import type { Attachment as DomainAttachment, CreateAttachmentInput } from '../../../domain/models';
 import type { Attachment as RestAttachment } from '../../../types/task';
-import { MISSING_REST_TIMESTAMP, toApiId, toDomainId } from './mapperUtils';
+import { toApiId, toRequiredDomainId } from './mapperUtils';
 
 export function mapAttachmentDtoToDomain(dto: RestAttachment): DomainAttachment {
   return {
-    id: toDomainId(dto.attachmentID),
-    taskId: toDomainId(dto.taskID),
+    id: toRequiredDomainId(dto.attachmentID, 'attachmentID'),
+    taskId: toRequiredDomainId(dto.taskID, 'taskID'),
     fileOrLink: dto.fileORLink,
     metadata: dto.metadata ?? null,
     fileSize: dto.fileSize ?? null,
     mimeType: null,
     localFilePath: null,
-    createdAt: MISSING_REST_TIMESTAMP,
-    updatedAt: MISSING_REST_TIMESTAMP,
+    createdAt: null,
+    updatedAt: null,
   };
 }
 

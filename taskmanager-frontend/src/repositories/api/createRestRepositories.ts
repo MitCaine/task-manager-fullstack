@@ -8,7 +8,7 @@ import { ApiSubtaskRepository } from './ApiSubtaskRepository';
 import { ApiTagRepository } from './ApiTagRepository';
 import { ApiTaskRepository } from './ApiTaskRepository';
 
-export function createApiRepositories(): Repositories {
+export function createRestRepositories(): Repositories {
   return {
     tasks: new ApiTaskRepository(),
     projects: new ApiProjectRepository(),
