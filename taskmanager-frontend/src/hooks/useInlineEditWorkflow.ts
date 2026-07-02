@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { addTagToTask, getRecurrence, getTask, removeTagFromTask, setRepeat, updateTask } from '../api/tasks';
 import type { Project, Tag, Task } from '../types/task';
 import type { Ampm } from '../utils/taskForm';
 import type { RepeatValue } from '../utils/taskRecurrence';
@@ -10,6 +9,7 @@ import {
 } from '../utils/taskRecurrence';
 import { deriveTaskEditDraft } from '../utils/taskEditDraft';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from '../utils/taskScheduling';
+import { toLegacyRecurrenceRule, toLegacyTask, useRepositories } from '../repositories';
 
 type EditPriority = 'LOW' | 'MEDIUM' | 'HIGH' | '';
 
@@ -34,6 +34,7 @@ export default function useInlineEditWorkflow({
   setInlineEditOpenControl,
   selectedTaskId,
 }: UseInlineEditWorkflowOptions) {
+  const repositories = useRepositories();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -87,7 +88,7 @@ export default function useInlineEditWorkflow({
     setShowInlineEditTag(false);
     setInlineEditOpenControl(null);
     try {
-      const fresh = await getTask(task.taskID);
+      const fresh = toLegacyTask(await repositories.tasks.get(String(task.taskID)));
       setEditTaskTagIDs((fresh.tags ?? []).map(t => t.tagID));
       setTasks(prev => prev.map(t => t.taskID === fresh.taskID ? { ...t, tags: fresh.tags } : t));
     } catch {
@@ -97,9 +98,9 @@ export default function useInlineEditWorkflow({
       setEditRepeat(null);
       setOriginalRepeatKey('');
     } else {
-      getRecurrence(task.taskID)
+      repositories.recurrence.getByTask(String(task.taskID))
         .then(rule => {
-          const repeat = normalizeRecurrenceRule(rule);
+          const repeat = normalizeRecurrenceRule(toLegacyRecurrenceRule(rule));
           setEditRepeat(repeat);
           setOriginalRepeatKey(recurrenceIntervalKey(repeat));
         })
@@ -141,31 +142,30 @@ export default function useInlineEditWorkflow({
       return;
     }
     try {
-      const saved = await updateTask(task.taskID, {
+      const saved = toLegacyTask(await repositories.tasks.update(String(task.taskID), {
         title: editTitle.trim() || task.title,
         description: editDescription.trim(),
         dateTimeScheduled,
         endDateTimeScheduled,
-        userID: task.userID,
-        statusID: task.statusID,
+        statusId: task.statusID ?? null,
         priority: editPriority || null,
-        projectID: editProjectID !== '' ? editProjectID : null,
-      });
+        projectId: editProjectID !== '' ? String(editProjectID) : null,
+      }));
       const currentTagIDs = (task.tags ?? []).map(t => t.tagID);
       const toAdd = editTaskTagIDs.filter(id => !currentTagIDs.includes(id));
       const toRemove = currentTagIDs.filter(id => !editTaskTagIDs.includes(id));
       await Promise.all([
-        ...toAdd.map(tagId => addTagToTask(task.taskID, tagId)),
-        ...toRemove.map(tagId => removeTagFromTask(task.taskID, tagId)),
+        ...toAdd.map(tagId => repositories.tasks.addTag(String(task.taskID), String(tagId))),
+        ...toRemove.map(tagId => repositories.tasks.removeTag(String(task.taskID), String(tagId))),
       ]);
       const tagObjects = tags.filter(t => editTaskTagIDs.includes(t.tagID));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...saved, tags: tagObjects } : t));
       if (selectedTaskId === null) setEditingId(null);
       if (recurrenceIntervalKey(editRepeat) !== originalRepeatKey) {
         try {
-          await setRepeat(task.taskID, editRepeat);
+          await repositories.recurrence.setForTask(String(task.taskID), editRepeat);
           setOriginalRepeatKey(recurrenceIntervalKey(editRepeat));
-          const freshTask = await getTask(task.taskID);
+          const freshTask = toLegacyTask(await repositories.tasks.get(String(task.taskID)));
           setTasks(prev => prev.map(t => t.taskID === task.taskID ? { ...t, recurrenceRuleID: freshTask.recurrenceRuleID } : t));
         } catch { /* non-critical */ }
       }

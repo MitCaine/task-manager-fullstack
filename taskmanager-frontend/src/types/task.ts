@@ -67,6 +67,6 @@ export interface RecurrenceRule {
   intervalUnit?: 'day' | 'week' | 'month' | 'year' | string | null;
   intervalValue?: number | null;
   timesOfRecurrence: number;
-  startDateTime: string;
-  endDateTime: string;
+  startDateTime?: string | null;
+  endDateTime?: string | null;
 }

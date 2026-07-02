@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Attachment, Note, Reminder, Subtask } from '../types/task';
-import type {
-  Attachment as DomainAttachment,
-  Note as DomainNote,
-  Reminder as DomainReminder,
-  Subtask as DomainSubtask,
-} from '../domain/models';
-import { toLegacyNumericId, useRepositories } from '../repositories';
+import {
+  toLegacyAttachment,
+  toLegacyNote,
+  toLegacyReminder,
+  toLegacySubtask,
+  useRepositories,
+} from '../repositories';
 import { buildDateTimeString } from '../utils/dateTime';
 import type { Ampm } from '../utils/taskForm';
 import { TASK_STATUS } from '../utils/taskUtils';
@@ -72,46 +72,6 @@ type UseTaskDetailResourcesResult = {
   };
 };
 
-function toUiSubtask(subtask: DomainSubtask): Subtask {
-  return {
-    subTaskID: toLegacyNumericId(subtask.id, 'subTaskID'),
-    parentTaskID: toLegacyNumericId(subtask.parentTaskId, 'parentTaskID'),
-    title: subtask.title,
-    statusID: subtask.statusId ?? TASK_STATUS.LEGACY_ACTIVE,
-    dateTimeScheduled: subtask.dateTimeScheduled ?? null,
-  };
-}
-
-function toUiNote(note: DomainNote): Note {
-  return {
-    noteID: toLegacyNumericId(note.id, 'noteID'),
-    taskID: toLegacyNumericId(note.taskId, 'taskID'),
-    title: note.title ?? '',
-    context: note.context,
-    timestamp: note.timestamp ?? note.createdAt ?? null,
-  };
-}
-
-function toUiReminder(reminder: DomainReminder): Reminder {
-  return {
-    reminderID: toLegacyNumericId(reminder.id, 'reminderID'),
-    taskID: toLegacyNumericId(reminder.taskId, 'taskID'),
-    dueDate: reminder.dueDate,
-    notificationMethod: reminder.notificationMethod ?? '',
-    message: reminder.message ?? null,
-  };
-}
-
-function toUiAttachment(attachment: DomainAttachment): Attachment {
-  return {
-    attachmentID: toLegacyNumericId(attachment.id, 'attachmentID'),
-    taskID: toLegacyNumericId(attachment.taskId, 'taskID'),
-    fileORLink: attachment.fileOrLink,
-    metadata: attachment.metadata ?? null,
-    fileSize: attachment.fileSize ?? 0,
-  };
-}
-
 export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDetailResourcesOptions): UseTaskDetailResourcesResult {
   const repositories = useRepositories();
   const [subtasks, setSubtasks] = useState<ResourceMap<Subtask>>({});
@@ -141,10 +101,10 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     setEditingSubtaskTitle('');
     try {
       const [subData, noteData, reminderData, attachData] = await Promise.all([
-        subtasks[taskId]   ? Promise.resolve(subtasks[taskId])   : repositories.subtasks.listByTask(String(taskId)).then(items => items.map(toUiSubtask)),
-        notes[taskId]      ? Promise.resolve(notes[taskId])      : repositories.notes.listByTask(String(taskId)).then(items => items.map(toUiNote)),
-        reminders[taskId]  ? Promise.resolve(reminders[taskId])  : repositories.reminders.listByTask(String(taskId)).then(items => items.map(toUiReminder)),
-        attachments[taskId] ? Promise.resolve(attachments[taskId]) : repositories.attachments.listByTask(String(taskId)).then(items => items.map(toUiAttachment)),
+        subtasks[taskId]   ? Promise.resolve(subtasks[taskId])   : repositories.subtasks.listByTask(String(taskId)).then(items => items.map(toLegacySubtask)),
+        notes[taskId]      ? Promise.resolve(notes[taskId])      : repositories.notes.listByTask(String(taskId)).then(items => items.map(toLegacyNote)),
+        reminders[taskId]  ? Promise.resolve(reminders[taskId])  : repositories.reminders.listByTask(String(taskId)).then(items => items.map(toLegacyReminder)),
+        attachments[taskId] ? Promise.resolve(attachments[taskId]) : repositories.attachments.listByTask(String(taskId)).then(items => items.map(toLegacyAttachment)),
       ]);
       setSubtasks(prev    => ({ ...prev, [taskId]: subData }));
       setNotes(prev       => ({ ...prev, [taskId]: noteData }));
@@ -164,7 +124,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   const addSubtask = async (taskId: number) => {
     if (!newSubtaskTitle.trim()) return;
     try {
-      const saved = toUiSubtask(await repositories.subtasks.create({
+      const saved = toLegacySubtask(await repositories.subtasks.create({
         parentTaskId: String(taskId),
         title: newSubtaskTitle.trim(),
       }));
@@ -178,7 +138,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   const toggleSubtask = async (taskId: number, subtask: Subtask) => {
     const newStatusID = subtask.statusID === TASK_STATUS.DONE ? TASK_STATUS.LEGACY_ACTIVE : TASK_STATUS.DONE;
     try {
-      const saved = toUiSubtask(await repositories.subtasks.updateStatus(String(subtask.subTaskID), newStatusID));
+      const saved = toLegacySubtask(await repositories.subtasks.updateStatus(String(subtask.subTaskID), newStatusID));
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].map(s => s.subTaskID === saved.subTaskID ? saved : s) }));
     } catch {
       setError('Failed to update subtask.');
@@ -200,7 +160,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     setEditingSubtaskTitle('');
     if (!trimmed || trimmed === subtask.title) return;
     try {
-      const saved = toUiSubtask(await repositories.subtasks.update(String(subtask.subTaskID), {
+      const saved = toLegacySubtask(await repositories.subtasks.update(String(subtask.subTaskID), {
         title: trimmed,
         statusId: subtask.statusID,
         dateTimeScheduled: subtask.dateTimeScheduled ?? null,
@@ -214,7 +174,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   const addNote = async (taskId: number) => {
     if (!newNoteContent.trim()) return;
     try {
-      const saved = toUiNote(await repositories.notes.create({
+      const saved = toLegacyNote(await repositories.notes.create({
         taskId: String(taskId),
         title: '',
         context: newNoteContent.trim(),
@@ -242,7 +202,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     }
     try {
       const dueDate = buildDateTimeString(newReminderDate, newReminderHour, newReminderMinute, newReminderAmpm, is24Hour);
-      const saved = toUiReminder(await repositories.reminders.create({
+      const saved = toLegacyReminder(await repositories.reminders.create({
         taskId: String(taskId),
         dueDate,
         message: newReminderMessage.trim(),
@@ -269,7 +229,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     const url = newAttachmentUrl.trim();
     if (!url) return;
     try {
-      const saved = toUiAttachment(await repositories.attachments.create({
+      const saved = toLegacyAttachment(await repositories.attachments.create({
         taskId: String(taskId),
         fileOrLink: url,
         metadata: newAttachmentLabel.trim(),

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Project, Tag, Task } from '../types/task';
-import type { Task as DomainTask } from '../domain/models';
 import type { ToastListItem } from '../components/shared/ToastList';
 import type { Ampm } from '../utils/taskForm';
 import type { RepeatValue } from '../utils/taskRecurrence';
 import { findProjectById, findTagsByIds } from '../utils/taskDisplayHelpers';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from '../utils/taskScheduling';
-import { toLegacyNumericId, useRepositories } from '../repositories';
+import { toLegacyTask, useRepositories } from '../repositories';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -32,32 +31,6 @@ function getNow(): { date: string; hour: string; minute: string; ampm: Ampm } {
     minute: String(now.getMinutes()).padStart(2, '0'),
     ampm: h >= 12 ? 'PM' : 'AM',
   };
-}
-
-function toUiTask(task: DomainTask): Task {
-  const uiTask: Task = {
-    taskID: toLegacyNumericId(task.id, 'taskID'),
-    title: task.title,
-    description: task.description,
-    dateTimeScheduled: task.dateTimeScheduled ?? null,
-    endDateTimeScheduled: task.endDateTimeScheduled ?? null,
-    createdAt: task.createdAt ?? null,
-    statusID: task.statusId ?? null,
-    scheduleID: task.scheduleId ? toLegacyNumericId(task.scheduleId, 'scheduleID') : null,
-    recurrenceRuleID: task.recurrenceRuleId ? toLegacyNumericId(task.recurrenceRuleId, 'recurrenceRuleID') : null,
-    projectID: task.projectId ? toLegacyNumericId(task.projectId, 'projectID') : null,
-    priority: task.priority ?? null,
-  };
-
-  if (task.tags) {
-    uiTask.tags = task.tags.map(tag => ({
-      tagID: toLegacyNumericId(tag.id, 'tagID'),
-      title: tag.title,
-      color: tag.color ?? null,
-    }));
-  }
-
-  return uiTask;
 }
 
 export default function useCreateTaskWorkflow({
@@ -158,7 +131,7 @@ export default function useCreateTaskWorkflow({
       return;
     }
     try {
-      const saved = toUiTask(await repositories.tasks.create({
+      const saved = toLegacyTask(await repositories.tasks.create({
         title: input.trim(),
         description: description.trim(),
         dateTimeScheduled,
@@ -168,7 +141,7 @@ export default function useCreateTaskWorkflow({
       }));
       let taskForState = saved;
       if (newRepeat) {
-        const repeated = toUiTask(await repositories.recurrence.setForTask(String(saved.taskID), newRepeat));
+        const repeated = toLegacyTask(await repositories.recurrence.setForTask(String(saved.taskID), newRepeat));
         taskForState = { ...saved, recurrenceRuleID: repeated.recurrenceRuleID ?? null };
       }
       if (newTaskTagIDs.length > 0) {
