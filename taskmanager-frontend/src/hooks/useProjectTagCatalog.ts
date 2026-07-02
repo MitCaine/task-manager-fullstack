@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Project, Tag } from '../types/task';
 import type { Project as DomainProject, Tag as DomainTag } from '../domain/models';
-import { useRepositories } from '../repositories';
+import { toLegacyNumericId, useRepositories } from '../repositories';
 
 type UseProjectTagCatalogOptions = {
   setError: (message: string) => void;
@@ -44,7 +44,7 @@ type UseProjectTagCatalogResult = {
 
 function toUiProject(project: DomainProject): Project {
   const uiProject: Project = {
-    projectID: Number(project.id),
+    projectID: toLegacyNumericId(project.id, 'projectID'),
     title: project.title,
   };
 
@@ -56,7 +56,7 @@ function toUiProject(project: DomainProject): Project {
 
 function toUiTag(tag: DomainTag): Tag {
   return {
-    tagID: Number(tag.id),
+    tagID: toLegacyNumericId(tag.id, 'tagID'),
     title: tag.title,
     color: tag.color ?? null,
   };
