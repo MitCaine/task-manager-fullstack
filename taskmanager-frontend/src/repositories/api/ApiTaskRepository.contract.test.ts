@@ -11,6 +11,7 @@ import {
 import type { Tag, Task } from '../../types/task';
 import { describeTaskRepositoryContract } from '../contracts/taskRepositoryContract';
 import { ApiTaskRepository } from './ApiTaskRepository';
+import { mapStatusIdDomainToDto } from './mappers/StatusMapper';
 
 jest.mock('../../api/tasks');
 
@@ -88,7 +89,7 @@ describeTaskRepositoryContract({
       taskID: Number(task.id),
       title: task.title,
       description: task.description ?? '',
-      statusID: task.statusId ?? null,
+      statusID: mapStatusIdDomainToDto(task.statusId),
       projectID: task.projectId ? Number(task.projectId) : null,
       tags: [],
     });

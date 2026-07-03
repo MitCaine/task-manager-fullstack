@@ -13,6 +13,7 @@ import type {
   RecurrenceIntervalInput,
   RecurrenceRule,
   Reminder,
+  StatusId,
   Subtask,
   Tag,
   Task,
@@ -31,7 +32,7 @@ export interface TaskRepository<TTransaction = unknown> {
   get(id: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
   create(input: CreateTaskInput, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
   update(id: EntityId, input: UpdateTaskInput, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
-  updateStatus(id: EntityId, statusId: number | null, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
+  updateStatus(id: EntityId, statusId: StatusId | null, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
   delete(id: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<void>;
   addTag(taskId: EntityId, tagId: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
   removeTag(taskId: EntityId, tagId: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<Task>;
@@ -55,7 +56,7 @@ export interface SubtaskRepository<TTransaction = unknown> {
   listByTask(taskId: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<Subtask[]>;
   create(input: CreateSubtaskInput, options?: RepositoryOperationOptions<TTransaction>): Promise<Subtask>;
   update(id: EntityId, input: UpdateSubtaskInput, options?: RepositoryOperationOptions<TTransaction>): Promise<Subtask>;
-  updateStatus(id: EntityId, statusId: number | null, options?: RepositoryOperationOptions<TTransaction>): Promise<Subtask>;
+  updateStatus(id: EntityId, statusId: StatusId | null, options?: RepositoryOperationOptions<TTransaction>): Promise<Subtask>;
   delete(id: EntityId, options?: RepositoryOperationOptions<TTransaction>): Promise<void>;
 }
 

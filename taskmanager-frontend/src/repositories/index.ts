@@ -13,6 +13,7 @@ export type {
 export { RepositoryProvider, useRepositories } from './RepositoryContext';
 export { createRestRepositories } from './api';
 export {
+  toDomainStatusId,
   toLegacyAttachment,
   toLegacyNote,
   toLegacyProject,

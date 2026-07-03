@@ -7,6 +7,7 @@ import {
   toRequiredDomainId,
   updatedAtFromRest,
 } from './mapperUtils';
+import { mapStatusIdDomainToDto, mapStatusIdDtoToDomain } from './StatusMapper';
 import { mapTagDtoToDomain } from './TagMapper';
 
 export function mapTaskDtoToDomain(dto: RestTask): DomainTask {
@@ -16,7 +17,7 @@ export function mapTaskDtoToDomain(dto: RestTask): DomainTask {
     description: dto.description ?? '',
     dateTimeScheduled: dto.dateTimeScheduled ?? null,
     endDateTimeScheduled: dto.endDateTimeScheduled ?? null,
-    statusId: dto.statusID ?? null,
+    statusId: mapStatusIdDtoToDomain(dto.statusID),
     scheduleId: toOptionalDomainId(dto.scheduleID),
     recurrenceRuleId: dto.recurrenceRuleID === undefined ? undefined : toOptionalDomainId(dto.recurrenceRuleID),
     projectId: toOptionalDomainId(dto.projectID),
@@ -33,7 +34,7 @@ export function mapCreateTaskInputToDto(input: CreateTaskInput): Omit<RestTask, 
     description: input.description ?? '',
     dateTimeScheduled: input.dateTimeScheduled ?? null,
     endDateTimeScheduled: input.endDateTimeScheduled ?? null,
-    statusID: input.statusId ?? null,
+    statusID: mapStatusIdDomainToDto(input.statusId),
     projectID: optionalToApiId(input.projectId),
     priority: input.priority ?? null,
   };

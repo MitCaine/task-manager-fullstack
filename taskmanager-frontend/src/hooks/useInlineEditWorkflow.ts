@@ -9,7 +9,7 @@ import {
 } from '../utils/taskRecurrence';
 import { deriveTaskEditDraft } from '../utils/taskEditDraft';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from '../utils/taskScheduling';
-import { toLegacyRecurrenceRule, toLegacyTask, useRepositories } from '../repositories';
+import { toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from '../repositories';
 
 type EditPriority = 'LOW' | 'MEDIUM' | 'HIGH' | '';
 
@@ -147,7 +147,7 @@ export default function useInlineEditWorkflow({
         description: editDescription.trim(),
         dateTimeScheduled,
         endDateTimeScheduled,
-        statusId: task.statusID ?? null,
+        statusId: toDomainStatusId(task.statusID),
         priority: editPriority || null,
         projectId: editProjectID !== '' ? String(editProjectID) : null,
       }));

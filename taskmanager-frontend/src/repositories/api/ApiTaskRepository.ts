@@ -8,10 +8,11 @@ import {
   removeTagFromTask,
   updateTask,
 } from '../../api/tasks';
-import type { CreateTaskInput, EntityId, Task, UpdateTaskInput } from '../../domain/models';
+import type { CreateTaskInput, EntityId, StatusId, Task, UpdateTaskInput } from '../../domain/models';
 import type { TaskRepository } from '../contracts';
 import { mapCreateTaskInputToDto, mapTaskDtoToDomain, mapUpdateTaskInputToDto } from './mappers/TaskMapper';
 import { toApiId } from './mappers/mapperUtils';
+import { mapStatusIdDomainToDto } from './mappers/StatusMapper';
 
 export class ApiTaskRepository implements TaskRepository {
   async list(): Promise<Task[]> {
@@ -31,8 +32,8 @@ export class ApiTaskRepository implements TaskRepository {
     return mapTaskDtoToDomain(await updateTask(toApiId(id), mapUpdateTaskInputToDto(input)));
   }
 
-  async updateStatus(id: EntityId, statusId: number | null): Promise<Task> {
-    return mapTaskDtoToDomain(await patchTaskStatus(toApiId(id), statusId));
+  async updateStatus(id: EntityId, statusId: StatusId | null): Promise<Task> {
+    return mapTaskDtoToDomain(await patchTaskStatus(toApiId(id), mapStatusIdDomainToDto(statusId)));
   }
 
   async delete(id: EntityId): Promise<void> {

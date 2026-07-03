@@ -20,6 +20,7 @@ import type {
 } from '../types/task';
 import { TASK_STATUS } from '../utils/taskUtils';
 import { toLegacyNumericId } from './legacyIdAdapter';
+import { mapStatusIdDomainToDto, mapStatusIdDtoToDomain } from './api/mappers/StatusMapper';
 
 // Transitional adapters for the current UI, which still expects REST-shaped
 // numeric IDs. Delete these when the app state moves fully to domain models.
@@ -51,7 +52,7 @@ export function toLegacyTask(task: DomainTask): Task {
     dateTimeScheduled: task.dateTimeScheduled ?? null,
     endDateTimeScheduled: task.endDateTimeScheduled ?? null,
     createdAt: task.createdAt ?? null,
-    statusID: task.statusId ?? null,
+    statusID: mapStatusIdDomainToDto(task.statusId),
     scheduleID: task.scheduleId ? toLegacyNumericId(task.scheduleId, 'scheduleID') : null,
     recurrenceRuleID: task.recurrenceRuleId === undefined
       ? undefined
@@ -72,9 +73,13 @@ export function toLegacySubtask(subtask: DomainSubtask): Subtask {
     subTaskID: toLegacyNumericId(subtask.id, 'subTaskID'),
     parentTaskID: toLegacyNumericId(subtask.parentTaskId, 'parentTaskID'),
     title: subtask.title,
-    statusID: subtask.statusId ?? TASK_STATUS.LEGACY_ACTIVE,
+    statusID: mapStatusIdDomainToDto(subtask.statusId) ?? TASK_STATUS.LEGACY_ACTIVE,
     dateTimeScheduled: subtask.dateTimeScheduled ?? null,
   };
+}
+
+export function toDomainStatusId(statusID: number | null | undefined) {
+  return mapStatusIdDtoToDomain(statusID);
 }
 
 export function toLegacyNote(note: DomainNote): Note {

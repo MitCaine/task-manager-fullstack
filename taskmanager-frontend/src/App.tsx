@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
-import { toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
+import { toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
 import {
   parseLocalDateTime,
   toLocalDateTimeString,
@@ -1368,7 +1368,7 @@ function App() {
     // Non-recurring tasks only toggle between active and done.
     const newStatusID = currentStatusID === TASK_STATUS.DONE ? null : TASK_STATUS.DONE;
     try {
-      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), newStatusID));
+      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), toDomainStatusId(newStatusID)));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
     } catch {
       setError('Failed to update task status.');
@@ -1382,7 +1382,7 @@ function App() {
       return;
     }
     try {
-      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), statusID));
+      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), toDomainStatusId(statusID)));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
     } catch {
       setError('Failed to move task.');
@@ -1589,7 +1589,7 @@ function App() {
         if (recurrenceRule) {
           await completeRecurringTask(currentTask, recurrenceRule);
         } else {
-          const saved = toLegacyTask(await repositories.tasks.updateStatus(String(id), TASK_STATUS.DONE));
+          const saved = toLegacyTask(await repositories.tasks.updateStatus(String(id), toDomainStatusId(TASK_STATUS.DONE)));
           setTasks(prev => prev.map(task => task.taskID === saved.taskID ? saved : task));
         }
       }

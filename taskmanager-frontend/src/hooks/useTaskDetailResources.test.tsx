@@ -44,7 +44,7 @@ describe('useTaskDetailResources', () => {
   beforeEach(() => {
     repositories = createMockRepositories();
     repositories.subtasks.listByTask.mockResolvedValue([
-      { id: '11', parentTaskId: '7', title: 'Step', statusId: TASK_STATUS.LEGACY_ACTIVE, dateTimeScheduled: null },
+      { id: '11', parentTaskId: '7', title: 'Step', statusId: 'not_started', dateTimeScheduled: null },
     ]);
     repositories.notes.listByTask.mockResolvedValue([
       { id: '21', taskId: '7', title: '', context: 'Note body', timestamp: '2026-07-02T09:00:00' },
@@ -100,9 +100,9 @@ describe('useTaskDetailResources', () => {
   });
 
   it('creates, updates, toggles, and deletes subtasks through the subtask repository', async () => {
-    repositories.subtasks.create.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Draft step', statusId: TASK_STATUS.LEGACY_ACTIVE, dateTimeScheduled: null });
-    repositories.subtasks.update.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Renamed step', statusId: TASK_STATUS.LEGACY_ACTIVE, dateTimeScheduled: null });
-    repositories.subtasks.updateStatus.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Renamed step', statusId: TASK_STATUS.DONE, dateTimeScheduled: null });
+    repositories.subtasks.create.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Draft step', statusId: 'not_started', dateTimeScheduled: null });
+    repositories.subtasks.update.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Renamed step', statusId: 'not_started', dateTimeScheduled: null });
+    repositories.subtasks.updateStatus.mockResolvedValue({ id: '12', parentTaskId: '7', title: 'Renamed step', statusId: 'completed', dateTimeScheduled: null });
     repositories.subtasks.delete.mockResolvedValue(undefined);
     const { result } = renderResourcesHook(repositories);
 
@@ -127,7 +127,7 @@ describe('useTaskDetailResources', () => {
 
     expect(repositories.subtasks.update).toHaveBeenCalledWith('12', {
       title: 'Renamed step',
-      statusId: TASK_STATUS.LEGACY_ACTIVE,
+      statusId: 'not_started',
       dateTimeScheduled: null,
     });
 
@@ -135,7 +135,7 @@ describe('useTaskDetailResources', () => {
       await result.current.actions.toggleSubtask(7, result.current.resources.subtasks[7][0]);
     });
 
-    expect(repositories.subtasks.updateStatus).toHaveBeenCalledWith('12', TASK_STATUS.DONE);
+    expect(repositories.subtasks.updateStatus).toHaveBeenCalledWith('12', 'completed');
 
     await act(async () => {
       await result.current.actions.removeSubtask(7, 12);
@@ -188,7 +188,7 @@ describe('useTaskDetailResources', () => {
 
   it('fails clearly when a repository returns non-numeric IDs for the legacy UI shape', async () => {
     repositories.subtasks.listByTask.mockResolvedValue([
-      { id: 'subtask-uuid', parentTaskId: '7', title: 'Step', statusId: TASK_STATUS.LEGACY_ACTIVE, dateTimeScheduled: null },
+      { id: 'subtask-uuid', parentTaskId: '7', title: 'Step', statusId: 'not_started', dateTimeScheduled: null },
     ]);
     const { result, setError } = renderResourcesHook(repositories);
 

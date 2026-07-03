@@ -5,7 +5,7 @@ import {
   patchSubtaskStatus,
   updateSubtask,
 } from '../../api/tasks';
-import type { CreateSubtaskInput, EntityId, Subtask, UpdateSubtaskInput } from '../../domain/models';
+import type { CreateSubtaskInput, EntityId, StatusId, Subtask, UpdateSubtaskInput } from '../../domain/models';
 import type { SubtaskRepository } from '../contracts';
 import {
   mapCreateSubtaskInputToApiArgs,
@@ -13,6 +13,7 @@ import {
   mapUpdateSubtaskInputToApiTitle,
 } from './mappers/SubtaskMapper';
 import { toApiId } from './mappers/mapperUtils';
+import { mapStatusIdDomainToDto } from './mappers/StatusMapper';
 
 export class ApiSubtaskRepository implements SubtaskRepository {
   async listByTask(taskId: EntityId): Promise<Subtask[]> {
@@ -29,11 +30,11 @@ export class ApiSubtaskRepository implements SubtaskRepository {
     return mapSubtaskDtoToDomain(await updateSubtask(toApiId(id), mapUpdateSubtaskInputToApiTitle(input)));
   }
 
-  async updateStatus(id: EntityId, statusId: number | null): Promise<Subtask> {
+  async updateStatus(id: EntityId, statusId: StatusId | null): Promise<Subtask> {
     if (statusId === null) {
-      throw new Error('REST subtask status endpoint requires a numeric status.');
+      throw new Error('REST subtask status endpoint requires a status.');
     }
-    return mapSubtaskDtoToDomain(await patchSubtaskStatus(toApiId(id), statusId));
+    return mapSubtaskDtoToDomain(await patchSubtaskStatus(toApiId(id), mapStatusIdDomainToDto(statusId) ?? 1));
   }
 
   async delete(id: EntityId): Promise<void> {

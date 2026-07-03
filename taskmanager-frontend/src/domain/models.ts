@@ -1,6 +1,7 @@
 export type EntityId = string;
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type RecurrenceUnit = 'day' | 'week' | 'month' | 'year';
+export type StatusId = 'not_started' | 'in_progress' | 'completed';
 
 export interface EntityTimestamps {
   createdAt?: string | null;
@@ -36,7 +37,7 @@ export interface Task extends EntityTimestamps {
   description: string;
   dateTimeScheduled?: string | null;
   endDateTimeScheduled?: string | null;
-  statusId?: number | null;
+  statusId?: StatusId | null;
   scheduleId?: EntityId | null;
   recurrenceRuleId?: EntityId | null;
   projectId?: EntityId | null;
@@ -48,7 +49,7 @@ export interface Subtask extends EntityTimestamps {
   id: EntityId;
   parentTaskId: EntityId;
   title: string;
-  statusId?: number | null;
+  statusId?: StatusId | null;
   dateTimeScheduled?: string | null;
 }
 
@@ -83,7 +84,7 @@ export type CreateTaskInput = {
   description?: string;
   dateTimeScheduled?: string | null;
   endDateTimeScheduled?: string | null;
-  statusId?: number | null;
+  statusId?: StatusId | null;
   projectId?: EntityId | null;
   priority?: Priority | null;
 };
@@ -110,13 +111,13 @@ export type UpdateTagInput = CreateTagInput;
 export type CreateSubtaskInput = {
   parentTaskId: EntityId;
   title: string;
-  statusId?: number | null;
+  statusId?: StatusId | null;
   dateTimeScheduled?: string | null;
 };
 
 export type UpdateSubtaskInput = {
   title: string;
-  statusId?: number | null;
+  statusId?: StatusId | null;
   dateTimeScheduled?: string | null;
 };
 

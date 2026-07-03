@@ -83,7 +83,7 @@ describe('useInlineEditWorkflow', () => {
       description: 'Old description',
       dateTimeScheduled: '2026-07-04T09:00:00',
       endDateTimeScheduled: null,
-      statusId: 1,
+      statusId: 'not_started',
       projectId: '5',
       priority: 'LOW',
       recurrenceRuleId: '99',
@@ -95,7 +95,7 @@ describe('useInlineEditWorkflow', () => {
       description: 'New description',
       dateTimeScheduled: '2026-07-04T09:00:00',
       endDateTimeScheduled: null,
-      statusId: 1,
+      statusId: 'not_started',
       projectId: '5',
       priority: 'HIGH',
       recurrenceRuleId: '99',
@@ -158,7 +158,7 @@ describe('useInlineEditWorkflow', () => {
     expect(repositories.tasks.update).toHaveBeenCalledWith('42', expect.objectContaining({
       title: 'Updated',
       description: 'New description',
-      statusId: 1,
+      statusId: 'not_started',
       projectId: '5',
       priority: 'HIGH',
     }));

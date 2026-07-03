@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Attachment, Note, Reminder, Subtask } from '../types/task';
 import {
   toLegacyAttachment,
+  toDomainStatusId,
   toLegacyNote,
   toLegacyReminder,
   toLegacySubtask,
@@ -138,7 +139,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   const toggleSubtask = async (taskId: number, subtask: Subtask) => {
     const newStatusID = subtask.statusID === TASK_STATUS.DONE ? TASK_STATUS.LEGACY_ACTIVE : TASK_STATUS.DONE;
     try {
-      const saved = toLegacySubtask(await repositories.subtasks.updateStatus(String(subtask.subTaskID), newStatusID));
+      const saved = toLegacySubtask(await repositories.subtasks.updateStatus(String(subtask.subTaskID), toDomainStatusId(newStatusID)));
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].map(s => s.subTaskID === saved.subTaskID ? saved : s) }));
     } catch {
       setError('Failed to update subtask.');
@@ -162,7 +163,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     try {
       const saved = toLegacySubtask(await repositories.subtasks.update(String(subtask.subTaskID), {
         title: trimmed,
-        statusId: subtask.statusID,
+        statusId: toDomainStatusId(subtask.statusID),
         dateTimeScheduled: subtask.dateTimeScheduled ?? null,
       }));
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].map(s => s.subTaskID === saved.subTaskID ? saved : s) }));
