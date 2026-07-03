@@ -33,6 +33,12 @@ function RepositoryConsumer({ expected }: { expected?: Repositories }) {
   return <div>{repositories.tasks ? 'default repositories' : 'missing repositories'}</div>;
 }
 
+function RepositoryIdentityConsumer({ onRepository }: { onRepository: (repositories: Repositories) => void }) {
+  const repositories = useRepositories();
+  onRepository(repositories);
+  return <div>repository identity captured</div>;
+}
+
 function OutsideProviderConsumer() {
   useRepositories();
   return <div>unreachable</div>;
@@ -53,6 +59,26 @@ describe('RepositoryProvider', () => {
 
     expect(screen.getByText('default repositories')).toBeInTheDocument();
     expect(mockCreateRestRepositories).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps default repositories stable across rerenders', () => {
+    const seenRepositories: Repositories[] = [];
+
+    const { rerender } = render(
+      <RepositoryProvider>
+        <RepositoryIdentityConsumer onRepository={repositories => seenRepositories.push(repositories)} />
+      </RepositoryProvider>
+    );
+
+    rerender(
+      <RepositoryProvider>
+        <RepositoryIdentityConsumer onRepository={repositories => seenRepositories.push(repositories)} />
+      </RepositoryProvider>
+    );
+
+    expect(mockCreateRestRepositories).toHaveBeenCalledTimes(1);
+    expect(seenRepositories).toHaveLength(2);
+    expect(seenRepositories[1]).toBe(seenRepositories[0]);
   });
 
   it('allows custom repositories to be injected', () => {

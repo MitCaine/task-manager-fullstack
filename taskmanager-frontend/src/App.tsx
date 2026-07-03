@@ -8,6 +8,7 @@ import {
   addTagToTask,
   getRecurrence, setRepeat,
 } from './api/tasks';
+import { toLegacyTask, useRepositories } from './repositories';
 import {
   parseLocalDateTime,
   toLocalDateTimeString,
@@ -123,6 +124,7 @@ function useOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, on
 }
 
 function App() {
+  const repositories = useRepositories();
   // Tasks loaded from the API and top-level request state.
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -427,11 +429,11 @@ function App() {
 
   // Initial API hydration.
   useEffect(() => {
-    getTasks()
-      .then(data => { setTasks(data); setLoading(false); })
+    repositories.tasks.list()
+      .then(data => { setTasks(data.map(toLegacyTask)); setLoading(false); })
       .catch(() => { setError('Failed to load tasks. Is the backend running?'); setLoading(false); });
     loadProjectTagCatalog();
-  }, []);
+  }, [repositories]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -1475,7 +1477,7 @@ function App() {
 
   const removeTask = async (id: number) => {
     try {
-      await deleteTask(id);
+      await repositories.tasks.delete(String(id));
       setTasks(prev => prev.filter(t => t.taskID !== id));
       clearDeletedTaskResources(id);
       if (selectedTaskId === id) setSelectedTaskId(null);
@@ -1605,7 +1607,7 @@ function App() {
   const bulkDelete = async () => {
     const ids = Array.from(bulkSelectedIds);
     try {
-      await Promise.all(ids.map(id => deleteTask(id)));
+      await Promise.all(ids.map(id => repositories.tasks.delete(String(id))));
       setTasks(prev => prev.filter(t => !ids.includes(t.taskID)));
       clearBulkSelection();
     } catch {
