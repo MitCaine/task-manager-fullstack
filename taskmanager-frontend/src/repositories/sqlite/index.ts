@@ -1,7 +1,13 @@
 export { CapacitorSQLiteDriver } from './CapacitorSQLiteDriver';
 export type { CapacitorSQLiteDriverOptions } from './CapacitorSQLiteDriver';
+export { SQLiteAttachmentRepository } from './SQLiteAttachmentRepository';
 export { SQLiteDatabaseService } from './SQLiteDatabaseService';
 export type { SQLiteDatabaseServiceOptions } from './SQLiteDatabaseService';
+export { SQLiteNoteRepository } from './SQLiteNoteRepository';
+export { SQLiteProjectRepository } from './SQLiteProjectRepository';
+export { SQLiteReminderRepository } from './SQLiteReminderRepository';
+export { SQLiteSubtaskRepository } from './SQLiteSubtaskRepository';
+export { SQLiteTagRepository } from './SQLiteTagRepository';
 export { getUserVersion, runMigrations, setUserVersion, SQLITE_MIGRATIONS } from './migrations';
 export type { SQLiteMigration } from './migrations';
 export type { SqliteDriver, SqliteParams, SQLiteTransactionContext, SqliteValue } from './types';
