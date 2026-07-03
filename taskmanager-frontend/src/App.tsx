@@ -2,9 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
-import {
-  patchReminderDate,
-} from './api/tasks';
 import { toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
 import {
   parseLocalDateTime,
@@ -1623,7 +1620,7 @@ function App() {
     const newDue = new Date(Date.now() + minutes * 60 * 1000);
     const iso = toLocalDateTimeString(newDue);
     try {
-      await patchReminderDate(toast.reminderID, iso);
+      await repositories.reminders.updateDueDate(String(toast.reminderID), iso);
       firedReminders.current.delete(toast.reminderID);
       setReminders(prev => {
         const taskRems = prev[toast.taskID] ?? [];
