@@ -42,6 +42,18 @@ describe('legacy adapters', () => {
     }));
   });
 
+  it('preserves undefined recurrence relation IDs for legacy recurrence probing', () => {
+    expect(toLegacyTask({
+      id: '10',
+      title: 'Plan',
+      description: '',
+      recurrenceRuleId: undefined,
+    })).toEqual(expect.objectContaining({
+      taskID: 10,
+      recurrenceRuleID: undefined,
+    }));
+  });
+
   it('maps child resources and preserves nullable timestamps', () => {
     expect(toLegacySubtask({ id: '11', parentTaskId: '10', title: 'Step', statusId: null })).toEqual({
       subTaskID: 11,

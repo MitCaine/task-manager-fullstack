@@ -18,7 +18,7 @@ export function mapTaskDtoToDomain(dto: RestTask): DomainTask {
     endDateTimeScheduled: dto.endDateTimeScheduled ?? null,
     statusId: dto.statusID ?? null,
     scheduleId: toOptionalDomainId(dto.scheduleID),
-    recurrenceRuleId: toOptionalDomainId(dto.recurrenceRuleID),
+    recurrenceRuleId: dto.recurrenceRuleID === undefined ? undefined : toOptionalDomainId(dto.recurrenceRuleID),
     projectId: toOptionalDomainId(dto.projectID),
     priority: dto.priority ?? null,
     tags: dto.tags?.map(mapTagDtoToDomain),

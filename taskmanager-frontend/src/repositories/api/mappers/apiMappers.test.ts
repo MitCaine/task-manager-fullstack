@@ -79,6 +79,23 @@ describe('API repository mappers', () => {
     }));
   });
 
+  it('preserves undefined recurrence relation IDs for legacy recurrence probing', () => {
+    const task: Task = {
+      taskID: 42,
+      title: 'Unknown recurrence',
+      description: '',
+      scheduleID: undefined,
+      recurrenceRuleID: undefined,
+      projectID: null,
+    };
+
+    expect(mapTaskDtoToDomain(task)).toEqual(expect.objectContaining({
+      scheduleId: null,
+      recurrenceRuleId: undefined,
+      projectId: null,
+    }));
+  });
+
   it('maps task domain inputs back to REST DTO shapes', () => {
     expect(mapCreateTaskInputToDto({
       title: 'Plan',

@@ -53,7 +53,11 @@ export function toLegacyTask(task: DomainTask): Task {
     createdAt: task.createdAt ?? null,
     statusID: task.statusId ?? null,
     scheduleID: task.scheduleId ? toLegacyNumericId(task.scheduleId, 'scheduleID') : null,
-    recurrenceRuleID: task.recurrenceRuleId ? toLegacyNumericId(task.recurrenceRuleId, 'recurrenceRuleID') : null,
+    recurrenceRuleID: task.recurrenceRuleId === undefined
+      ? undefined
+      : task.recurrenceRuleId === null
+        ? null
+        : toLegacyNumericId(task.recurrenceRuleId, 'recurrenceRuleID'),
     projectID: task.projectId ? toLegacyNumericId(task.projectId, 'projectID') : null,
     priority: task.priority ?? null,
   };
