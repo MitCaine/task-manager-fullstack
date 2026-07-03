@@ -1,5 +1,6 @@
 export { CapacitorSQLiteDriver } from './CapacitorSQLiteDriver';
 export type { CapacitorSQLiteDriverOptions } from './CapacitorSQLiteDriver';
+export { createSQLiteRepositories } from './createSQLiteRepositories';
 export { SQLiteAttachmentRepository } from './SQLiteAttachmentRepository';
 export { SQLiteDatabaseService } from './SQLiteDatabaseService';
 export type { SQLiteDatabaseServiceOptions } from './SQLiteDatabaseService';
