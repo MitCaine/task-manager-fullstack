@@ -1,4 +1,4 @@
-import type { Attachment, Note, Project, Reminder, StatusId, Subtask, Tag } from '../../domain/models';
+import type { Attachment, Note, Project, Reminder, StatusId, Subtask, Tag, Task } from '../../domain/models';
 import { readNumber, readRequiredString, readStatusId, readString } from './utils';
 
 export type ProjectRow = {
@@ -56,6 +56,29 @@ export type SubtaskRow = {
   title: string;
   status_id: string | null;
   date_time_scheduled: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type TaskRow = {
+  id: string;
+  title: string;
+  description: string;
+  date_time_scheduled: string | null;
+  end_date_time_scheduled: string | null;
+  status_id: string;
+  schedule_id: string | null;
+  project_id: string | null;
+  priority: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type TaskTagRow = {
+  task_id: string;
+  tag_id: string;
+  title: string;
+  color: string | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -133,4 +156,41 @@ export function mapSubtaskRowToDomain(row: Record<string, unknown>): Subtask {
     createdAt: readString(row, 'created_at'),
     updatedAt: readString(row, 'updated_at'),
   };
+}
+
+export function mapTaskRowToDomain(row: Record<string, unknown>, tags: Tag[] = []): Task {
+  return {
+    id: readRequiredString(row, 'id'),
+    title: readRequiredString(row, 'title'),
+    description: readRequiredString(row, 'description'),
+    dateTimeScheduled: readString(row, 'date_time_scheduled'),
+    endDateTimeScheduled: readString(row, 'end_date_time_scheduled'),
+    statusId: readStatusId(row, 'status_id'),
+    scheduleId: readString(row, 'schedule_id'),
+    recurrenceRuleId: undefined,
+    projectId: readString(row, 'project_id'),
+    priority: readString(row, 'priority') as Task['priority'],
+    tags,
+    createdAt: readString(row, 'created_at'),
+    updatedAt: readString(row, 'updated_at'),
+  };
+}
+
+export function groupTaskTagsByTaskId(rows: TaskTagRow[]): Map<string, Tag[]> {
+  const tagsByTaskId = new Map<string, Tag[]>();
+
+  for (const row of rows) {
+    const taskId = readRequiredString(row, 'task_id');
+    const tags = tagsByTaskId.get(taskId) ?? [];
+    tags.push({
+      id: readRequiredString(row, 'tag_id'),
+      title: readRequiredString(row, 'title'),
+      color: readString(row, 'color'),
+      createdAt: readString(row, 'created_at'),
+      updatedAt: readString(row, 'updated_at'),
+    });
+    tagsByTaskId.set(taskId, tags);
+  }
+
+  return tagsByTaskId;
 }

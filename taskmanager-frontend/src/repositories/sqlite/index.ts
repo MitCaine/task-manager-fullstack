@@ -8,6 +8,7 @@ export { SQLiteProjectRepository } from './SQLiteProjectRepository';
 export { SQLiteReminderRepository } from './SQLiteReminderRepository';
 export { SQLiteSubtaskRepository } from './SQLiteSubtaskRepository';
 export { SQLiteTagRepository } from './SQLiteTagRepository';
+export { SQLiteTaskRepository } from './SQLiteTaskRepository';
 export { getUserVersion, runMigrations, setUserVersion, SQLITE_MIGRATIONS } from './migrations';
 export type { SQLiteMigration } from './migrations';
 export type { SqliteDriver, SqliteParams, SQLiteTransactionContext, SqliteValue } from './types';

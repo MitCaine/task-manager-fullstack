@@ -3,25 +3,31 @@ import type { StatusId } from '../../domain/models';
 
 type TaskRepositoryContractOptions = {
   createRepository: () => TaskRepository;
+  seedProject?: (project: { id: string; title: string }) => Promise<void> | void;
+  seedTag?: (tag: { id: string; title: string; color?: string | null }) => Promise<void> | void;
   seedTask: (task: {
     id: string;
     title: string;
     description?: string;
     statusId?: StatusId | null;
     projectId?: string | null;
-  }) => void;
-  expectDeleted: (id: string) => void;
+  }) => Promise<void> | void;
+  expectDeleted: (id: string) => Promise<void> | void;
 };
 
 export function describeTaskRepositoryContract({
   createRepository,
+  seedProject,
+  seedTag,
   seedTask,
   expectDeleted,
 }: TaskRepositoryContractOptions) {
   describe('TaskRepository contract', () => {
     it('creates, reads, updates, changes status, mutates tags, and deletes tasks as domain models', async () => {
       const repository = createRepository();
-      seedTask({ id: '1', title: 'Existing task', description: 'Old', statusId: null, projectId: null });
+      await seedProject?.({ id: '10', title: 'Work' });
+      await seedTag?.({ id: '5', title: 'Focus', color: '#6366f1' });
+      await seedTask({ id: '1', title: 'Existing task', description: 'Old', statusId: null, projectId: null });
 
       const created = await repository.create({
         title: 'Created task',
@@ -68,7 +74,7 @@ export function describeTaskRepositoryContract({
       }));
 
       await repository.delete('1');
-      expectDeleted('1');
+      await expectDeleted('1');
     });
   });
 }
