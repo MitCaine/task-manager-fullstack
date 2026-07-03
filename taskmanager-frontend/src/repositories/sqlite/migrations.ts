@@ -166,7 +166,7 @@ export async function getUserVersion(db: SqliteDriver): Promise<number> {
 }
 
 export async function setUserVersion(db: SqliteDriver, version: number): Promise<void> {
-  await db.execute(`PRAGMA user_version = ${version}`);
+  await db.execute(`PRAGMA user_version = ${version}`, { transaction: false });
 }
 
 export async function runMigrations(
@@ -181,7 +181,7 @@ export async function runMigrations(
 
     await db.beginTransaction();
     try {
-      await db.execute(migration.up);
+      await db.execute(migration.up, { transaction: false });
       await setUserVersion(db, migration.version);
       await db.commitTransaction();
       currentVersion = migration.version;

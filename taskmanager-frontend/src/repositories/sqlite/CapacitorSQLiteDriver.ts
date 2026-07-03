@@ -1,5 +1,5 @@
 import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
-import type { SqliteDriver, SqliteParams } from './types';
+import type { SqliteDriver, SqliteExecuteOptions, SqliteParams } from './types';
 
 export type CapacitorSQLiteDriverOptions = {
   database: string;
@@ -32,7 +32,7 @@ export type CapacitorSQLiteDBConnectionLike = {
   open(): Promise<void>;
   isDBOpen(): Promise<CapacitorSQLiteResult>;
   close(): Promise<void>;
-  execute(statements: string): Promise<unknown>;
+  execute(statements: string, transaction?: boolean): Promise<unknown>;
   run(statement: string, values?: SqliteParams): Promise<unknown>;
   query(statement: string, values?: SqliteParams): Promise<CapacitorSQLiteValues>;
   beginTransaction(): Promise<unknown>;
@@ -57,12 +57,12 @@ export class CapacitorSQLiteDriver implements SqliteDriver {
   }
 
   async open(): Promise<void> {
+    const connection = await this.getOrCreateConnection();
     const consistency = await this.connectionManager.checkConnectionsConsistency();
     if (consistency.result === false) {
       throw new Error('Capacitor SQLite connection state is inconsistent.');
     }
 
-    const connection = await this.getOrCreateConnection();
     const openState = await connection.isDBOpen();
     if (!openState.result) {
       await connection.open();
@@ -83,8 +83,8 @@ export class CapacitorSQLiteDriver implements SqliteDriver {
     }
   }
 
-  async execute(sql: string): Promise<void> {
-    await this.requireConnection().execute(sql);
+  async execute(sql: string, options: SqliteExecuteOptions = {}): Promise<void> {
+    await this.requireConnection().execute(sql, options.transaction);
   }
 
   async run(sql: string, params: SqliteParams = []): Promise<void> {

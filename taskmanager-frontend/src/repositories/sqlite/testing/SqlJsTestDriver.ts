@@ -1,4 +1,4 @@
-import type { SqliteDriver, SqliteParams } from '../types';
+import type { SqliteDriver, SqliteExecuteOptions, SqliteParams } from '../types';
 
 type SqlJsDatabase = {
   exec(sql: string, params?: SqliteParams): Array<{ columns: string[]; values: unknown[][] }>;
@@ -27,7 +27,7 @@ export class SqlJsTestDriver implements SqliteDriver {
     this.db = null;
   }
 
-  async execute(sql: string): Promise<void> {
+  async execute(sql: string, _options: SqliteExecuteOptions = {}): Promise<void> {
     this.requireDb().exec(sql);
   }
 

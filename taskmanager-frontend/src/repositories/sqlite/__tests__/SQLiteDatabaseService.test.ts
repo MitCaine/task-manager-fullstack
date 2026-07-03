@@ -1,7 +1,7 @@
 import { SQLiteDatabaseService } from '../SQLiteDatabaseService';
 import { getUserVersion } from '../migrations';
 import { SqlJsTestDriver } from '../testing/SqlJsTestDriver';
-import type { SqliteDriver, SqliteParams } from '../types';
+import type { SqliteDriver, SqliteExecuteOptions, SqliteParams } from '../types';
 
 function deferred() {
   let resolve!: () => void;
@@ -36,8 +36,8 @@ class RetryableOpenDriver implements SqliteDriver {
     return this.delegate.close();
   }
 
-  execute(sql: string): Promise<void> {
-    return this.delegate.execute(sql);
+  execute(sql: string, options: SqliteExecuteOptions = {}): Promise<void> {
+    return this.delegate.execute(sql, options);
   }
 
   run(sql: string, params: SqliteParams = []): Promise<void> {
@@ -80,6 +80,21 @@ describe('SQLiteDatabaseService', () => {
     expect(first).toBe(second);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(await getUserVersion(first)).toBe(1);
+
+    await service.close();
+  });
+
+  it('applies initialization pragmas outside plugin-managed transactions', async () => {
+    const driver = new SqlJsTestDriver();
+    const executeSpy = jest.spyOn(driver, 'execute');
+    const service = new SQLiteDatabaseService({ driver });
+
+    await service.initialize();
+
+    expect(executeSpy).toHaveBeenCalledWith('PRAGMA foreign_keys = ON', { transaction: false });
+    expect(executeSpy).toHaveBeenCalledWith('PRAGMA journal_mode = WAL', { transaction: false });
+    expect(executeSpy).toHaveBeenCalledWith('PRAGMA synchronous = NORMAL', { transaction: false });
+    expect(executeSpy).toHaveBeenCalledWith('PRAGMA busy_timeout = 5000', { transaction: false });
 
     await service.close();
   });

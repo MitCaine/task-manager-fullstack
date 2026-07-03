@@ -64,9 +64,11 @@ export class SQLiteDatabaseService {
   }
 
   private async applyPragmas(): Promise<void> {
-    await this.driver.execute('PRAGMA foreign_keys = ON');
-    await this.driver.execute('PRAGMA journal_mode = WAL');
-    await this.driver.execute('PRAGMA synchronous = NORMAL');
-    await this.driver.execute('PRAGMA busy_timeout = 5000');
+    const outsideTransaction = { transaction: false };
+
+    await this.driver.execute('PRAGMA foreign_keys = ON', outsideTransaction);
+    await this.driver.execute('PRAGMA journal_mode = WAL', outsideTransaction);
+    await this.driver.execute('PRAGMA synchronous = NORMAL', outsideTransaction);
+    await this.driver.execute('PRAGMA busy_timeout = 5000', outsideTransaction);
   }
 }
