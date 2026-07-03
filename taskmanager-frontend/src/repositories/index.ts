@@ -13,6 +13,23 @@ export type {
 export { RepositoryProvider, useRepositories } from './RepositoryContext';
 export { createRestRepositories } from './api';
 export {
+  createRuntimeRepositories,
+  createDefaultRuntimeRepositoriesSyncIfReady,
+  createRestRuntimeSelection,
+  getDefaultRuntimeRepositories,
+  isSQLitePersistenceRequested,
+  isSupportedSQLiteNativePlatform,
+  resetDefaultRuntimeRepositoriesForTests,
+  shouldUseSQLiteRepositories,
+  SQLITE_PERSISTENCE_FLAG,
+  SQLITE_RUNTIME_DATABASE,
+} from './runtimeRepositories';
+export type {
+  RepositoryRuntimeKind,
+  RepositoryRuntimeOptions,
+  RepositoryRuntimeSelection,
+} from './runtimeRepositories';
+export {
   toDomainStatusId,
   toLegacyAttachment,
   toLegacyNote,
