@@ -16,7 +16,10 @@ export class SQLiteDatabaseService {
 
   async initialize(): Promise<SqliteDriver> {
     if (!this.initializePromise) {
-      this.initializePromise = this.openAndMigrate();
+      this.initializePromise = this.openAndMigrate().catch(error => {
+        this.initializePromise = null;
+        throw error;
+      });
     }
     return this.initializePromise;
   }

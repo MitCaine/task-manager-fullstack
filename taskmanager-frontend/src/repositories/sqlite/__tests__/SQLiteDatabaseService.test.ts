@@ -1,6 +1,7 @@
 import { SQLiteDatabaseService } from '../SQLiteDatabaseService';
 import { getUserVersion } from '../migrations';
 import { SqlJsTestDriver } from '../testing/SqlJsTestDriver';
+import type { SqliteDriver, SqliteParams } from '../types';
 
 function deferred() {
   let resolve!: () => void;
@@ -15,6 +16,52 @@ async function createInitializedService() {
   const service = new SQLiteDatabaseService({ driver });
   const db = await service.initialize();
   return { db, service };
+}
+
+class RetryableOpenDriver implements SqliteDriver {
+  readonly delegate = new SqlJsTestDriver();
+  openCalls = 0;
+  failNextOpen = true;
+
+  async open(): Promise<void> {
+    this.openCalls += 1;
+    if (this.failNextOpen) {
+      this.failNextOpen = false;
+      throw new Error('native database temporarily unavailable');
+    }
+    await this.delegate.open();
+  }
+
+  close(): Promise<void> {
+    return this.delegate.close();
+  }
+
+  execute(sql: string): Promise<void> {
+    return this.delegate.execute(sql);
+  }
+
+  run(sql: string, params: SqliteParams = []): Promise<void> {
+    return this.delegate.run(sql, params);
+  }
+
+  query<T extends Record<string, unknown> = Record<string, unknown>>(
+    sql: string,
+    params: SqliteParams = [],
+  ): Promise<T[]> {
+    return this.delegate.query(sql, params);
+  }
+
+  beginTransaction(): Promise<void> {
+    return this.delegate.beginTransaction();
+  }
+
+  commitTransaction(): Promise<void> {
+    return this.delegate.commitTransaction();
+  }
+
+  rollbackTransaction(): Promise<void> {
+    return this.delegate.rollbackTransaction();
+  }
 }
 
 describe('SQLiteDatabaseService', () => {
@@ -33,6 +80,34 @@ describe('SQLiteDatabaseService', () => {
     expect(first).toBe(second);
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(await getUserVersion(first)).toBe(1);
+
+    await service.close();
+  });
+
+  it('allows close followed by initialize to reopen and rerun migration checks', async () => {
+    const driver = new SqlJsTestDriver();
+    const openSpy = jest.spyOn(driver, 'open');
+    const service = new SQLiteDatabaseService({ driver });
+
+    await service.initialize();
+    await service.close();
+    const reopened = await service.initialize();
+
+    expect(openSpy).toHaveBeenCalledTimes(2);
+    expect(await getUserVersion(reopened)).toBe(1);
+
+    await service.close();
+  });
+
+  it('clears a failed initialization so a later initialize can retry', async () => {
+    const driver = new RetryableOpenDriver();
+    const service = new SQLiteDatabaseService({ driver });
+
+    await expect(service.initialize()).rejects.toThrow('native database temporarily unavailable');
+    const db = await service.initialize();
+
+    expect(driver.openCalls).toBe(2);
+    expect(await getUserVersion(db)).toBe(1);
 
     await service.close();
   });

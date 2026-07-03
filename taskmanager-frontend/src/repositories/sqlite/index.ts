@@ -13,5 +13,7 @@ export { SQLiteTagRepository } from './SQLiteTagRepository';
 export { SQLiteTaskRepository } from './SQLiteTaskRepository';
 export { getUserVersion, runMigrations, setUserVersion, SQLITE_MIGRATIONS } from './migrations';
 export type { SQLiteMigration } from './migrations';
+export { NATIVE_SQLITE_SMOKE_DATABASE, runNativeSQLiteSmokeTest } from './nativeSmokeTest';
+export type { NativeSQLiteSmokeResult, NativeSQLiteSmokeStage } from './nativeSmokeTest';
 export type { SqliteDriver, SqliteParams, SQLiteTransactionContext, SqliteValue } from './types';
 export { generateEntityId, readNumber, readRequiredString, readStatusId, readString, serializeDate } from './utils';
