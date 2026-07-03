@@ -23,6 +23,7 @@
     }
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "^8.1.0",
     "@capacitor/core": "^8.3.4",
     "@capacitor/ios": "^8.3.4",
     "@testing-library/dom": "10.4.0",
