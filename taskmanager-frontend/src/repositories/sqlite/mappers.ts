@@ -1,4 +1,4 @@
-import type { Attachment, Note, Project, Reminder, StatusId, Subtask, Tag, Task } from '../../domain/models';
+import type { Attachment, Note, Project, RecurrenceRule, Reminder, StatusId, Subtask, Tag, Task } from '../../domain/models';
 import { readNumber, readRequiredString, readStatusId, readString } from './utils';
 
 export type ProjectRow = {
@@ -83,6 +83,24 @@ export type TaskTagRow = {
   updated_at: string | null;
 };
 
+export type TaskRecurrenceRow = {
+  task_id: string;
+  recurrence_rule_id: string;
+};
+
+export type RecurrenceRuleRow = {
+  id: string;
+  task_id: string;
+  frequency: string | null;
+  interval_unit: string;
+  interval_value: number;
+  times_of_recurrence: number;
+  start_date_time: string;
+  end_date_time: string;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export function mapProjectRowToDomain(row: Record<string, unknown>): Project {
   return {
     id: readRequiredString(row, 'id'),
@@ -158,7 +176,11 @@ export function mapSubtaskRowToDomain(row: Record<string, unknown>): Subtask {
   };
 }
 
-export function mapTaskRowToDomain(row: Record<string, unknown>, tags: Tag[] = []): Task {
+export function mapTaskRowToDomain(
+  row: Record<string, unknown>,
+  tags: Tag[] = [],
+  recurrenceRuleId?: string | null,
+): Task {
   return {
     id: readRequiredString(row, 'id'),
     title: readRequiredString(row, 'title'),
@@ -167,7 +189,7 @@ export function mapTaskRowToDomain(row: Record<string, unknown>, tags: Tag[] = [
     endDateTimeScheduled: readString(row, 'end_date_time_scheduled'),
     statusId: readStatusId(row, 'status_id'),
     scheduleId: readString(row, 'schedule_id'),
-    recurrenceRuleId: undefined,
+    recurrenceRuleId,
     projectId: readString(row, 'project_id'),
     priority: readString(row, 'priority') as Task['priority'],
     tags,
@@ -193,4 +215,31 @@ export function groupTaskTagsByTaskId(rows: TaskTagRow[]): Map<string, Tag[]> {
   }
 
   return tagsByTaskId;
+}
+
+export function groupRecurrenceIdsByTaskId(rows: TaskRecurrenceRow[]): Map<string, string> {
+  const recurrenceIdsByTaskId = new Map<string, string>();
+
+  for (const row of rows) {
+    recurrenceIdsByTaskId.set(
+      readRequiredString(row, 'task_id'),
+      readRequiredString(row, 'recurrence_rule_id'),
+    );
+  }
+
+  return recurrenceIdsByTaskId;
+}
+
+export function mapRecurrenceRuleRowToDomain(row: Record<string, unknown>): RecurrenceRule {
+  return {
+    id: readRequiredString(row, 'id'),
+    frequency: readString(row, 'frequency'),
+    intervalUnit: readRequiredString(row, 'interval_unit'),
+    intervalValue: readNumber(row, 'interval_value'),
+    timesOfRecurrence: readNumber(row, 'times_of_recurrence') ?? 0,
+    startDateTime: readRequiredString(row, 'start_date_time'),
+    endDateTime: readRequiredString(row, 'end_date_time'),
+    createdAt: readString(row, 'created_at'),
+    updatedAt: readString(row, 'updated_at'),
+  };
 }

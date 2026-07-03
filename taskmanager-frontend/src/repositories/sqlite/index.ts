@@ -5,6 +5,7 @@ export { SQLiteDatabaseService } from './SQLiteDatabaseService';
 export type { SQLiteDatabaseServiceOptions } from './SQLiteDatabaseService';
 export { SQLiteNoteRepository } from './SQLiteNoteRepository';
 export { SQLiteProjectRepository } from './SQLiteProjectRepository';
+export { SQLiteRecurrenceRepository } from './SQLiteRecurrenceRepository';
 export { SQLiteReminderRepository } from './SQLiteReminderRepository';
 export { SQLiteSubtaskRepository } from './SQLiteSubtaskRepository';
 export { SQLiteTagRepository } from './SQLiteTagRepository';

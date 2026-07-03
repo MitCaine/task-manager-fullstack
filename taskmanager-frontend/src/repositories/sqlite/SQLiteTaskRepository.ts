@@ -9,8 +9,10 @@ import type { RepositoryOperationOptions, TaskRepository } from '../contracts';
 import type { SQLiteDatabaseService } from './SQLiteDatabaseService';
 import {
   groupTaskTagsByTaskId,
+  groupRecurrenceIdsByTaskId,
   mapTaskRowToDomain,
   type TaskRow,
+  type TaskRecurrenceRow,
   type TaskTagRow,
 } from './mappers';
 import { dbForOperation } from './repositoryUtils';
@@ -182,7 +184,18 @@ export class SQLiteTaskRepository implements TaskRepository<SQLiteTransactionCon
       ORDER BY task_tags.task_id, task_tags.created_at, tags.rowid
     `, taskIds);
     const tagsByTaskId = groupTaskTagsByTaskId(tagRows);
+    const recurrenceRows = await db.query<TaskRecurrenceRow>(`
+      SELECT task_id, id AS recurrence_rule_id
+      FROM recurrence_rules
+      WHERE task_id IN (${placeholders})
+      ORDER BY task_id
+    `, taskIds);
+    const recurrenceIdsByTaskId = groupRecurrenceIdsByTaskId(recurrenceRows);
 
-    return rows.map(row => mapTaskRowToDomain(row, tagsByTaskId.get(row.id) ?? []));
+    return rows.map(row => mapTaskRowToDomain(
+      row,
+      tagsByTaskId.get(row.id) ?? [],
+      recurrenceIdsByTaskId.get(row.id) ?? null,
+    ));
   }
 }
