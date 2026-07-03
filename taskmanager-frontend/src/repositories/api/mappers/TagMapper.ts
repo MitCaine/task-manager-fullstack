@@ -20,8 +20,11 @@ export function mapCreateTagInputToDto(input: CreateTagInput): Omit<RestTag, 'ta
 }
 
 export function mapUpdateTagInputToDto(input: UpdateTagInput): Pick<RestTag, 'title' | 'color'> {
-  return {
+  const dto: Pick<RestTag, 'title' | 'color'> = {
     title: input.title,
-    color: input.color ?? null,
   };
+
+  if (input.color !== undefined) dto.color = input.color;
+
+  return dto;
 }

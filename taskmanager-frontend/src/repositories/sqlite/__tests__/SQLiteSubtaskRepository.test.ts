@@ -100,6 +100,47 @@ describe('SQLiteSubtaskRepository relational and status behavior', () => {
     );
   });
 
+  it('uses patch semantics for optional status and scheduled date fields', async () => {
+    await seedTask(context.service, '42');
+    const subtask = await context.repository.create({
+      parentTaskId: '42',
+      title: 'Subtask',
+      statusId: 'completed',
+      dateTimeScheduled: '2026-07-02T10:00:00',
+    });
+
+    await expect(context.repository.update(subtask.id, {
+      title: 'Title only',
+    })).resolves.toEqual(expect.objectContaining({
+      id: subtask.id,
+      title: 'Title only',
+      statusId: 'completed',
+      dateTimeScheduled: '2026-07-02T10:00:00',
+    }));
+
+    await expect(context.repository.update(subtask.id, {
+      title: 'Clear date and normalize status',
+      statusId: null,
+      dateTimeScheduled: null,
+    })).resolves.toEqual(expect.objectContaining({
+      id: subtask.id,
+      title: 'Clear date and normalize status',
+      statusId: 'not_started',
+      dateTimeScheduled: null,
+    }));
+
+    await expect(context.repository.update(subtask.id, {
+      title: 'Replace date and status',
+      statusId: 'in_progress',
+      dateTimeScheduled: '2026-07-03T10:00:00',
+    })).resolves.toEqual(expect.objectContaining({
+      id: subtask.id,
+      title: 'Replace date and status',
+      statusId: 'in_progress',
+      dateTimeScheduled: '2026-07-03T10:00:00',
+    }));
+  });
+
   it('rolls back create when using the provided transaction context', async () => {
     await seedTask(context.service, '42');
 

@@ -41,8 +41,19 @@ export function mapCreateTaskInputToDto(input: CreateTaskInput): Omit<RestTask, 
 }
 
 export function mapUpdateTaskInputToDto(input: UpdateTaskInput): Omit<RestTask, 'taskID'> {
-  return {
-    ...mapCreateTaskInputToDto(input),
-    recurrenceRuleID: optionalToApiId(input.recurrenceRuleId),
+  const dto: Omit<RestTask, 'taskID'> = {
+    title: input.title,
   };
+
+  if (input.description !== undefined) dto.description = input.description;
+  if (input.dateTimeScheduled !== undefined) dto.dateTimeScheduled = input.dateTimeScheduled;
+  if (input.endDateTimeScheduled !== undefined) dto.endDateTimeScheduled = input.endDateTimeScheduled;
+  if (input.statusId !== undefined) dto.statusID = mapStatusIdDomainToDto(input.statusId);
+  if (input.projectId !== undefined) dto.projectID = input.projectId === null ? null : optionalToApiId(input.projectId);
+  if (input.priority !== undefined) dto.priority = input.priority;
+  if (input.recurrenceRuleId !== undefined) {
+    dto.recurrenceRuleID = input.recurrenceRuleId === null ? null : optionalToApiId(input.recurrenceRuleId);
+  }
+
+  return dto;
 }

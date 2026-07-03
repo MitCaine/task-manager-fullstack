@@ -14,7 +14,7 @@ import { mapProjectDtoToDomain, mapUpdateProjectInputToDto } from './ProjectMapp
 import { mapRecurrenceDtoToDomain, mapRecurrenceIntervalInputToDto } from './RecurrenceMapper';
 import { mapReminderDtoToDomain } from './ReminderMapper';
 import { mapSubtaskDtoToDomain } from './SubtaskMapper';
-import { mapTagDtoToDomain } from './TagMapper';
+import { mapTagDtoToDomain, mapUpdateTagInputToDto } from './TagMapper';
 import { mapCreateTaskInputToDto, mapTaskDtoToDomain, mapUpdateTaskInputToDto } from './TaskMapper';
 import { toApiId } from './mapperUtils';
 
@@ -119,8 +119,31 @@ describe('API repository mappers', () => {
       title: 'Plan',
       recurrenceRuleId: '33',
     })).toEqual(expect.objectContaining({
+      title: 'Plan',
       recurrenceRuleID: 33,
     }));
+    expect(mapUpdateTaskInputToDto({
+      title: 'Patch only',
+    })).toEqual({
+      title: 'Patch only',
+    });
+    expect(mapUpdateTaskInputToDto({
+      title: 'Clear nullable fields',
+      dateTimeScheduled: null,
+      endDateTimeScheduled: null,
+      statusId: null,
+      projectId: null,
+      priority: null,
+      recurrenceRuleId: null,
+    })).toEqual({
+      title: 'Clear nullable fields',
+      dateTimeScheduled: null,
+      endDateTimeScheduled: null,
+      statusID: null,
+      projectID: null,
+      priority: null,
+      recurrenceRuleID: null,
+    });
   });
 
   it('maps project and tag DTOs while documenting missing REST timestamps', () => {
@@ -144,6 +167,8 @@ describe('API repository mappers', () => {
     });
     expect(mapUpdateProjectInputToDto({ title: 'Home', description: null, dueDate: '2026-08-01T00:00:00' }))
       .toEqual({ title: 'Home', description: null, dueDate: '2026-08-01T00:00:00' });
+    expect(mapUpdateTagInputToDto({ title: 'Patch only' })).toEqual({ title: 'Patch only' });
+    expect(mapUpdateTagInputToDto({ title: 'Clear color', color: null })).toEqual({ title: 'Clear color', color: null });
   });
 
   it('maps child resources and preserves REST timestamp fields when available', () => {

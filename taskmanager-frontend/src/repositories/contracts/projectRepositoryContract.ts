@@ -58,6 +58,37 @@ export function describeProjectRepositoryContract({
         dueDate: '2026-09-01T00:00:00',
       }));
 
+      await expect(repository.update(created.id, {
+        title: 'Patch title only',
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Patch title only',
+        description: 'New description',
+        dueDate: '2026-09-01T00:00:00',
+      }));
+
+      await expect(repository.update(created.id, {
+        title: 'Clear nullable fields',
+        description: null,
+        dueDate: null,
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Clear nullable fields',
+        description: null,
+        dueDate: null,
+      }));
+
+      await expect(repository.update(created.id, {
+        title: 'Replace nullable fields',
+        description: 'Replacement description',
+        dueDate: '2026-10-01T00:00:00',
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Replace nullable fields',
+        description: 'Replacement description',
+        dueDate: '2026-10-01T00:00:00',
+      }));
+
       await repository.delete(created.id);
       await expectDeleted(created.id);
     });

@@ -139,7 +139,7 @@ export function createTag(t: Omit<Tag, 'tagID'>): Promise<Tag> {
   return apiFetch(TAGS_URL, json('POST', t));
 }
 
-export function updateTag(id: number, update: Pick<Tag, 'title' | 'color'>): Promise<Tag> {
+export function updateTag(id: number, update: Pick<Tag, 'title'> & Partial<Pick<Tag, 'color'>>): Promise<Tag> {
   return apiFetch(`${TAGS_URL}/${id}`, json('PATCH', update));
 }
 

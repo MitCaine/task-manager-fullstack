@@ -51,6 +51,32 @@ export function describeTagRepositoryContract({
         color: '#22c55e',
       }));
 
+      await expect(repository.update(created.id, {
+        title: 'Patch title only',
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Patch title only',
+        color: '#22c55e',
+      }));
+
+      await expect(repository.update(created.id, {
+        title: 'Clear color',
+        color: null,
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Clear color',
+        color: null,
+      }));
+
+      await expect(repository.update(created.id, {
+        title: 'Replace color',
+        color: '#ef4444',
+      })).resolves.toEqual(expect.objectContaining({
+        id: created.id,
+        title: 'Replace color',
+        color: '#ef4444',
+      }));
+
       await repository.delete(created.id);
       await expectDeleted(created.id);
     });

@@ -50,6 +50,7 @@ export class SQLiteProjectRepository implements ProjectRepository<SQLiteTransact
     options?: RepositoryOperationOptions<SQLiteTransactionContext>,
   ): Promise<Project> {
     const db = await dbForOperation(this.service, options);
+    const existing = await this.getRequired(id, options);
 
     await db.run(`
       UPDATE projects
@@ -60,8 +61,8 @@ export class SQLiteProjectRepository implements ProjectRepository<SQLiteTransact
       WHERE id = ?
     `, [
       input.title,
-      input.description ?? null,
-      input.dueDate ?? null,
+      input.description !== undefined ? input.description : existing.description ?? null,
+      input.dueDate !== undefined ? input.dueDate : existing.dueDate ?? null,
       id,
     ]);
 

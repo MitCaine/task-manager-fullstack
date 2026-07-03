@@ -49,6 +49,7 @@ export class SQLiteTagRepository implements TagRepository<SQLiteTransactionConte
     options?: RepositoryOperationOptions<SQLiteTransactionContext>,
   ): Promise<Tag> {
     const db = await dbForOperation(this.service, options);
+    const existing = await this.getRequired(id, options);
 
     await db.run(`
       UPDATE tags
@@ -58,7 +59,7 @@ export class SQLiteTagRepository implements TagRepository<SQLiteTransactionConte
       WHERE id = ?
     `, [
       input.title,
-      input.color ?? null,
+      input.color !== undefined ? input.color : existing.color ?? null,
       id,
     ]);
 
