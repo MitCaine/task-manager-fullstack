@@ -25,7 +25,12 @@ function createMockRepositories(): MockRepositories {
   } as MockRepositories;
 }
 
-function renderCreateTaskHook(repositories: Repositories) {
+type RenderCreateTaskHookOptions = {
+  createProjectFromDraft?: () => Promise<{ projectID: number; title: string } | null>;
+  createTagFromDraft?: () => Promise<{ tagID: number; title: string; color?: string | null } | null>;
+};
+
+function renderCreateTaskHook(repositories: Repositories, options: RenderCreateTaskHookOptions = {}) {
   const setTasks = jest.fn();
   const setError = jest.fn();
   const setToasts = jest.fn();
@@ -50,8 +55,8 @@ function renderCreateTaskHook(repositories: Repositories) {
       setError,
       setToasts,
       toastIdRef,
-      createProjectFromDraft: jest.fn(),
-      createTagFromDraft: jest.fn(),
+      createProjectFromDraft: options.createProjectFromDraft ?? jest.fn(),
+      createTagFromDraft: options.createTagFromDraft ?? jest.fn(),
     }), { wrapper }),
   };
 }
@@ -209,5 +214,18 @@ describe('useCreateTaskWorkflow', () => {
     const nextTasks = taskUpdater([]);
     expect(nextTasks[0].taskID).toBeLessThan(0);
     expect(nextTasks[0].title).toBe('Plan launch');
+  });
+
+  it('selects a project created from the task draft', async () => {
+    const createProjectFromDraft = jest.fn().mockResolvedValue({ projectID: 12, title: 'Roadmap' });
+    const { result } = renderCreateTaskHook(repositories, { createProjectFromDraft });
+
+    await act(async () => {
+      await result.current.actions.addProject();
+    });
+
+    expect(createProjectFromDraft).toHaveBeenCalledTimes(1);
+    expect(result.current.draft.newProjectID).toBe(12);
+    expect(result.current.draft.showInlineProject).toBe(false);
   });
 });

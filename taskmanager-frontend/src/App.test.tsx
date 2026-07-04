@@ -437,11 +437,11 @@ test('shows 0 tasks in footer when no tasks are loaded', async () => {
   expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
-test('task list empty state points mobile users to Add', async () => {
+test('task list empty state points mobile users toward creating a task', async () => {
   render(<App />);
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   expect(await screen.findByText('No tasks yet')).toBeInTheDocument();
-  expect(screen.getByText('Swipe to Add and create your first task.')).toBeInTheDocument();
+  expect(screen.getByText('Swipe right to create your first task.')).toBeInTheDocument();
 });
 
 test('shows task titles after loading', async () => {
@@ -759,6 +759,7 @@ test('clicking Add shows a non-disruptive task-created toast', async () => {
   const toast = toastMessage.closest('.toast');
   if (!(toast instanceof HTMLElement)) throw new Error('Toast not found');
 
+  expect(toast).toHaveClass('toast--confirmation');
   expect(within(toast).getByText(/toast task/i)).toBeInTheDocument();
   expect(within(toast).queryByRole('button', { name: /\+1 hr/i })).not.toBeInTheDocument();
   expect(within(toast).queryByRole('button', { name: /tomorrow/i })).not.toBeInTheDocument();
@@ -1254,6 +1255,9 @@ test('date, repeat, and create tags controls have aligned active/dropdown stylin
   expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
   expect(css).not.toContain('tag-select__dropdown--create-tags');
   expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
+  expect(css).toMatch(/\.toast--confirmation\s*\{[^}]*border-radius:\s*8px;[^}]*box-shadow:\s*var\(--shadow-card\);/);
+  expect(css).toMatch(/\.toasts--confirmation\s*\{[^}]*top:\s*var\(--mobile-top-offset\);/);
+  expect(css).toMatch(/\.toast--confirmation\s*\{[^}]*border-radius:\s*18px;/);
 });
 
 test('desktop inline edit date and time controls use the create highlight styling contract', () => {

@@ -165,7 +165,9 @@ export default function useCreateTaskWorkflow({
 
   const addProject = async () => {
     const saved = await createProjectFromDraft();
-    if (saved) setShowInlineProject(false);
+    if (!saved) return;
+    setNewProjectID(saved.projectID);
+    setShowInlineProject(false);
   };
 
   const addTagInline = async () => {

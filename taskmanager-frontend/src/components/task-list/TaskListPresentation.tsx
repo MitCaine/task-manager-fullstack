@@ -20,7 +20,6 @@ type TaskListEmptyStateProps = {
 export function TaskListEmptyState({ title, body, showReset, onResetFilters }: TaskListEmptyStateProps) {
   return (
     <li className="empty-state">
-      <div className="empty-state__icon">✓</div>
       <h3>{title}</h3>
       <p>{body}</p>
       {showReset && (

@@ -5,7 +5,7 @@ import { formatTime, getLocalWeekStart } from '../utils/dateTime';
 import { isTaskDone, isTaskOverdue } from '../utils/taskUtils';
 import './Calendar.css';
 
-type CalView = 'year' | 'month' | 'week' | 'day';
+type CalView = 'year' | 'month' | 'day';
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -29,8 +29,6 @@ interface Props {
   is24Hour: boolean;
   isEuropeanDate: boolean;
   onEditTask: (taskId: number) => void;
-  hideCompleted: boolean;
-  onToggleHideCompleted: () => void;
 }
 
 // Date helpers keep calendar calculations normalized to local day boundaries.
@@ -131,14 +129,14 @@ function useDesktopCalendarOverview(): boolean {
   return matches;
 }
 
-// Calendar renders year, month, week, and day views over scheduled tasks.
+// Calendar renders year/month navigation with day-level task detail.
 
-export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, onEditTask, hideCompleted, onToggleHideCompleted }: Props) {
+export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, onEditTask }: Props) {
   const isDesktopOverview = useDesktopCalendarOverview();
   const yearRangeSize = isDesktopOverview ? 3 : 4;
   const yearRangeLabels = YEAR_RANGE_LABELS_BY_SIZE[yearRangeSize];
   const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
-  const [view,     setView]     = useState<CalView>('week');
+  const [view,     setView]     = useState<CalView>('day');
   const [selMonth, setSelMonth] = useState(() => new Date().getMonth());
   const [yearRange, setYearRange] = useState(() => Math.floor(new Date().getMonth() / (matchesDesktopCalendarQuery() ? 3 : 4)));
   const [selWeek,  setSelWeek]  = useState(() => weekStart(new Date()));
@@ -155,7 +153,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
 
   const locale   = isEuropeanDate ? 'en-GB' : 'en-US';
   const todayKey = toKey(new Date());
-  const completedToggleLabel = hideCompleted ? 'Show done' : 'Hide done';
   const rangeForMonth = (month: number) => Math.min(
     Math.floor(month / yearRangeSize),
     yearRangeLabels.length - 1
@@ -322,7 +319,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                       setSelWeek(option.start);
                       setSelDay(option.start);
                       setShowWeekPicker(false);
-                      setView('week');
+                      setView('day');
                     }}
                     role="option"
                     aria-selected={sameDate(option.start, selWeek)}
@@ -337,7 +334,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
       );
     }
 
-    if (view === 'month' || view === 'week' || view === 'day') {
+    if (view === 'month' || view === 'day') {
       const selectMonth = (month: number) => {
         setSelMonth(month);
         setYearRange(rangeForMonth(month));
@@ -390,7 +387,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           <span className="cal-breadcrumb__sep">›</span>
           {monthPicker}
           <span className="cal-breadcrumb__sep">›</span>
-          {view === 'week' || view === 'day' ? (
+          {view === 'day' ? (
             <div className="cal-breadcrumb__picker" ref={weekPickerRef}>
               <button
                 type="button"
@@ -412,7 +409,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                         setSelWeek(option.start);
                         setSelDay(option.start);
                         setShowWeekPicker(false);
-                        setView('week');
+                        setView('day');
                       }}
                       role="option"
                       aria-selected={sameDate(option.start, selWeek)}
@@ -424,7 +421,7 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
               )}
             </div>
           ) : (
-            <button className="cal-breadcrumb__link" onClick={() => setView('week')}>
+            <button className="cal-breadcrumb__link" onClick={() => goDay(selWeek, selWeek.getMonth())}>
               {weekLabel}
             </button>
           )}
@@ -597,9 +594,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
               Today
             </button>
-            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
-              {completedToggleLabel}
-            </button>
           </div>
         </div>
 
@@ -646,12 +640,14 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                           if (!firstReal) return;
                           setSelMonth(m);
                           setSelWeek(weekStart(firstReal));
-                          setView('week');
+                          setSelDay(firstReal);
+                          setView('day');
                         }}
                         onKeyDown={firstReal ? e => activateOnEnterOrSpace(e, () => {
                           setSelMonth(m);
                           setSelWeek(weekStart(firstReal));
-                          setView('week');
+                          setSelDay(firstReal);
+                          setView('day');
                         }) : undefined}
                         role={firstReal ? 'button' : undefined}
                         tabIndex={firstReal ? 0 : undefined}
@@ -717,9 +713,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
             <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
               Today
             </button>
-            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
-              {completedToggleLabel}
-            </button>
           </div>
         </div>
 
@@ -744,8 +737,8 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
                     isThisWeek            ? 'cal-table__row--current' : '',
                     weekTasks.length > 0  ? 'cal-table__row--tasks'   : '',
                   ].filter(Boolean).join(' ')}
-                  onClick={() => { setSelWeek(weekStart(firstReal)); setView('week'); }}
-                  onKeyDown={e => activateOnEnterOrSpace(e, () => { setSelWeek(weekStart(firstReal)); setView('week'); })}
+                  onClick={() => { setSelWeek(weekStart(firstReal)); setSelDay(firstReal); setView('day'); }}
+                  onKeyDown={e => activateOnEnterOrSpace(e, () => { setSelWeek(weekStart(firstReal)); setSelDay(firstReal); setView('day'); })}
                   role="button"
                   tabIndex={0}
                   title="View this week"
@@ -804,84 +797,6 @@ export default function Calendar({ tasks, projects, is24Hour, isEuropeanDate, on
           {monthTasks.length === 0
             ? renderTasks([], true, 'No tasks scheduled this month.')
             : upcomingMonthTasks.length > 0 && renderTasks(upcomingMonthTasks, true)}
-        </div>
-      </div>
-    );
-  }
-
-  // Week view shows each day from the selected week's Monday start.
-  if (view === 'week') {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(selWeek);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
-
-    const allWeekTasks  = days.flatMap(d => byDate.get(toKey(d)) ?? []);
-    const overdueThisWeek  = sorted(allWeekTasks.filter(t => isTaskOverdue(t)));
-    const upcomingThisWeek = new Set(overdueThisWeek.map(t => t.taskID));
-
-    return (
-      <div className="cal-card">
-        <div className="cal-nav">
-          {renderBreadcrumbs()}
-          <div className="cal-nav__ctrl">
-            <button className="btn btn--ghost btn--sm cal-today-btn" onClick={goToday}>
-              Today
-            </button>
-            <button className="btn btn--ghost btn--sm cal-hide-completed" onClick={onToggleHideCompleted}>
-              {completedToggleLabel}
-            </button>
-          </div>
-        </div>
-
-        {overdueThisWeek.length > 0 && (
-          <div className="cal-section">
-            <div className="cal-section__hdr cal-section__hdr--overdue">
-              Overdue
-              <span className="cal-badge cal-badge--overdue">{overdueThisWeek.length}</span>
-            </div>
-            {renderTasks(overdueThisWeek, true)}
-          </div>
-        )}
-
-        <div className="cal-section">
-          <div className="cal-section__hdr">
-            Week tasks
-            {allWeekTasks.length - overdueThisWeek.length > 0 && (
-              <span className="cal-badge">{allWeekTasks.length - overdueThisWeek.length}</span>
-            )}
-          </div>
-
-          {allWeekTasks.length === 0 ? (
-            <p className="cal-empty cal-empty--week">No tasks scheduled this week.</p>
-          ) : (
-            days.map(day => {
-              const key      = toKey(day);
-              const dayTasks = sorted((byDate.get(key) ?? []).filter(t => !upcomingThisWeek.has(t.taskID)));
-              const isT      = key === todayKey;
-              return (
-                <div key={key} className="cal-week-row">
-                  <button
-                    className={[
-                      'cal-week-row__lbl',
-                      isT             ? 'cal-week-row__lbl--today' : '',
-                      dayTasks.length ? 'cal-week-row__lbl--tasks' : '',
-                    ].filter(Boolean).join(' ')}
-                    onClick={() => goDay(day, day.getMonth())}
-                  >
-                    {day.toLocaleDateString(locale, {
-                      weekday: 'short', month: 'short', day: 'numeric',
-                    })}
-                    {dayTasks.length > 0 && (
-                      <span className="cal-badge cal-badge--sm">{dayTasks.length}</span>
-                    )}
-                  </button>
-                  {dayTasks.length > 0 && renderTasks(dayTasks)}
-                </div>
-              );
-            })
-          )}
         </div>
       </div>
     );

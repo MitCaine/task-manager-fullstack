@@ -159,9 +159,6 @@ function App() {
     },
   } = useTaskDetailResources({ is24Hour, setError });
 
-  // Calendar-specific display preferences.
-  const [calHideCompleted, setCalHideCompleted] = useState(false);
-
   // Bulk selection state for list actions.
   const {
     bulkMode,
@@ -1255,7 +1252,7 @@ function App() {
     currentTaskCount, completedCount, overdueCount, tabTasks, calTasks, statsData,
     hasActiveListFilters, hasModifiedListControls, emptyState, showFilterValue, priorityFilterValue,
   } = useTaskListViewModel({
-    tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy, calHideCompleted,
+    tasks, search, viewTab, filterStatus, filterProjectID, filterTagID, sortBy, calHideCompleted: false,
   });
 
   const themeLabel: Record<Theme, string> = { system: '💻 System', light: '☀️ Light', dark: '🌙 Dark' };
@@ -2006,8 +2003,6 @@ function App() {
         is24Hour={is24Hour}
         isEuropeanDate={isEuropeanDate}
         onEditTask={openTaskFromCalendar}
-        hideCompleted={calHideCompleted}
-        onToggleHideCompleted={() => setCalHideCompleted(p => !p)}
       />
       </section>
 

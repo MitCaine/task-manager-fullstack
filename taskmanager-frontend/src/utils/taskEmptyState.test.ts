@@ -17,5 +17,6 @@ describe('getTaskEmptyState', () => {
 
   it('returns default empty state', () => {
     expect(getTaskEmptyState({ search: '', filterStatus: 'all', hasActiveListFilters: false, viewTab: 'all' }).title).toBe('No tasks yet');
+    expect(getTaskEmptyState({ search: '', filterStatus: 'all', hasActiveListFilters: false, viewTab: 'all' }).body).toBe('Swipe right to create your first task.');
   });
 });

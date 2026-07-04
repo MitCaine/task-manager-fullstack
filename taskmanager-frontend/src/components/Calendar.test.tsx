@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import Calendar from './Calendar';
 import type { Task } from '../types/task';
-import { getLocalWeekStart, toLocalDateTimeString } from '../utils/dateTime';
+import { toLocalDateTimeString } from '../utils/dateTime';
 
-const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Array<{ projectID: number; title: string }> = []) => {
+const renderCalendar = (tasks: Task[] = [], projects: Array<{ projectID: number; title: string }> = []) => {
   const onEditTask = jest.fn();
   return {
     ...render(
@@ -15,8 +15,6 @@ const renderCalendar = (tasks: Task[] = [], hideCompleted = false, projects: Arr
         is24Hour={false}
         isEuropeanDate={false}
         onEditTask={onEditTask}
-        hideCompleted={hideCompleted}
-        onToggleHideCompleted={jest.fn()}
       />
     ),
     onEditTask,
@@ -68,45 +66,26 @@ const calendarTags = [
   { tagID: 4, title: 'Fourth', color: '#a855f7' },
 ];
 
-const currentWeekTask = (dayOffset: number, overrides: Partial<Task> = {}): Task => {
-  const date = getLocalWeekStart(new Date());
-  date.setDate(date.getDate() + dayOffset);
-  date.setHours(9, 0, 0, 0);
-  return {
-    taskID: dayOffset + 10,
-    title: `Week task ${dayOffset}`,
-    dateTimeScheduled: toLocalDateTimeString(date),
-    recurrenceRuleID: null,
-    statusID: null,
-    ...overrides,
-  };
-};
-
 const getCalendarTaskEntry = () => {
   const taskEntry = screen.getByText('Recurring calendar task').closest('.cal-item');
   if (!(taskEntry instanceof HTMLElement)) throw new Error('Calendar task entry not found');
   return taskEntry;
 };
 
-test('calendar week view shows a week-level empty state', () => {
+test('calendar renders the day task layout by default without legacy week controls', () => {
   renderCalendar();
 
-  expect(screen.getByText('No tasks scheduled this week.')).toHaveClass('cal-empty--week');
-});
-
-test('calendar week view uses Monday-start boundaries through Sunday', () => {
-  renderCalendar([
-    currentWeekTask(0, { taskID: 101, title: 'Monday boundary task' }),
-    currentWeekTask(6, { taskID: 102, title: 'Sunday boundary task' }),
-  ]);
-
-  const labels = screen.getAllByRole('button')
-    .filter(button => button.classList.contains('cal-week-row__lbl'));
-
-  expect(labels[0]).toHaveTextContent(/^Mon\b/);
-  expect(labels[6]).toHaveTextContent(/^Sun\b/);
-  expect(screen.getByText('Monday boundary task')).toBeInTheDocument();
-  expect(screen.getByText('Sunday boundary task')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Previous day' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Next day' })).toBeInTheDocument();
+  expect(document.querySelector('.cal-day-current')).toHaveTextContent(
+    new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  );
+  expect(screen.getByText('Day tasks')).toBeInTheDocument();
+  expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /hide done/i })).not.toBeInTheDocument();
+  expect(screen.queryByText('Week tasks')).not.toBeInTheDocument();
+  expect(screen.queryByText('No tasks scheduled this week.')).not.toBeInTheDocument();
 });
 
 test('calendar month view shows month empty state', async () => {
@@ -114,6 +93,7 @@ test('calendar month view shows month empty state', async () => {
   const monthName = now.toLocaleDateString('en-US', { month: 'long' });
   const { container } = renderCalendar();
 
+  await openYearOverview();
   await clickCalendar(screen.getByRole('button', { name: monthName }));
 
   expect(container.querySelector('.cal-table')).toBeInTheDocument();
@@ -121,12 +101,7 @@ test('calendar month view shows month empty state', async () => {
 });
 
 test('calendar day view shows day empty state', async () => {
-  const { container } = renderCalendar();
-
-  await clickCalendar(screen.getByRole('button', { name: new Date().toLocaleDateString('en-US', { month: 'long' }) }));
-  const dayButton = container.querySelector<HTMLButtonElement>('.cal-day-btn');
-  if (!dayButton) throw new Error('Expected a calendar day button');
-  await clickCalendar(dayButton);
+  renderCalendar();
 
   expect(screen.getByText('No tasks scheduled for this day.')).toBeInTheDocument();
 });
@@ -171,7 +146,6 @@ test('calendar task entry shows two tags plus an accessible overflow indicator',
 test('calendar project and tag chips share a wrapping body metadata row', () => {
   renderCalendar(
     [futureTask({ projectID: 7, tags: calendarTags })],
-    false,
     [{ projectID: 7, title: 'Wedding Planning' }],
   );
 
@@ -205,7 +179,6 @@ test('calendar task entry uses a stacked schedule title description and metadata
       projectID: 7,
       tags: calendarTags,
     })],
-    false,
     [{ projectID: 7, title: 'Wedding Planning' }],
   );
 
@@ -250,6 +223,7 @@ test('month and day calendar task entries use the shared tag overflow display', 
   const { container } = renderCalendar([futureTask({ tags: calendarTags.slice(0, 3) })]);
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' });
 
+  await openYearOverview();
   await clickCalendar(screen.getByRole('button', { name: monthName }));
   expect(within(getCalendarTaskEntry()).getByLabelText('More tags: Third')).toHaveTextContent('+1');
 
@@ -293,19 +267,11 @@ test('calendar overview uses three-month ranges in desktop shell', async () => {
   expect(screen.getByRole('button', { name: /Jan-Mar|Apr-Jun|Jul-Sep|Oct-Dec/ })).toBeInTheDocument();
 });
 
-test('show and hide done controls keep the stable width styling hook', () => {
+test('calendar stylesheet does not retain stale week or hide-done selectors', () => {
   mockDesktopCalendarQuery(false);
 
-  const hiddenState = renderCalendar([], false);
-  const hideButton = screen.getByRole('button', { name: /hide done/i });
-  expect(hideButton).toHaveClass('cal-hide-completed');
-  hiddenState.unmount();
-
-  renderCalendar([], true);
-  const showButton = screen.getByRole('button', { name: /show done/i });
-  expect(showButton).toHaveClass('cal-hide-completed');
-
   const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
-  const toggleRule = css.match(/\.cal-hide-completed\s*\{[^}]*\}/)?.[0] ?? '';
-  expect(toggleRule).toContain('min-width: 6.4rem');
+  expect(css).not.toContain('cal-hide-completed');
+  expect(css).not.toContain('cal-empty--week');
+  expect(css).not.toContain('cal-week-row');
 });

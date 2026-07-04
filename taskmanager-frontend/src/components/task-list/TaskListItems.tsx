@@ -81,7 +81,7 @@ function TaskListItems({
   renderStatusMove,
 }: TaskListItemsProps): JSX.Element {
   return (
-    <ul className="list" aria-label="Task list">
+    <ul className={`list${tasks.length === 0 ? ' list--empty' : ''}`} aria-label="Task list">
       {tasks.length === 0 && (
         <TaskListEmptyState
           title={emptyState.title}

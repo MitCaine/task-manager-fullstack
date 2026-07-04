@@ -167,12 +167,6 @@
   flex-shrink: 0;
 }
 
-.cal-hide-completed {
-  min-width: 6.4rem;
-  justify-content: center;
-  white-space: nowrap;
-}
-
 .cal-day-current {
   color: var(--text);
   font-size: 0.94rem;
@@ -717,19 +711,6 @@
   padding: 0.4rem 0;
 }
 
-.cal-empty--week {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 4.25rem;
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  text-align: center;
-}
-
 .cal-list {
   list-style: none;
   display: flex;
@@ -1010,43 +991,6 @@
   line-height: 1.45;
 }
 
-/* ── Week view ───────────────────────────────────────────── */
-.cal-week-row {
-  margin-bottom: 0.7rem;
-}
-
-.cal-week-row__lbl {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  text-align: left;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-faint);
-  background: none;
-  border: none;
-  border-radius: 6px;
-  padding: 0.3rem 0.5rem;
-  margin-bottom: 0.3rem;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.1s, color 0.1s;
-}
-
-.cal-week-row__lbl:hover {
-  background: var(--surface);
-  color: var(--text);
-}
-
-.cal-week-row__lbl--today {
-  color: var(--accent);
-}
-
-.cal-week-row__lbl--tasks {
-  color: var(--text-muted);
-}
-
 @media (min-width: 1261px) and (pointer: fine) {
   .mobile-page--calendar .cal-card {
     padding: 1.05rem 1.25rem;
@@ -1147,7 +1091,6 @@
     z-index: 300;
   }
 
-  .cal-hide-completed,
   .cal-today-btn {
     min-height: 1.75rem;
     padding: 0.28rem 0.48rem;
@@ -1155,7 +1098,6 @@
     border-radius: 7px;
   }
 
-  .cal-nav:not(.cal-nav--day) .cal-hide-completed,
   .cal-nav:not(.cal-nav--day) .cal-today-btn {
     flex: 1 1 0;
     min-width: 0;

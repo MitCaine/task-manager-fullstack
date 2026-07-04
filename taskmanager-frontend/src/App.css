@@ -1214,6 +1214,18 @@ input[type="datetime-local"] {
   padding-right: 0;
 }
 
+.list--empty {
+  flex: 1 1 auto;
+  min-height: 11rem;
+  justify-content: center;
+}
+
+.list--empty .empty-state {
+  max-width: 22rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
 .app__list::-webkit-scrollbar {
   width: 4px;
 }
@@ -2753,6 +2765,11 @@ input[type="datetime-local"] {
   box-shadow: 0 4px 18px rgba(0,0,0,0.22);
   padding: 0.85rem 1rem;
   pointer-events: auto;
+}
+
+.toast--confirmation {
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
 }
 
 .toast__header {
@@ -4613,6 +4630,14 @@ input[type="datetime-local"] {
     transform: none;
     width: auto;
     max-width: none;
+  }
+
+  .toasts--confirmation {
+    top: var(--mobile-top-offset);
+  }
+
+  .toast--confirmation {
+    border-radius: 18px;
   }
 }
 

@@ -43,6 +43,6 @@ export function getTaskEmptyState({ search, filterStatus, hasActiveListFilters, 
   }
   return {
     title: 'No tasks yet',
-    body: 'Swipe to Add and create your first task.',
+    body: 'Swipe right to create your first task.',
   };
 }
