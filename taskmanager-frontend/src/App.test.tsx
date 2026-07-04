@@ -763,7 +763,8 @@ test('clicking Add shows a non-disruptive task-created toast', async () => {
   expect(within(toast).getByText(/toast task/i)).toBeInTheDocument();
   expect(within(toast).queryByRole('button', { name: /\+1 hr/i })).not.toBeInTheDocument();
   expect(within(toast).queryByRole('button', { name: /tomorrow/i })).not.toBeInTheDocument();
-  expect(within(toast).getAllByRole('button', { name: /dismiss/i }).length).toBeGreaterThan(0);
+  expect(within(toast).queryByRole('button', { name: /dismiss notification/i })).not.toBeInTheDocument();
+  expect(within(toast).getByRole('button', { name: /^dismiss$/i })).toBeInTheDocument();
 });
 
 test('task-created confirmation toast auto-dismisses', async () => {
@@ -4389,6 +4390,7 @@ test('clicking Stats button opens the stats modal', async () => {
   expect(heading).toBeInTheDocument();
   // Scope queries to the modal to avoid matching filter buttons with same text
   const modal = heading.closest('.modal') as HTMLElement;
+  expect(modal).toHaveClass('stats-modal');
   expect(within(modal).getByText(/total/i)).toBeInTheDocument();
   expect(within(modal).getAllByText(/^done$/i).length).toBeGreaterThanOrEqual(1);
   expect(within(modal).getByText(/active/i)).toBeInTheDocument();
@@ -4428,6 +4430,7 @@ test('Settings trigger exposes popover state and controls', async () => {
   expect(within(settingsPanel).getByText('Management')).toBeInTheDocument();
   const displayControls = within(settingsPanel).getByRole('button', { name: /24-hour/i }).closest('.settings-section__controls');
   const managementControls = within(settingsPanel).getByRole('button', { name: /manage projects/i }).closest('.settings-section__controls');
+  expect(within(settingsPanel).getByRole('button', { name: /24-hour/i })).toHaveClass('settings-section__time-toggle');
   expect(displayControls).toContainElement(within(settingsPanel).getByRole('button', { name: /DD\/MM\/YYYY/i }));
   expect(displayControls).toContainElement(within(settingsPanel).getByRole('combobox'));
   expect(within(settingsPanel).queryByText('Time Format')).not.toBeInTheDocument();
@@ -4441,11 +4444,14 @@ test('Settings management actions stay grouped until the mobile breakpoint', () 
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
   const displayControlsRule = css.match(/\.settings-section--display \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
   const controlsRule = css.match(/\.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
+  const timeToggleRule = css.match(/\.settings-section__time-toggle\s*\{[^}]*\}/)?.[0] ?? '';
   const managementControlsRule = css.match(/\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
 
   expect(displayControlsRule).toContain('flex-wrap: wrap');
   expect(controlsRule).toContain('align-items: center');
+  expect(timeToggleRule).toContain('min-width: 4.75rem');
+  expect(timeToggleRule).toContain('justify-content: center');
   expect(managementControlsRule).toContain('flex-wrap: nowrap');
   expect(mobileSettingsRules).toContain('flex-wrap: wrap');
 });
@@ -4905,7 +4911,11 @@ test('tag management creates edits color and confirms deletion with usage count'
   const renamedTagRow = renamedTag.closest('.catalog-manager__item');
   if (!(renamedTagRow instanceof HTMLElement)) throw new Error('Renamed tag row not found');
   await act(async () => { await userEvent.click(within(renamedTagRow).getByRole('button', { name: /delete/i })); });
-  expect(scope.getByText(/This will affect 1 task/i)).toBeInTheDocument();
+  const singleDeleteConfirm = scope.getByRole('alert');
+  const catalogBody = dialog.querySelector('.catalog-manager__body');
+  if (!(catalogBody instanceof HTMLElement)) throw new Error('Catalog body not found');
+  expect(singleDeleteConfirm).toHaveTextContent(/This will affect 1 task/i);
+  expect(Boolean(singleDeleteConfirm.compareDocumentPosition(catalogBody) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /confirm delete/i })); });
   expect(mockDeleteTag).toHaveBeenCalledWith(8);
 });
@@ -5001,6 +5011,9 @@ test('tag management multiline add uses selected color and skips existing or rep
   expect(mockCreateTag).toHaveBeenNthCalledWith(1, { title: 'Docs', color: '#f97316' });
   expect(mockCreateTag).toHaveBeenNthCalledWith(2, { title: 'Focus', color: '#f97316' });
   expect(scope.getByRole('status')).toHaveTextContent('Created 2 tags. Skipped 2 duplicates: Errand, docs. Failed 0.');
+  expect(scope.getByRole('button', { name: /dismiss creation summary/i })).toBeInTheDocument();
+  await act(async () => { await userEvent.click(scope.getByRole('button', { name: /dismiss creation summary/i })); });
+  expect(scope.queryByRole('status')).not.toBeInTheDocument();
   expect(scope.getByText('Docs')).toBeInTheDocument();
   expect(scope.getByText('Focus')).toBeInTheDocument();
 });
@@ -5048,14 +5061,18 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   const mobileControlTriggerRule = mobileManagerRules.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileBulkBarRule = mobileManagerRules.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
   const mobileBulkActionsRule = mobileManagerRules.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
+  const statsModalRule = css.match(/\.stats-modal\s*\{[^}]*\}/)?.[0] ?? '';
+  const mobileStatsModalRule = css.match(/\.stats-modal\s*\{[^}]*var\(--mobile-edge, 1rem\)[^}]*\}/)?.[0] ?? '';
 
-  expect(tabsRule).toContain('margin-bottom: 1rem');
+  expect(tabsRule).toContain('margin-bottom: var(--catalog-group-gap)');
   expect(tabRule).toContain('min-height: 2.4rem');
   expect(managerRule).toContain('padding-top: 1.75rem');
   expect(managerRule).toContain('width: min(40rem, calc(100vw - 2rem))');
   expect(managerRule).toContain('overflow: hidden');
   expect(managerRule).toContain('--catalog-create-action-height: 2rem');
   expect(managerRule).toContain('--catalog-row-control-height: 1.85rem');
+  expect(managerRule).toContain('--catalog-related-gap: 0.45rem');
+  expect(managerRule).toContain('--catalog-group-gap: 0.85rem');
   expect(createRule).toContain('display: grid');
   expect(createRule).toContain('grid-template-columns: minmax(0, 1fr) max-content');
   expect(createRule).toContain('gap: var(--catalog-create-stack-gap)');
@@ -5073,10 +5090,12 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(bodyRule).toContain('height: clamp(10rem, 36vh, 20rem)');
   expect(bodyRule).toContain('overflow-y: auto');
   expect(createSummaryRule).toContain('width: 100%');
+  expect(createSummaryRule).toContain('display: flex');
+  expect(createSummaryRule).toContain('gap: 0.55rem');
   expect(createSummaryRule).toContain('overflow-wrap: anywhere');
   expect(tagCreateActionsRule).toContain('flex-direction: column');
   expect(tagCreateActionsRule).toContain('align-items: flex-start');
-  expect(tagCreateActionsRule).toContain('gap: 0.5rem');
+  expect(tagCreateActionsRule).toContain('gap: var(--catalog-related-gap)');
   expect(tagCreateActionControlsRule).toContain('width: 100%');
   expect(itemRule).toContain('grid-template-columns: auto minmax(0, 1fr) auto');
   expect(editingItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
@@ -5088,21 +5107,30 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(bulkBarRule).toContain('display: flex');
   expect(bulkBarRule).toContain('background: var(--surface-2)');
   expect(bulkActionsRule).toContain('display: flex');
-  expect(bulkActionsRule).toContain('gap: 0.5rem');
-  expect(bulkConfirmRule).toContain('margin: -0.25rem 0 0.75rem');
+  expect(bulkActionsRule).toContain('gap: var(--catalog-related-gap)');
+  expect(bulkConfirmRule).toContain('margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap)');
   expect(selectRule).toContain('accent-color: var(--accent)');
   expect(listControlsRule).toContain('display: flex');
   expect(listControlsRule).toContain('flex-wrap: wrap');
-  expect(controlRule).toContain('display: inline-flex');
+  expect(controlRule).toContain('display: grid');
+  expect(controlRule).toContain('grid-template-columns: 3rem minmax(8.2rem, 1fr)');
+  expect(controlRule).toContain('width: min(12rem, 100%)');
   expect(controlSelectRule).toContain('position: relative');
+  expect(controlSelectRule).toContain('width: 100%');
   expect(controlSelectRule).toContain('min-width: 0');
-  expect(controlTriggerRule).toContain('width: auto');
-  expect(sortControlTriggerRule).toContain('width: 8.2rem');
-  expect(filterControlTriggerRule).toContain('width: 6.5rem');
+  expect(controlTriggerRule).toContain('width: 100%');
+  expect(sortControlTriggerRule).toContain('width: 100%');
+  expect(filterControlTriggerRule).toContain('width: 100%');
   expect(controlDropdownRule).toContain('width: max-content');
   expect(controlDropdownRule).toContain('min-width: 100%');
   expect(controlCheckRule).toContain('flex: 0 0 0.75rem');
   expect(controlLabelRule).toContain('white-space: nowrap');
+  expect(controlLabelRule).toContain('min-width: 0');
+  expect(statsModalRule).toContain('width: min(480px, calc(100vw - 2rem))');
+  expect(statsModalRule).toContain('max-width: calc(100vw - 2rem)');
+  expect(statsModalRule).toContain('box-sizing: border-box');
+  expect(mobileStatsModalRule).toContain('width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem))');
+  expect(mobileStatsModalRule).toContain('max-width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem))');
   expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
   expect(mobileManagerRules).toContain('--catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))');
   expect(mobileManagerRules).toContain('--catalog-mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem)');
@@ -5134,9 +5162,10 @@ test('catalog management modal keeps navigation spacing and color swatch focus s
   expect(mobileManagerRules).toContain('height: auto');
   expect(mobileManagerRules).toContain('padding-bottom: 1.25rem');
   expect(mobileListControlsRule).toContain('align-items: stretch');
-  expect(mobileControlRule).toContain('flex: 1 1 13rem');
-  expect(mobileControlSelectRule).toContain('min-width: 10.5rem');
-  expect(mobileControlTriggerRule).toContain('min-width: 10.5rem');
+  expect(mobileControlRule).toContain('width: 100%');
+  expect(mobileControlRule).toContain('grid-template-columns: 3rem minmax(0, 1fr)');
+  expect(mobileControlSelectRule).toContain('min-width: 0');
+  expect(mobileControlTriggerRule).toContain('min-width: 0');
   expect(mobileBulkBarRule).toContain('flex-direction: column');
   expect(mobileBulkBarRule).toContain('align-items: stretch');
   expect(mobileBulkActionsRule).toContain('justify-content: flex-start');

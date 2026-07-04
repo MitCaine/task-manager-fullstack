@@ -28,7 +28,7 @@ export default function SettingsPanel<ThemeValue extends string>({
       <div className="settings-section settings-section--display">
         <span className="settings-label">Display preferences</span>
         <div className="settings-section__controls">
-          <button className="btn btn--ghost btn--sm" onClick={onToggleTimeFormat}>
+          <button className="btn btn--ghost btn--sm settings-section__time-toggle" onClick={onToggleTimeFormat}>
             {is24Hour ? '12-hour' : '24-hour'}
           </button>
           <button className="btn btn--ghost btn--sm" onClick={onToggleDateFormat}>

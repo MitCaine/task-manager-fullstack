@@ -43,7 +43,9 @@ function ToastList({ toasts, onDismiss, onSnooze }: ToastListProps) {
         <div key={toast.id} className={`toast${toast.kind === 'confirmation' ? ' toast--confirmation' : ''}`}>
           <div className="toast__header">
             <span className="toast__title">{toast.kind === 'confirmation' ? '✓' : '⏰'} {toast.taskTitle}</span>
-            <button className="toast__close" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification">×</button>
+            {toast.kind !== 'confirmation' && (
+              <button className="toast__close" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification">×</button>
+            )}
           </div>
           <p className="toast__msg">{toast.message}</p>
           <div className="toast__actions">

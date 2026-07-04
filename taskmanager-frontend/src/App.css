@@ -1096,6 +1096,13 @@ input[type="datetime-local"] {
   gap: 0.4rem;
 }
 
+.settings-section__time-toggle {
+  flex: 0 0 5.35rem;
+  width: 5.35rem;
+  min-width: 5.35rem;
+  justify-content: center;
+}
+
 .settings-section--display .settings-section__controls {
   flex-wrap: wrap;
 }
@@ -2806,6 +2813,10 @@ input[type="datetime-local"] {
   gap: 0.5rem;
 }
 
+.toast--confirmation .toast__actions {
+  justify-content: flex-end;
+}
+
 /* ── Modal / Stats ──────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -2847,12 +2858,18 @@ input[type="datetime-local"] {
   --catalog-create-stack-gap: 0.5rem;
   --catalog-create-input-height: calc((var(--catalog-create-action-height) * 2) + var(--catalog-create-stack-gap));
   --catalog-row-control-height: 1.85rem;
+  --catalog-related-gap: 0.45rem;
+  --catalog-group-gap: 0.85rem;
   display: flex;
   flex-direction: column;
   width: min(40rem, calc(100vw - 2rem));
   max-height: min(90vh, 44rem);
   overflow: hidden;
   padding-top: 1.75rem;
+}
+
+.catalog-manager .modal__header {
+  margin-bottom: var(--catalog-group-gap);
 }
 
 .catalog-manager__tabs,
@@ -2863,11 +2880,11 @@ input[type="datetime-local"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--catalog-related-gap);
 }
 
 .catalog-manager__tabs {
-  margin-bottom: 1rem;
+  margin-bottom: var(--catalog-group-gap);
   min-width: 0;
 }
 
@@ -2879,7 +2896,7 @@ input[type="datetime-local"] {
 
 .catalog-manager__create,
 .catalog-manager__search {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--catalog-group-gap);
 }
 
 .catalog-manager__create {
@@ -2908,12 +2925,15 @@ input[type="datetime-local"] {
 .catalog-manager__create-actions--tags {
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: var(--catalog-related-gap);
 }
 
 .catalog-manager__create-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
   width: 100%;
-  margin: -0.35rem 0 0.75rem;
+  margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap);
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2922,6 +2942,26 @@ input[type="datetime-local"] {
   font-size: 0.78rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.catalog-manager__create-summary span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.catalog-manager__create-summary-close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.catalog-manager__create-summary-close:hover {
+  color: var(--text);
 }
 
 .catalog-manager__create-button {
@@ -3000,7 +3040,7 @@ input[type="datetime-local"] {
 
 .catalog-manager__list {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--catalog-related-gap);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3011,7 +3051,7 @@ input[type="datetime-local"] {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   min-width: 0;
-  gap: 0.75rem;
+  gap: 0.6rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -3104,38 +3144,34 @@ input[type="datetime-local"] {
 }
 
 .catalog-manager__list-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: -0.25rem 0 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--catalog-related-gap);
+  margin: 0 0 var(--catalog-group-gap);
 }
 
 .catalog-manager__control {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: auto;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
 }
 
 .catalog-manager__control-select {
   position: relative;
-  flex: 0 0 auto;
-  width: auto;
+  width: 100%;
   min-width: 0;
 }
 
 .catalog-manager__control-trigger {
-  width: auto;
+  width: 100%;
   min-height: 1.8rem;
 }
 
 .catalog-manager__control-trigger--sort {
-  width: 8.2rem;
+  width: 100%;
 }
 
 .catalog-manager__control-trigger--filter {
-  width: 6.5rem;
+  width: 100%;
 }
 
 .catalog-manager__control-dropdown {
@@ -3160,14 +3196,15 @@ input[type="datetime-local"] {
 
 .catalog-manager__control-label {
   white-space: nowrap;
+  min-width: 0;
 }
 
 .catalog-manager__bulk-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin: -0.25rem 0 0.75rem;
+  gap: var(--catalog-related-gap);
+  margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap);
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -3184,11 +3221,11 @@ input[type="datetime-local"] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--catalog-related-gap);
 }
 
 .catalog-manager__confirm {
-  margin-top: 0.75rem;
+  margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap);
   padding: 0.75rem;
   border: 1px solid var(--danger, #ef4444);
   border-radius: 8px;
@@ -3200,7 +3237,7 @@ input[type="datetime-local"] {
 }
 
 .catalog-manager__confirm--bulk {
-  margin: -0.25rem 0 0.75rem;
+  margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap);
 }
 
 .catalog-manager__select {
@@ -3328,16 +3365,16 @@ input[type="datetime-local"] {
   }
 
   .catalog-manager__control {
-    flex: 1 1 13rem;
+    width: 100%;
+    grid-template-columns: 3rem minmax(0, 1fr);
   }
 
   .catalog-manager__control-select {
-    min-width: 10.5rem;
-    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .catalog-manager__control-trigger {
-    min-width: 10.5rem;
+    min-width: 0;
   }
 
   .catalog-manager__bulk-bar {
@@ -3355,6 +3392,12 @@ input[type="datetime-local"] {
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+}
+
+.stats-modal {
+  width: min(480px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  box-sizing: border-box;
 }
 
 .stats__card {
@@ -4637,6 +4680,12 @@ input[type="datetime-local"] {
   }
 
   .toast--confirmation {
+    border-radius: 18px;
+  }
+
+  .stats-modal {
+    width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem));
+    max-width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem));
     border-radius: 18px;
   }
 }

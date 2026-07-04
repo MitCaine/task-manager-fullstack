@@ -410,6 +410,7 @@ export default function CatalogManagementModal({
           }}
           onNewTagColorChange={setNewTagColor}
           onCreateItems={createItems}
+          onDismissSummary={() => setAddSummary('')}
         />
 
         <input
@@ -474,6 +475,14 @@ export default function CatalogManagementModal({
           </div>
         )}
 
+        {pendingDelete && (
+          <div className="catalog-manager__confirm" role="alert">
+            <span>Delete &quot;{pendingDelete.title}&quot;? This will affect {pendingDelete.usageCount} task{pendingDelete.usageCount === 1 ? '' : 's'}.</span>
+            <button className="btn btn--danger btn--sm" onClick={confirmDelete}>Confirm delete</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => setPendingDelete(null)}>Cancel</button>
+          </div>
+        )}
+
         <CatalogManagerList
           section={section}
           visibleProjects={visibleProjects}
@@ -498,13 +507,6 @@ export default function CatalogManagementModal({
           }}
         />
 
-        {pendingDelete && (
-          <div className="catalog-manager__confirm" role="alert">
-            <span>Delete &quot;{pendingDelete.title}&quot;? This will affect {pendingDelete.usageCount} task{pendingDelete.usageCount === 1 ? '' : 's'}.</span>
-            <button className="btn btn--danger btn--sm" onClick={confirmDelete}>Confirm delete</button>
-            <button className="btn btn--ghost btn--sm" onClick={() => setPendingDelete(null)}>Cancel</button>
-          </div>
-        )}
       </div>
     </div>,
     document.body,

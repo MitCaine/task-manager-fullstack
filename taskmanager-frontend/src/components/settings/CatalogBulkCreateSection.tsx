@@ -13,6 +13,7 @@ type CatalogBulkCreateSectionProps = {
   onAddTextChange: (value: string) => void;
   onNewTagColorChange: (value: string) => void;
   onCreateItems: () => void;
+  onDismissSummary: () => void;
 };
 
 export default function CatalogBulkCreateSection({
@@ -26,6 +27,7 @@ export default function CatalogBulkCreateSection({
   onAddTextChange,
   onNewTagColorChange,
   onCreateItems,
+  onDismissSummary,
 }: CatalogBulkCreateSectionProps): JSX.Element {
   return (
     <>
@@ -52,7 +54,19 @@ export default function CatalogBulkCreateSection({
           )}
         </div>
       </div>
-      {addSummary && <div className="catalog-manager__create-summary" role="status">{addSummary}</div>}
+      {addSummary && (
+        <div className="catalog-manager__create-summary" role="status">
+          <span>{addSummary}</span>
+          <button
+            type="button"
+            className="catalog-manager__create-summary-close"
+            onClick={onDismissSummary}
+            aria-label="Dismiss creation summary"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </>
   );
 }

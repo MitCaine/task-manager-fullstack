@@ -22,7 +22,7 @@ export type StatsModalProps = {
 export default function StatsModal({ statsData, onClose, closeButtonRef }: StatsModalProps): JSX.Element {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="stats-title" onClick={e => e.stopPropagation()}>
+      <div className="modal stats-modal" role="dialog" aria-modal="true" aria-labelledby="stats-title" onClick={e => e.stopPropagation()}>
         <div className="modal__header">
           <h2 className="modal__title" id="stats-title">Stats</h2>
           <button ref={closeButtonRef} className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Close stats">×</button>
