@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
-import { toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
+import { toDomainEntityId, toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
 import {
   parseLocalDateTime,
   toLocalDateTimeString,
@@ -1303,15 +1303,15 @@ function App() {
       endDateTimeScheduled: nextSchedule.endDateTimeScheduled,
       dateTimeScheduled: nextSchedule.dateTimeScheduled,
       statusId: null,
-      priority: task.priority ?? null, projectId: task.projectID == null ? null : String(task.projectID),
+      priority: task.priority ?? null, projectId: task.projectID == null ? null : toDomainEntityId(task.projectID),
     }));
     if (task.tags?.length) {
-      await Promise.all(task.tags.map(tag => repositories.tasks.addTag(String(nextTask.taskID), String(tag.tagID))));
+      await Promise.all(task.tags.map(tag => repositories.tasks.addTag(toDomainEntityId(nextTask.taskID), toDomainEntityId(tag.tagID))));
       nextTask.tags = task.tags;
     }
-    await repositories.recurrence.setForTask(String(nextTask.taskID), normalizeRecurrenceRule(rule));
-    const fresh = toLegacyTask(await repositories.tasks.get(String(nextTask.taskID)));
-    await repositories.tasks.delete(String(task.taskID));
+    await repositories.recurrence.setForTask(toDomainEntityId(nextTask.taskID), normalizeRecurrenceRule(rule));
+    const fresh = toLegacyTask(await repositories.tasks.get(toDomainEntityId(nextTask.taskID)));
+    await repositories.tasks.delete(toDomainEntityId(task.taskID));
     const replacementTask = { ...nextTask, recurrenceRuleID: fresh.recurrenceRuleID };
     setTasks(prev => [
       ...prev.filter(t => t.taskID !== task.taskID),
@@ -1333,18 +1333,18 @@ function App() {
     if (task.recurrenceRuleID === null) return null;
     if (task.recurrenceRuleID === undefined) {
       try {
-        return toLegacyRecurrenceRule(await repositories.recurrence.getByTask(String(task.taskID)));
+        return toLegacyRecurrenceRule(await repositories.recurrence.getByTask(toDomainEntityId(task.taskID)));
       } catch {
         return null;
       }
     }
-    return toLegacyRecurrenceRule(await repositories.recurrence.getByTask(String(task.taskID)));
+    return toLegacyRecurrenceRule(await repositories.recurrence.getByTask(toDomainEntityId(task.taskID)));
   };
 
   const loadRecurrenceLabel = async (taskId: number) => {
     if (recurrenceLabels[taskId]) return;
     try {
-      const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(String(taskId)));
+      const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(toDomainEntityId(taskId)));
       const label = formatRecurrenceInterval(normalizeRecurrenceRule(rule));
       setRecurrenceLabels(prev => prev[taskId] ? prev : { ...prev, [taskId]: label });
     } catch {
@@ -1357,7 +1357,7 @@ function App() {
     // Completing an active recurring task creates its next scheduled occurrence.
     if (task.recurrenceRuleID && currentStatusID !== TASK_STATUS.DONE) {
       try {
-        const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(String(task.taskID)));
+        const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(toDomainEntityId(task.taskID)));
         await completeRecurringTask(task, rule);
       } catch {
         setError('Failed to complete recurring task.');
@@ -1368,7 +1368,7 @@ function App() {
     // Non-recurring tasks only toggle between active and done.
     const newStatusID = currentStatusID === TASK_STATUS.DONE ? null : TASK_STATUS.DONE;
     try {
-      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), toDomainStatusId(newStatusID)));
+      const saved = toLegacyTask(await repositories.tasks.updateStatus(toDomainEntityId(task.taskID), toDomainStatusId(newStatusID)));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
     } catch {
       setError('Failed to update task status.');
@@ -1382,7 +1382,7 @@ function App() {
       return;
     }
     try {
-      const saved = toLegacyTask(await repositories.tasks.updateStatus(String(task.taskID), toDomainStatusId(statusID)));
+      const saved = toLegacyTask(await repositories.tasks.updateStatus(toDomainEntityId(task.taskID), toDomainStatusId(statusID)));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? saved : t));
     } catch {
       setError('Failed to move task.');
@@ -1472,7 +1472,7 @@ function App() {
 
   const removeTask = async (id: number) => {
     try {
-      await repositories.tasks.delete(String(id));
+      await repositories.tasks.delete(toDomainEntityId(id));
       setTasks(prev => prev.filter(t => t.taskID !== id));
       clearDeletedTaskResources(id);
       if (selectedTaskId === id) setSelectedTaskId(null);
@@ -1555,16 +1555,16 @@ function App() {
         endDateTimeScheduled: task.endDateTimeScheduled ?? null,
         statusId: null,
         priority: task.priority ?? null,
-        projectId: task.projectID == null ? null : String(task.projectID),
+        projectId: task.projectID == null ? null : toDomainEntityId(task.projectID),
       }));
       const duplicatedTask: Task = { ...saved };
       if (task.tags && task.tags.length > 0) {
-        await Promise.all(task.tags.map(tag => repositories.tasks.addTag(String(saved.taskID), String(tag.tagID))));
+        await Promise.all(task.tags.map(tag => repositories.tasks.addTag(toDomainEntityId(saved.taskID), toDomainEntityId(tag.tagID))));
         duplicatedTask.tags = task.tags;
       }
       if (task.recurrenceRuleID) {
-        const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(String(task.taskID)));
-        const repeatedTask = toLegacyTask(await repositories.recurrence.setForTask(String(saved.taskID), normalizeRecurrenceRule(rule)));
+        const rule = toLegacyRecurrenceRule(await repositories.recurrence.getByTask(toDomainEntityId(task.taskID)));
+        const repeatedTask = toLegacyTask(await repositories.recurrence.setForTask(toDomainEntityId(saved.taskID), normalizeRecurrenceRule(rule)));
         duplicatedTask.recurrenceRuleID = repeatedTask.recurrenceRuleID ?? null;
       }
       setTasks(prev => [...prev, duplicatedTask]);
@@ -1580,7 +1580,7 @@ function App() {
       for (const id of ids) {
         const fallbackTask = tasksRef.current.find(task => task.taskID === id);
         if (!fallbackTask) continue;
-        const loadedTask = await repositories.tasks.get(String(id)).then(toLegacyTask).catch(() => fallbackTask);
+        const loadedTask = await repositories.tasks.get(toDomainEntityId(id)).then(toLegacyTask).catch(() => fallbackTask);
         const currentTask = fallbackTask.recurrenceRuleID === undefined && loadedTask.recurrenceRuleID === null
           ? { ...loadedTask, recurrenceRuleID: undefined }
           : loadedTask;
@@ -1589,7 +1589,7 @@ function App() {
         if (recurrenceRule) {
           await completeRecurringTask(currentTask, recurrenceRule);
         } else {
-          const saved = toLegacyTask(await repositories.tasks.updateStatus(String(id), toDomainStatusId(TASK_STATUS.DONE)));
+          const saved = toLegacyTask(await repositories.tasks.updateStatus(toDomainEntityId(id), toDomainStatusId(TASK_STATUS.DONE)));
           setTasks(prev => prev.map(task => task.taskID === saved.taskID ? saved : task));
         }
       }
@@ -1604,7 +1604,7 @@ function App() {
   const bulkDelete = async () => {
     const ids = Array.from(bulkSelectedIds);
     try {
-      await Promise.all(ids.map(id => repositories.tasks.delete(String(id))));
+      await Promise.all(ids.map(id => repositories.tasks.delete(toDomainEntityId(id))));
       setTasks(prev => prev.filter(t => !ids.includes(t.taskID)));
       clearBulkSelection();
     } catch {
@@ -1620,7 +1620,7 @@ function App() {
     const newDue = new Date(Date.now() + minutes * 60 * 1000);
     const iso = toLocalDateTimeString(newDue);
     try {
-      await repositories.reminders.updateDueDate(String(toast.reminderID), iso);
+      await repositories.reminders.updateDueDate(toDomainEntityId(toast.reminderID), iso);
       firedReminders.current.delete(toast.reminderID);
       setReminders(prev => {
         const taskRems = prev[toast.taskID] ?? [];

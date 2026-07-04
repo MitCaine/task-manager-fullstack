@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Project, Tag } from '../types/task';
-import { toLegacyProject, toLegacyTag, useRepositories } from '../repositories';
+import { toDomainEntityId, toLegacyProject, toLegacyTag, useRepositories } from '../repositories';
 
 type UseProjectTagCatalogOptions = {
   setError: (message: string) => void;
@@ -109,7 +109,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
     const project = projects.find(item => item.projectID === projectID);
     if (!title || !project) return false;
     try {
-      const saved = toLegacyProject(await repositories.projects.update(String(projectID), {
+      const saved = toLegacyProject(await repositories.projects.update(toDomainEntityId(projectID), {
         title,
         description: project.description,
         dueDate: project.dueDate,
@@ -124,7 +124,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const updateTagDetails = async (tagID: number, update: Pick<Tag, 'title' | 'color'>) => {
     try {
-      const saved = toLegacyTag(await repositories.tags.update(String(tagID), update));
+      const saved = toLegacyTag(await repositories.tags.update(toDomainEntityId(tagID), update));
       setTags(prev => prev.map(tag => tag.tagID === tagID ? saved : tag));
       return true;
     } catch {
@@ -141,7 +141,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const deleteTagFromCatalog = async (tagID: number) => {
     try {
-      await repositories.tags.delete(String(tagID));
+      await repositories.tags.delete(toDomainEntityId(tagID));
       setTags(prev => prev.filter(t => t.tagID !== tagID));
       return true;
     } catch {
@@ -152,7 +152,7 @@ export default function useProjectTagCatalog({ setError }: UseProjectTagCatalogO
 
   const deleteProjectFromCatalog = async (projectID: number) => {
     try {
-      await repositories.projects.delete(String(projectID));
+      await repositories.projects.delete(toDomainEntityId(projectID));
       setProjects(prev => prev.filter(p => p.projectID !== projectID));
       return true;
     } catch {

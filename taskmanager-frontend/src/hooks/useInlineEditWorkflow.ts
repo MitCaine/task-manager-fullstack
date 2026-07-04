@@ -9,7 +9,7 @@ import {
 } from '../utils/taskRecurrence';
 import { deriveTaskEditDraft } from '../utils/taskEditDraft';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from '../utils/taskScheduling';
-import { toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from '../repositories';
+import { toDomainEntityId, toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from '../repositories';
 
 type EditPriority = 'LOW' | 'MEDIUM' | 'HIGH' | '';
 
@@ -88,7 +88,7 @@ export default function useInlineEditWorkflow({
     setShowInlineEditTag(false);
     setInlineEditOpenControl(null);
     try {
-      const fresh = toLegacyTask(await repositories.tasks.get(String(task.taskID)));
+      const fresh = toLegacyTask(await repositories.tasks.get(toDomainEntityId(task.taskID)));
       setEditTaskTagIDs((fresh.tags ?? []).map(t => t.tagID));
       setTasks(prev => prev.map(t => t.taskID === fresh.taskID ? { ...t, tags: fresh.tags } : t));
     } catch {
@@ -98,7 +98,7 @@ export default function useInlineEditWorkflow({
       setEditRepeat(null);
       setOriginalRepeatKey('');
     } else {
-      repositories.recurrence.getByTask(String(task.taskID))
+      repositories.recurrence.getByTask(toDomainEntityId(task.taskID))
         .then(rule => {
           const repeat = normalizeRecurrenceRule(toLegacyRecurrenceRule(rule));
           setEditRepeat(repeat);
@@ -142,30 +142,30 @@ export default function useInlineEditWorkflow({
       return;
     }
     try {
-      const saved = toLegacyTask(await repositories.tasks.update(String(task.taskID), {
+      const saved = toLegacyTask(await repositories.tasks.update(toDomainEntityId(task.taskID), {
         title: editTitle.trim() || task.title,
         description: editDescription.trim(),
         dateTimeScheduled,
         endDateTimeScheduled,
         statusId: toDomainStatusId(task.statusID),
         priority: editPriority || null,
-        projectId: editProjectID !== '' ? String(editProjectID) : null,
+        projectId: editProjectID !== '' ? toDomainEntityId(editProjectID) : null,
       }));
       const currentTagIDs = (task.tags ?? []).map(t => t.tagID);
       const toAdd = editTaskTagIDs.filter(id => !currentTagIDs.includes(id));
       const toRemove = currentTagIDs.filter(id => !editTaskTagIDs.includes(id));
       await Promise.all([
-        ...toAdd.map(tagId => repositories.tasks.addTag(String(task.taskID), String(tagId))),
-        ...toRemove.map(tagId => repositories.tasks.removeTag(String(task.taskID), String(tagId))),
+        ...toAdd.map(tagId => repositories.tasks.addTag(toDomainEntityId(task.taskID), toDomainEntityId(tagId))),
+        ...toRemove.map(tagId => repositories.tasks.removeTag(toDomainEntityId(task.taskID), toDomainEntityId(tagId))),
       ]);
       const tagObjects = tags.filter(t => editTaskTagIDs.includes(t.tagID));
       setTasks(prev => prev.map(t => t.taskID === saved.taskID ? { ...saved, tags: tagObjects } : t));
       if (selectedTaskId === null) setEditingId(null);
       if (recurrenceIntervalKey(editRepeat) !== originalRepeatKey) {
         try {
-          await repositories.recurrence.setForTask(String(task.taskID), editRepeat);
+          await repositories.recurrence.setForTask(toDomainEntityId(task.taskID), editRepeat);
           setOriginalRepeatKey(recurrenceIntervalKey(editRepeat));
-          const freshTask = toLegacyTask(await repositories.tasks.get(String(task.taskID)));
+          const freshTask = toLegacyTask(await repositories.tasks.get(toDomainEntityId(task.taskID)));
           setTasks(prev => prev.map(t => t.taskID === task.taskID ? { ...t, recurrenceRuleID: freshTask.recurrenceRuleID } : t));
         } catch { /* non-critical */ }
       }

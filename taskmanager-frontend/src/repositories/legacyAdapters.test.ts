@@ -85,9 +85,10 @@ describe('legacy adapters', () => {
     });
   });
 
-  it('throws clearly for non-numeric IDs', () => {
-    expect(() => toLegacyTask({ id: 'task-uuid', title: 'Plan', description: '' })).toThrow(
-      'Cannot adapt non-numeric domain taskID "task-uuid" to the legacy numeric UI id.'
-    );
+  it('adapts non-numeric domain IDs to legacy numeric aliases', () => {
+    const task = toLegacyTask({ id: 'task-uuid', title: 'Plan', description: '' });
+
+    expect(task.taskID).toBeLessThan(0);
+    expect(toLegacyTask({ id: 'task-uuid', title: 'Plan', description: '' }).taskID).toBe(task.taskID);
   });
 });

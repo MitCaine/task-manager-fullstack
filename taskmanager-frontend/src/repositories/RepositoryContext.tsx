@@ -116,3 +116,26 @@ export function useRepositories(): Repositories {
 
   return repositories;
 }
+
+export class RepositoryInitializationErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div role="alert" className="repository-init-error">
+          Persistence initialization failed.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import useInlineEditWorkflow from './useInlineEditWorkflow';
-import { RepositoryProvider } from '../repositories';
+import { RepositoryProvider, resetLegacyIdMappingsForTests, toLegacyNumericId } from '../repositories';
 import type { Repositories } from '../repositories';
 import type { Task } from '../types/task';
 
@@ -76,6 +76,7 @@ describe('useInlineEditWorkflow', () => {
   let repositories: MockRepositories;
 
   beforeEach(() => {
+    resetLegacyIdMappingsForTests();
     repositories = createMockRepositories();
     repositories.tasks.get.mockResolvedValue({
       id: '42',
@@ -183,21 +184,33 @@ describe('useInlineEditWorkflow', () => {
     expect(setError).toHaveBeenCalledWith('Failed to update task.');
   });
 
-  it('reports update failure when the repository returns a non-numeric task ID', async () => {
+  it('adapts non-numeric task IDs returned by update', async () => {
+    const uuidTask = { ...baseTask, taskID: toLegacyNumericId('task-uuid') };
+    repositories.tasks.get.mockResolvedValue({
+      id: 'task-uuid',
+      title: 'Draft',
+      description: 'Old description',
+      statusId: 'not_started',
+      tags: [],
+    });
     repositories.tasks.update.mockResolvedValue({
       id: 'task-uuid',
       title: 'Updated',
       description: 'New description',
     });
-    const { result, setError } = renderInlineEditHook(repositories);
+    const { result, setError, setTasks } = renderInlineEditHook(repositories);
 
     await act(async () => {
-      await result.current.actions.startEdit(baseTask);
+      await result.current.actions.startEdit(uuidTask);
     });
     await act(async () => {
-      await result.current.actions.saveEdit(baseTask);
+      await result.current.actions.saveEdit(uuidTask);
     });
 
-    expect(setError).toHaveBeenCalledWith('Failed to update task.');
+    expect(setError).not.toHaveBeenCalled();
+    const taskUpdater = setTasks.mock.calls.at(-1)?.[0] as (tasks: Task[]) => Task[];
+    const nextTasks = taskUpdater([uuidTask]);
+    expect(nextTasks[0].taskID).toBe(uuidTask.taskID);
+    expect(nextTasks[0].title).toBe('Updated');
   });
 });

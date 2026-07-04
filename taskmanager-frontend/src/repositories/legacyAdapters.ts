@@ -19,7 +19,7 @@ import type {
   Task,
 } from '../types/task';
 import { TASK_STATUS } from '../utils/taskUtils';
-import { toLegacyNumericId } from './legacyIdAdapter';
+import { toDomainEntityId, toLegacyNumericId } from './legacyIdAdapter';
 import { mapStatusIdDomainToDto, mapStatusIdDtoToDomain } from './api/mappers/StatusMapper';
 
 // Transitional adapters for the current UI, which still expects REST-shaped
@@ -81,6 +81,8 @@ export function toLegacySubtask(subtask: DomainSubtask): Subtask {
 export function toDomainStatusId(statusID: number | null | undefined) {
   return mapStatusIdDtoToDomain(statusID);
 }
+
+export { toDomainEntityId };
 
 export function toLegacyNote(note: DomainNote): Note {
   return {

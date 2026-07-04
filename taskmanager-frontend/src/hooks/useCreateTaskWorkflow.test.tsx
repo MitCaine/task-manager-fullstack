@@ -187,7 +187,7 @@ describe('useCreateTaskWorkflow', () => {
     expect(setTasks).not.toHaveBeenCalled();
   });
 
-  it('fails clearly when a repository returns a non-numeric task ID for the legacy UI shape', async () => {
+  it('adapts non-numeric task IDs returned by repositories', async () => {
     repositories.tasks.create.mockResolvedValue({
       id: 'task-uuid',
       title: 'Plan launch',
@@ -195,7 +195,7 @@ describe('useCreateTaskWorkflow', () => {
       dateTimeScheduled: null,
       endDateTimeScheduled: null,
     });
-    const { result, setError } = renderCreateTaskHook(repositories);
+    const { result, setError, setTasks } = renderCreateTaskHook(repositories);
 
     await act(async () => {
       result.current.draft.setInput('Plan launch');
@@ -204,6 +204,10 @@ describe('useCreateTaskWorkflow', () => {
       await result.current.actions.addTask();
     });
 
-    expect(setError).toHaveBeenCalledWith('Failed to create task.');
+    expect(setError).not.toHaveBeenCalled();
+    const taskUpdater = setTasks.mock.calls[0][0] as (tasks: Task[]) => Task[];
+    const nextTasks = taskUpdater([]);
+    expect(nextTasks[0].taskID).toBeLessThan(0);
+    expect(nextTasks[0].title).toBe('Plan launch');
   });
 });

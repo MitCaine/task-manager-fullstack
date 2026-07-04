@@ -10,7 +10,7 @@ export type {
   TagRepository,
   TaskRepository,
 } from './contracts';
-export { RepositoryProvider, useRepositories } from './RepositoryContext';
+export { RepositoryInitializationErrorBoundary, RepositoryProvider, useRepositories } from './RepositoryContext';
 export { createRestRepositories } from './api';
 export {
   createRuntimeRepositories,
@@ -30,6 +30,7 @@ export type {
   RepositoryRuntimeSelection,
 } from './runtimeRepositories';
 export {
+  toDomainEntityId,
   toDomainStatusId,
   toLegacyAttachment,
   toLegacyNote,
@@ -40,4 +41,4 @@ export {
   toLegacyTag,
   toLegacyTask,
 } from './legacyAdapters';
-export { toLegacyNumericId } from './legacyIdAdapter';
+export { resetLegacyIdMappingsForTests, toLegacyNumericId } from './legacyIdAdapter';

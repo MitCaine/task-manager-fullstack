@@ -6,7 +6,7 @@ import type { Ampm } from '../utils/taskForm';
 import type { RepeatValue } from '../utils/taskRecurrence';
 import { findProjectById, findTagsByIds } from '../utils/taskDisplayHelpers';
 import { buildValidatedTaskSchedule, getDefaultEndTime } from '../utils/taskScheduling';
-import { toLegacyTask, useRepositories } from '../repositories';
+import { toDomainEntityId, toLegacyTask, useRepositories } from '../repositories';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH';
 
@@ -137,15 +137,15 @@ export default function useCreateTaskWorkflow({
         dateTimeScheduled,
         endDateTimeScheduled,
         priority: newPriority || null,
-        projectId: newProjectID !== '' ? String(newProjectID) : null,
+        projectId: newProjectID !== '' ? toDomainEntityId(newProjectID) : null,
       }));
       let taskForState = saved;
       if (newRepeat) {
-        const repeated = toLegacyTask(await repositories.recurrence.setForTask(String(saved.taskID), newRepeat));
+        const repeated = toLegacyTask(await repositories.recurrence.setForTask(toDomainEntityId(saved.taskID), newRepeat));
         taskForState = { ...saved, recurrenceRuleID: repeated.recurrenceRuleID ?? null };
       }
       if (newTaskTagIDs.length > 0) {
-        await Promise.all(newTaskTagIDs.map(tagId => repositories.tasks.addTag(String(saved.taskID), String(tagId))));
+        await Promise.all(newTaskTagIDs.map(tagId => repositories.tasks.addTag(toDomainEntityId(saved.taskID), toDomainEntityId(tagId))));
         const tagObjects = tags.filter(t => newTaskTagIDs.includes(t.tagID));
         taskForState = { ...taskForState, tags: tagObjects };
       }

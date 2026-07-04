@@ -186,7 +186,7 @@ describe('useTaskDetailResources', () => {
     expect(repositories.attachments.delete).toHaveBeenCalledWith('42');
   });
 
-  it('fails clearly when a repository returns non-numeric IDs for the legacy UI shape', async () => {
+  it('adapts non-numeric child resource IDs returned by repositories', async () => {
     repositories.subtasks.listByTask.mockResolvedValue([
       { id: 'subtask-uuid', parentTaskId: '7', title: 'Step', statusId: 'not_started', dateTimeScheduled: null },
     ]);
@@ -196,6 +196,8 @@ describe('useTaskDetailResources', () => {
       await result.current.actions.loadTaskSections(7);
     });
 
-    expect(setError).toHaveBeenCalledWith('Failed to load task details.');
+    expect(setError).not.toHaveBeenCalled();
+    expect(result.current.resources.subtasks[7][0].subTaskID).toBeLessThan(0);
+    expect(result.current.resources.subtasks[7][0].title).toBe('Step');
   });
 });

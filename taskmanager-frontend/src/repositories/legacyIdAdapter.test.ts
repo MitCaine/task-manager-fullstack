@@ -1,13 +1,30 @@
-import { toLegacyNumericId } from './legacyIdAdapter';
+import {
+  resetLegacyIdMappingsForTests,
+  toDomainEntityId,
+  toLegacyNumericId,
+} from './legacyIdAdapter';
 
 describe('toLegacyNumericId', () => {
-  it('converts numeric domain IDs to legacy numeric IDs', () => {
-    expect(toLegacyNumericId('42', 'taskID')).toBe(42);
+  beforeEach(() => {
+    resetLegacyIdMappingsForTests();
   });
 
-  it('throws clearly for non-numeric domain IDs', () => {
-    expect(() => toLegacyNumericId('task-uuid', 'taskID')).toThrow(
-      'Cannot adapt non-numeric domain taskID "task-uuid" to the legacy numeric UI id.'
-    );
+  it('converts numeric domain IDs to legacy numeric IDs', () => {
+    expect(toLegacyNumericId('42', 'taskID')).toBe(42);
+    expect(toDomainEntityId(42)).toBe('42');
+  });
+
+  it('maps non-numeric domain IDs to stable synthetic legacy IDs', () => {
+    const first = toLegacyNumericId('task-uuid', 'taskID');
+    const second = toLegacyNumericId('task-uuid', 'taskID');
+
+    expect(first).toBeLessThan(0);
+    expect(second).toBe(first);
+    expect(toDomainEntityId(first)).toBe('task-uuid');
+    expect(toDomainEntityId(String(first))).toBe('task-uuid');
+  });
+
+  it('keeps unknown numeric legacy IDs compatible with REST IDs', () => {
+    expect(toDomainEntityId(123)).toBe('123');
   });
 });

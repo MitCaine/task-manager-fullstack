@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Attachment, Note, Reminder, Subtask } from '../types/task';
 import {
   toLegacyAttachment,
+  toDomainEntityId,
   toDomainStatusId,
   toLegacyNote,
   toLegacyReminder,
@@ -102,10 +103,10 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     setEditingSubtaskTitle('');
     try {
       const [subData, noteData, reminderData, attachData] = await Promise.all([
-        subtasks[taskId]   ? Promise.resolve(subtasks[taskId])   : repositories.subtasks.listByTask(String(taskId)).then(items => items.map(toLegacySubtask)),
-        notes[taskId]      ? Promise.resolve(notes[taskId])      : repositories.notes.listByTask(String(taskId)).then(items => items.map(toLegacyNote)),
-        reminders[taskId]  ? Promise.resolve(reminders[taskId])  : repositories.reminders.listByTask(String(taskId)).then(items => items.map(toLegacyReminder)),
-        attachments[taskId] ? Promise.resolve(attachments[taskId]) : repositories.attachments.listByTask(String(taskId)).then(items => items.map(toLegacyAttachment)),
+        subtasks[taskId]   ? Promise.resolve(subtasks[taskId])   : repositories.subtasks.listByTask(toDomainEntityId(taskId)).then(items => items.map(toLegacySubtask)),
+        notes[taskId]      ? Promise.resolve(notes[taskId])      : repositories.notes.listByTask(toDomainEntityId(taskId)).then(items => items.map(toLegacyNote)),
+        reminders[taskId]  ? Promise.resolve(reminders[taskId])  : repositories.reminders.listByTask(toDomainEntityId(taskId)).then(items => items.map(toLegacyReminder)),
+        attachments[taskId] ? Promise.resolve(attachments[taskId]) : repositories.attachments.listByTask(toDomainEntityId(taskId)).then(items => items.map(toLegacyAttachment)),
       ]);
       setSubtasks(prev    => ({ ...prev, [taskId]: subData }));
       setNotes(prev       => ({ ...prev, [taskId]: noteData }));
@@ -126,7 +127,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     if (!newSubtaskTitle.trim()) return;
     try {
       const saved = toLegacySubtask(await repositories.subtasks.create({
-        parentTaskId: String(taskId),
+        parentTaskId: toDomainEntityId(taskId),
         title: newSubtaskTitle.trim(),
       }));
       setSubtasks(prev => ({ ...prev, [taskId]: [...(prev[taskId] ?? []), saved] }));
@@ -139,7 +140,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   const toggleSubtask = async (taskId: number, subtask: Subtask) => {
     const newStatusID = subtask.statusID === TASK_STATUS.DONE ? TASK_STATUS.LEGACY_ACTIVE : TASK_STATUS.DONE;
     try {
-      const saved = toLegacySubtask(await repositories.subtasks.updateStatus(String(subtask.subTaskID), toDomainStatusId(newStatusID)));
+      const saved = toLegacySubtask(await repositories.subtasks.updateStatus(toDomainEntityId(subtask.subTaskID), toDomainStatusId(newStatusID)));
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].map(s => s.subTaskID === saved.subTaskID ? saved : s) }));
     } catch {
       setError('Failed to update subtask.');
@@ -148,7 +149,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
 
   const removeSubtask = async (taskId: number, subTaskID: number) => {
     try {
-      await repositories.subtasks.delete(String(subTaskID));
+      await repositories.subtasks.delete(toDomainEntityId(subTaskID));
       setSubtasks(prev => ({ ...prev, [taskId]: prev[taskId].filter(s => s.subTaskID !== subTaskID) }));
     } catch {
       setError('Failed to delete subtask.');
@@ -161,7 +162,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     setEditingSubtaskTitle('');
     if (!trimmed || trimmed === subtask.title) return;
     try {
-      const saved = toLegacySubtask(await repositories.subtasks.update(String(subtask.subTaskID), {
+      const saved = toLegacySubtask(await repositories.subtasks.update(toDomainEntityId(subtask.subTaskID), {
         title: trimmed,
         statusId: toDomainStatusId(subtask.statusID),
         dateTimeScheduled: subtask.dateTimeScheduled ?? null,
@@ -176,7 +177,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     if (!newNoteContent.trim()) return;
     try {
       const saved = toLegacyNote(await repositories.notes.create({
-        taskId: String(taskId),
+        taskId: toDomainEntityId(taskId),
         title: '',
         context: newNoteContent.trim(),
       }));
@@ -189,7 +190,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
 
   const removeNote = async (taskId: number, noteId: number) => {
     try {
-      await repositories.notes.delete(String(noteId));
+      await repositories.notes.delete(toDomainEntityId(noteId));
       setNotes(prev => ({ ...prev, [taskId]: prev[taskId].filter(n => n.noteID !== noteId) }));
     } catch {
       setError('Failed to delete note.');
@@ -204,7 +205,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     try {
       const dueDate = buildDateTimeString(newReminderDate, newReminderHour, newReminderMinute, newReminderAmpm, is24Hour);
       const saved = toLegacyReminder(await repositories.reminders.create({
-        taskId: String(taskId),
+        taskId: toDomainEntityId(taskId),
         dueDate,
         message: newReminderMessage.trim(),
       }));
@@ -219,7 +220,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
 
   const removeReminder = async (taskId: number, reminderId: number) => {
     try {
-      await repositories.reminders.delete(String(reminderId));
+      await repositories.reminders.delete(toDomainEntityId(reminderId));
       setReminders(prev => ({ ...prev, [taskId]: prev[taskId].filter(r => r.reminderID !== reminderId) }));
     } catch {
       setError('Failed to delete reminder.');
@@ -231,7 +232,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
     if (!url) return;
     try {
       const saved = toLegacyAttachment(await repositories.attachments.create({
-        taskId: String(taskId),
+        taskId: toDomainEntityId(taskId),
         fileOrLink: url,
         metadata: newAttachmentLabel.trim(),
       }));
@@ -245,7 +246,7 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
 
   const removeAttachment = async (taskId: number, attachmentId: number) => {
     try {
-      await repositories.attachments.delete(String(attachmentId));
+      await repositories.attachments.delete(toDomainEntityId(attachmentId));
       setAttachments(prev => ({ ...prev, [taskId]: prev[taskId].filter(a => a.attachmentID !== attachmentId) }));
     } catch {
       setError('Failed to remove link.');
