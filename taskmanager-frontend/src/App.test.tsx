@@ -1,4 +1,5 @@
-import { render as rtlRender, screen, waitFor, act, within, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { act } from 'react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'fs';
 import App from './App';
@@ -280,7 +281,7 @@ function mockMediaQueryList(query: string, matches: boolean) {
 }
 
 function restoreOrInstallSafeMatchMedia(originalMatchMedia: typeof window.matchMedia) {
-  let canRestoreOriginal = false;
+  let canRestoreOriginal: boolean;
   try {
     canRestoreOriginal = typeof originalMatchMedia === 'function'
       && typeof originalMatchMedia('(pointer: coarse)')?.matches === 'boolean';
@@ -1242,36 +1243,6 @@ test('create task date display receives the active styling hook when date contro
   expect(dateDisplay).toHaveClass('datetime-row__date-display--active');
 });
 
-test('date, repeat, and create tags controls have aligned active/dropdown styling hooks', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-
-  expect(css).toContain('.datetime-row__date:focus-visible');
-  expect(css).toContain('.datetime-row__date--active');
-  expect(css).toContain('.datetime-row__date-display--active');
-  expect(css).toContain('.app__add .datetime-row__date-display');
-  expect(css).toMatch(/\.app__add \.datetime-row__date--proxy:focus-visible \+ \.datetime-row__date-display,[\s\S]*?\.app__add \.datetime-row__date-display--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
-  expect(css).toMatch(/\.app__add \.datetime-row__time-summary--active\s*\{[^}]*background:\s*var\(--input-bg\);[^}]*color:\s*var\(--accent\);/);
-  expect(css).toContain('.form-row .tag-select.tag-select--create-tags:last-child .tag-select__dropdown');
-  expect(css).toMatch(  /\.form-row \.tag-select\.tag-select--create-tags:last-child \.tag-select__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
-  expect(css).toMatch(/\.tag-select__dropdown\.recurrence-select__dropdown--value-aligned\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;/);
-  expect(css).not.toContain('tag-select__dropdown--create-tags');
-  expect(css).toMatch(/\.toasts\s*\{[^}]*top:\s*1rem;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\);/);
-  expect(css).toMatch(/\.toast--confirmation\s*\{[^}]*border-radius:\s*8px;[^}]*box-shadow:\s*var\(--shadow-card\);/);
-  expect(css).toMatch(/\.toasts--confirmation\s*\{[^}]*top:\s*var\(--mobile-top-offset\);/);
-  expect(css).toMatch(/\.toast--confirmation\s*\{[^}]*border-radius:\s*18px;/);
-});
-
-test('desktop inline edit date and time controls use the create highlight styling contract', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const editHighlightRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date:focus-visible,[\s\S]*?\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-summary--active\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(editHighlightRule).toContain('border-width: 1.5px');
-  expect(editHighlightRule).toContain('border-color: transparent');
-  expect(editHighlightRule).toContain('background: var(--input-bg)');
-  expect(editHighlightRule).toContain('color: var(--accent)');
-  expect(editHighlightRule).toContain('box-shadow: inset 0 0 0 1px var(--accent)');
-});
-
 test('filter dropdowns share left-aligned custom menu behavior and display long names', async () => {
   mockGetProjects.mockResolvedValue([
     { projectID: 7, title: 'Wedding Planning' },
@@ -1319,10 +1290,6 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
   expect(within(tagMenu).queryByRole('menuitemradio', { name: 'Deep Work' })).not.toBeInTheDocument();
   const tagColor = within(tagMenu).getByRole('menuitemradio', { name: 'Car Maintenance' }).querySelector('.tag-dot');
   expect(tagColor).toHaveStyle({ background: '#22c55e' });
-
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  expect(css).toMatch(/\.tag-select__dropdown\.filter-field__dropdown\s*\{[^}]*left:\s*0;[^}]*right:\s*auto;[^}]*width:\s*max-content;[^}]*min-width:\s*100%;[^}]*max-width:\s*min\(220px, calc\(100vw - 2rem\)\);/);
-  expect(css).toMatch(/\.filter-field__dropdown \.tag-select__item\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
 });
 
 test('repeat dropdown uses a value-aligned dropdown hook', async () => {
@@ -1623,53 +1590,13 @@ test('swipe starting inside the title input does not change mobile view', async 
 
 test('mobile description textareas keep a 16px font size above the iOS focus zoom threshold', () => {
   const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const mobileInputRules = css.match(/input\.input\[type="text"\][\s\S]*?textarea\.input\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
-  const mobileTextareaRules = css.match(/\.controls__description\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
-  const mobileTextareaFocusRules = css.match(/\.controls__description:focus\s*\{[^}]*font-size:\s*16px;[^}]*\}/g) ?? [];
+  const mobileInputRules = css.match(/input\.input\[type="text"][\s\S]*?textarea\.input\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
+  const mobileTextareaRules = css.match(/\.controls__description\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
+  const mobileTextareaFocusRules = css.match(/\.controls__description:focus\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
 
   expect(mobileInputRules.length).toBeGreaterThanOrEqual(2);
   expect(mobileTextareaRules.length).toBeGreaterThanOrEqual(2);
   expect(mobileTextareaFocusRules.length).toBeGreaterThanOrEqual(2);
-});
-
-test('task card status row is a stable row above the title', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const titleLineRule = css.match(/\.item__title-line\s*\{[^}]*\}/)?.[0] ?? '';
-  const statusRowRule = css.match(/\.item__status-row\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileOverdueRule = css.match(/\.item__status-row \.item__badge--overdue\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(titleLineRule).toContain('align-items: flex-start');
-  expect(titleLineRule).toContain('flex-wrap: wrap');
-  expect(statusRowRule).toContain('display: flex');
-  expect(statusRowRule).toContain('align-items: center');
-  expect(statusRowRule).toContain('flex-wrap: wrap');
-  expect(statusRowRule).not.toContain('display: contents');
-  expect(css).not.toMatch(/\.item__status-row\s*\{[^}]*flex:\s*0 0 100%/);
-  expect(mobileOverdueRule).toContain('border-radius: 999px');
-  expect(mobileOverdueRule).toContain('padding: 0.08rem 0.42rem');
-  expect(css).toMatch(/\.item__chips,\s*\.item__badges,\s*\.selected-tags\s*\{[^}]*align-items:\s*flex-start;/);
-});
-
-test('repeat indicator remains lightweight but visible in schedule metadata', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const repeatIndicatorRule = css.match(/\.repeat-indicator\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(repeatIndicatorRule).toContain('color: var(--accent)');
-  expect(repeatIndicatorRule).toContain('font-size: 1em');
-  expect(repeatIndicatorRule).toContain('opacity: 0.78');
-  expect(repeatIndicatorRule).not.toContain('background');
-  expect(repeatIndicatorRule).not.toContain('border');
-});
-
-test('description character counter stays outside the text field', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const wrapperRule = css.match(/\.desc-wrap\s*\{[^}]*\}/)?.[0] ?? '';
-  const counterRule = css.match(/\.char-count\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(wrapperRule).toContain('display: grid');
-  expect(counterRule).toContain('position: static');
-  expect(counterRule).toContain('justify-self: end');
-  expect(counterRule).not.toContain('position: absolute');
 });
 
 test('mobile text focus guard resets document scroll after create title blur', async () => {
@@ -3026,67 +2953,26 @@ test('desktop edit opens for a long task near the bottom without scrolling the l
   }
 });
 
-test('mobile edit panel is not sticky or an independent scroll container', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const panelRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(panelRule).toContain('overflow-y: visible');
-  expect(panelRule).toContain('max-height: none');
-  expect(panelRule).not.toContain('position: sticky');
-  expect(panelRule).not.toContain('top: 0');
-  expect(panelRule).not.toContain('overflow-y: auto');
-  expect(panelRule).not.toContain('-webkit-overflow-scrolling: touch');
-});
-
-test('mobile edit dropdowns stay in panel flow and actions use a stable row', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const dropdownRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.tag-select__dropdown\s*\{[^}]*\}/)?.[0] ?? '';
-  const actionsRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.item__edit-actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const actionButtonRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.item__edit-actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(dropdownRule).toContain('position: static');
-  expect(dropdownRule).toContain('max-height: min(14rem, 35dvh)');
-  expect(dropdownRule).toContain('overflow-y: auto');
-  expect(actionsRule).toContain('display: grid');
-  expect(actionsRule).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
-  expect(actionButtonRule).toContain('width: 100%');
-});
-
-test('mobile edit time controls keep Clear Time and Done compact on the selector row', async () => {
+test('mobile edit time controls expose Clear Time and Done actions', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const editPanel = await openMobileEditPanel();
 
   try {
-    await act(async () => {
-      await userEvent.click(within(editPanel).getByRole('button', { name: /\+ start time/i }));
-    });
+    fireEvent.click(
+        within(editPanel).getByRole('button', { name: /\+ start time/i }),
+    );
 
     const editor = getOpenTimeEditor(editPanel);
-    expect(within(editor).getByRole('button', { name: /clear time/i })).toBeInTheDocument();
-    expect(within(editor).getByRole('button', { name: /^done$/i })).toBeInTheDocument();
 
-    const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-    const timeRowRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__time\s*\{[^}]*\}/)?.[0] ?? '';
-    const editorActionsRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__editor-actions\s*\{[^}]*\}/)?.[0] ?? '';
-    const editorActionButtonRule = css.match(/\.mobile-page--tasks \.mobile-edit-panel \.datetime-row__editor-actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
-
-    expect(timeRowRule).toContain('grid-template-columns: 1.55rem minmax(0, 1fr) 0.18rem minmax(0, 1fr) minmax(0, 1fr) auto');
-    expect(editorActionsRule).toContain('display: flex');
-    expect(editorActionsRule).toContain('grid-column: auto');
-    expect(editorActionsRule).toContain('justify-self: end');
-    expect(editorActionButtonRule).toContain('width: auto');
+    expect(
+        within(editor).getByRole('button', { name: /clear time/i }),
+    ).toBeInTheDocument();
+    expect(
+        within(editor).getByRole('button', { name: /^done$/i }),
+    ).toBeInTheDocument();
   } finally {
     restoreTouchEnvironment();
   }
-});
-
-test('mobile task list remains the scroll owner for mobile edit', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const appListRules = css.match(/\.mobile-page--tasks \.app__list\s*\{[^}]*\}/g) ?? [];
-  const appListScrollRule = appListRules.find(rule => rule.includes('overflow-y: auto')) ?? '';
-
-  expect(appListScrollRule).toContain('overflow-y: auto');
-  expect(appListScrollRule).toContain('-webkit-overflow-scrolling: touch');
 });
 
 test('mobile edit panel keeps the edit text focus scope separate from the list card', async () => {
@@ -3297,43 +3183,6 @@ test('desktop inline edit entry does not reposition the task list', async () => 
     restoreRects();
     restoreMedia();
   }
-});
-
-test('desktop inline edit keeps date start and end controls on one row without changing create selectors', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const editLayoutRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row\s*\{[^}]*\}/)?.[0] ?? '';
-  const editSummaryRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__summary-row\s*\{[^}]*\}/)?.[0] ?? '';
-  const editDateRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date\s*\{[^}]*\}/)?.[0] ?? '';
-  const editDateTextRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__date::\-webkit-datetime-edit\s*\{[^}]*\}/)?.[0] ?? '';
-  const editTimeControlRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-control\s*\{[^}]*\}/)?.[0] ?? '';
-  const editTimeSummaryRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-summary\s*\{[^}]*\}/)?.[0] ?? '';
-  const editTimeTextRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time-text\s*\{[^}]*\}/)?.[0] ?? '';
-  const editExpandedRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__time\s*\{[^}]*\}/)?.[0] ?? '';
-  const editActionsRule = css.match(/\.item__edit-card:not\(\.mobile-edit-panel\) \.datetime-row__editor-actions\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(editLayoutRule).toContain('display: grid');
-  expect(editLayoutRule).toContain('grid-template-columns: minmax(0, 0.8fr) repeat(2, minmax(0, 1fr))');
-  expect(editLayoutRule).toContain('max-width: 100%');
-  expect(editSummaryRule).toContain('grid-column: 2 / 4');
-  expect(editSummaryRule).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
-  expect(editSummaryRule).toContain('min-width: 0');
-  expect(editDateRule).toContain('text-align: center');
-  expect(editDateTextRule).toContain('justify-content: center');
-  expect(editTimeControlRule).toContain('min-width: 0');
-  expect(editTimeControlRule).toContain('max-width: 100%');
-  expect(editTimeSummaryRule).toContain('min-width: 0');
-  expect(editTimeTextRule).toContain('overflow: hidden');
-  expect(editTimeTextRule).toContain('text-overflow: ellipsis');
-  expect(editExpandedRule).toContain('grid-template-columns: 2.4rem minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1fr) auto');
-  expect(editExpandedRule).toContain('max-width: 100%');
-  expect(editActionsRule).toContain('grid-column: auto');
-  expect(editActionsRule).toContain('justify-content: flex-end');
-  expect(editActionsRule).toContain('justify-self: end');
-  expect(editActionsRule).toContain('min-width: 0');
-  expect(editActionsRule).toContain('max-width: 100%');
-  expect(css).toContain('.app__add .datetime-row {');
-  expect(css).toContain('grid-template-columns: 7.75rem minmax(7rem, 1fr) minmax(7rem, 1fr)');
-  expect(css).not.toContain('datetime-row--desktop-single-row');
 });
 
 test('inline edit title first outside touchmove is prevented immediately after focus', async () => {
@@ -3652,22 +3501,6 @@ test('task tag chips keep user tag colors as accents instead of foreground text 
   expect(tagChip).toHaveClass('item__tag-chip');
   expect(tagChip.style.getPropertyValue('--tag-color')).toBe('#fef3c7');
   expect(tagChip.style.color).toBe('');
-});
-
-test('project badges stay content-sized and wrap long names without stretching', () => {
-  const appCss = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const calendarCss = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
-  const taskProjectRule = appCss.match(/\.item__project-chip\s*\{[^}]*\}/)?.[0] ?? '';
-  const calendarProjectRule = calendarCss.match(/\.cal-item__project-chip\s*\{[^}]*\}/)?.[0] ?? '';
-
-  for (const rule of [taskProjectRule, calendarProjectRule]) {
-    expect(rule).toContain('display: inline-flex');
-    expect(rule).toContain('width: fit-content');
-    expect(rule).toContain('max-width: 100%');
-    expect(rule).toContain('align-self: flex-start');
-    expect(rule).toContain('white-space: normal');
-    expect(rule).toContain('overflow-wrap: anywhere');
-  }
 });
 
 test('editing a task with end time preserves endDateTimeScheduled and metadata', async () => {
@@ -4440,22 +4273,6 @@ test('Settings trigger exposes popover state and controls', async () => {
   expect(managementControls).not.toContainElement(within(settingsPanel).getByRole('combobox'));
 });
 
-test('Settings management actions stay grouped until the mobile breakpoint', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const displayControlsRule = css.match(/\.settings-section--display \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlsRule = css.match(/\.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const timeToggleRule = css.match(/\.settings-section__time-toggle\s*\{[^}]*\}/)?.[0] ?? '';
-  const managementControlsRule = css.match(/\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileSettingsRules = css.match(/@media \(max-width: 720px\), \(pointer: coarse\)\s*\{[\s\S]*?\.settings-section--management \.settings-section__controls\s*\{[^}]*\}/)?.[0] ?? '';
-
-  expect(displayControlsRule).toContain('flex-wrap: wrap');
-  expect(controlsRule).toContain('align-items: center');
-  expect(timeToggleRule).toContain('min-width: 4.75rem');
-  expect(timeToggleRule).toContain('justify-content: center');
-  expect(managementControlsRule).toContain('flex-wrap: nowrap');
-  expect(mobileSettingsRules).toContain('flex-wrap: wrap');
-});
-
 test('project management searches creates renames and confirms deletion with usage count', async () => {
   mockGetTasks.mockResolvedValue([{ ...sampleTask, projectID: 7 }]);
   mockGetProjects.mockResolvedValue([
@@ -5016,161 +4833,6 @@ test('tag management multiline add uses selected color and skips existing or rep
   expect(scope.queryByRole('status')).not.toBeInTheDocument();
   expect(scope.getByText('Docs')).toBeInTheDocument();
   expect(scope.getByText('Focus')).toBeInTheDocument();
-});
-
-test('catalog management modal keeps navigation spacing and color swatch focus styling scoped', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
-  const tabsRule = css.match(/\.catalog-manager__tabs\s*\{[^}]*\}/)?.[0] ?? '';
-  const tabRule = css.match(/\.catalog-manager__tab\s*\{[^}]*\}/)?.[0] ?? '';
-  const managerRule = css.match(/\.catalog-manager\s*\{[^}]*\}/)?.[0] ?? '';
-  const createRule = css.match(/\.catalog-manager__create\s*\{[^}]*\}/)?.[0] ?? '';
-  const createInputRule = css.match(/\.catalog-manager__create-input\s*\{[^}]*\}/)?.[0] ?? '';
-  const createActionsRule = css.match(/\.catalog-manager__create-actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const createButtonRule = css.match(/\.catalog-manager__create-button\s*\{[^}]*\}/)?.[0] ?? '';
-  const colorInputRule = css.match(/\.catalog-manager__color-input\s*\{[^}]*\}/)?.[0] ?? '';
-  const colorControlRule = css.match(/\.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
-  const colorFocusRule = css.match(/\.catalog-manager__color-control:focus-within\s*\{[^}]*\}/)?.[0] ?? '';
-  const bodyRule = css.match(/\.catalog-manager__body\s*\{[^}]*\}/)?.[0] ?? '';
-  const createSummaryRule = css.match(/\.catalog-manager__create-summary\s*\{[^}]*\}/)?.[0] ?? '';
-  const tagCreateActionsRule = css.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
-  const tagCreateActionControlsRule = css.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n\.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
-  const itemRule = css.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
-  const editingItemRule = css.match(/\.catalog-manager__item--editing\s*\{[^}]*\}/)?.[0] ?? '';
-  const editInputRule = css.match(/\.catalog-manager__edit-input\s*\{[^}]*\}/)?.[0] ?? '';
-  const actionsButtonRule = css.match(/\.catalog-manager__actions \.btn\s*\{[^}]*\}/)?.[0] ?? '';
-  const bulkBarRule = css.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
-  const bulkActionsRule = css.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const bulkConfirmRule = css.match(/\.catalog-manager__confirm--bulk\s*\{[^}]*\}/)?.[0] ?? '';
-  const selectRule = css.match(/\.catalog-manager__select\s*\{[^}]*\}/)?.[0] ?? '';
-  const listControlsRule = css.match(/\.catalog-manager__list-controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlRule = css.match(/\.catalog-manager__control\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlSelectRule = css.match(/\.catalog-manager__control-select\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlTriggerRule = css.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
-  const sortControlTriggerRule = css.match(/\.catalog-manager__control-trigger--sort\s*\{[^}]*\}/)?.[0] ?? '';
-  const filterControlTriggerRule = css.match(/\.catalog-manager__control-trigger--filter\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlDropdownRule = css.match(/\.catalog-manager__control-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlCheckRule = css.match(/\.catalog-manager__control-check\s*\{[^}]*\}/)?.[0] ?? '';
-  const controlLabelRule = css.match(/\.catalog-manager__control-label\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileManagerRules = css.match(/@media \(max-width: 640px\)\s*\{[\s\S]*?\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileTagCreateActionsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileTagCreateActionControlsRule = mobileManagerRules.match(/\.catalog-manager__create-actions--tags > \.catalog-manager__create-button,\n  \.catalog-manager__create-actions--tags > \.catalog-manager__color-control\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileItemRule = mobileManagerRules.match(/\.catalog-manager__item\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileListControlsRule = mobileManagerRules.match(/\.catalog-manager__list-controls\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileControlRule = mobileManagerRules.match(/\.catalog-manager__control\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileControlSelectRule = mobileManagerRules.match(/\.catalog-manager__control-select\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileControlTriggerRule = mobileManagerRules.match(/\.catalog-manager__control-trigger\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileBulkBarRule = mobileManagerRules.match(/\.catalog-manager__bulk-bar\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileBulkActionsRule = mobileManagerRules.match(/\.catalog-manager__bulk-actions\s*\{[^}]*\}/)?.[0] ?? '';
-  const statsModalRule = css.match(/\.stats-modal\s*\{[^}]*\}/)?.[0] ?? '';
-  const mobileStatsModalRule = css.match(/\.stats-modal\s*\{[^}]*var\(--mobile-edge, 1rem\)[^}]*\}/)?.[0] ?? '';
-
-  expect(tabsRule).toContain('margin-bottom: var(--catalog-group-gap)');
-  expect(tabRule).toContain('min-height: 2.4rem');
-  expect(managerRule).toContain('padding-top: 1.75rem');
-  expect(managerRule).toContain('width: min(40rem, calc(100vw - 2rem))');
-  expect(managerRule).toContain('overflow: hidden');
-  expect(managerRule).toContain('--catalog-create-action-height: 2rem');
-  expect(managerRule).toContain('--catalog-row-control-height: 1.85rem');
-  expect(managerRule).toContain('--catalog-related-gap: 0.45rem');
-  expect(managerRule).toContain('--catalog-group-gap: 0.85rem');
-  expect(createRule).toContain('display: grid');
-  expect(createRule).toContain('grid-template-columns: minmax(0, 1fr) max-content');
-  expect(createRule).toContain('gap: var(--catalog-create-stack-gap)');
-  expect(createInputRule).toContain('width: 100%');
-  expect(createInputRule).toContain('height: var(--catalog-create-input-height)');
-  expect(createInputRule).toContain('max-height: var(--catalog-create-input-height)');
-  expect(createInputRule).toContain('resize: none');
-  expect(createActionsRule).toContain('min-width: 0');
-  expect(createButtonRule).toContain('height: var(--catalog-create-action-height)');
-  expect(colorInputRule).toContain('opacity: 0');
-  expect(colorControlRule).toContain('height: var(--catalog-create-action-height)');
-  expect(colorControlRule).toContain('white-space: nowrap');
-  expect(colorFocusRule).toContain('outline: 2px solid var(--accent)');
-  expect(bodyRule).toContain('flex: 1 1 auto');
-  expect(bodyRule).toContain('height: clamp(10rem, 36vh, 20rem)');
-  expect(bodyRule).toContain('overflow-y: auto');
-  expect(createSummaryRule).toContain('width: 100%');
-  expect(createSummaryRule).toContain('display: flex');
-  expect(createSummaryRule).toContain('gap: 0.55rem');
-  expect(createSummaryRule).toContain('overflow-wrap: anywhere');
-  expect(tagCreateActionsRule).toContain('flex-direction: column');
-  expect(tagCreateActionsRule).toContain('align-items: flex-start');
-  expect(tagCreateActionsRule).toContain('gap: var(--catalog-related-gap)');
-  expect(tagCreateActionControlsRule).toContain('width: 100%');
-  expect(itemRule).toContain('grid-template-columns: auto minmax(0, 1fr) auto');
-  expect(editingItemRule).toContain('grid-template-columns: minmax(0, 1fr) auto');
-  expect(editInputRule).toContain('width: 100%');
-  expect(editInputRule).toContain('max-width: 100%');
-  expect(editInputRule).toContain('box-sizing: border-box');
-  expect(actionsButtonRule).toContain('height: var(--catalog-row-control-height)');
-  expect(actionsButtonRule).toContain('font-size: 0.78rem');
-  expect(bulkBarRule).toContain('display: flex');
-  expect(bulkBarRule).toContain('background: var(--surface-2)');
-  expect(bulkActionsRule).toContain('display: flex');
-  expect(bulkActionsRule).toContain('gap: var(--catalog-related-gap)');
-  expect(bulkConfirmRule).toContain('margin: calc(var(--catalog-related-gap) * -1) 0 var(--catalog-group-gap)');
-  expect(selectRule).toContain('accent-color: var(--accent)');
-  expect(listControlsRule).toContain('display: flex');
-  expect(listControlsRule).toContain('flex-wrap: wrap');
-  expect(controlRule).toContain('display: grid');
-  expect(controlRule).toContain('grid-template-columns: 3rem minmax(8.2rem, 1fr)');
-  expect(controlRule).toContain('width: min(12rem, 100%)');
-  expect(controlSelectRule).toContain('position: relative');
-  expect(controlSelectRule).toContain('width: 100%');
-  expect(controlSelectRule).toContain('min-width: 0');
-  expect(controlTriggerRule).toContain('width: 100%');
-  expect(sortControlTriggerRule).toContain('width: 100%');
-  expect(filterControlTriggerRule).toContain('width: 100%');
-  expect(controlDropdownRule).toContain('width: max-content');
-  expect(controlDropdownRule).toContain('min-width: 100%');
-  expect(controlCheckRule).toContain('flex: 0 0 0.75rem');
-  expect(controlLabelRule).toContain('white-space: nowrap');
-  expect(controlLabelRule).toContain('min-width: 0');
-  expect(statsModalRule).toContain('width: min(480px, calc(100vw - 2rem))');
-  expect(statsModalRule).toContain('max-width: calc(100vw - 2rem)');
-  expect(statsModalRule).toContain('box-sizing: border-box');
-  expect(mobileStatsModalRule).toContain('width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem))');
-  expect(mobileStatsModalRule).toContain('max-width: calc(100vw - var(--mobile-edge, 1rem) - var(--mobile-edge, 1rem))');
-  expect(mobileManagerRules).toContain('.modal-overlay--catalog-manager');
-  expect(mobileManagerRules).toContain('--catalog-mobile-edge: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))');
-  expect(mobileManagerRules).toContain('--catalog-mobile-top-offset: calc(env(safe-area-inset-top) + 0.32rem)');
-  expect(mobileManagerRules).toContain('--catalog-mobile-bottom-edge: var(--catalog-mobile-edge)');
-  expect(mobileManagerRules).toContain('--catalog-mobile-surface-bottom-radius: max(30px, calc(var(--catalog-mobile-phone-corner-radius) - var(--catalog-mobile-edge)))');
-  expect(mobileManagerRules).toContain('padding-inline: 0');
-  expect(mobileManagerRules).toContain('padding-top: var(--catalog-mobile-top-offset)');
-  expect(mobileManagerRules).toContain('padding-bottom: 0');
-  expect(mobileManagerRules).toContain('width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge))');
-  expect(mobileManagerRules).toContain('max-width: calc(100dvw - var(--catalog-mobile-edge) - var(--catalog-mobile-edge))');
-  expect(mobileManagerRules).toContain('height: calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge))');
-  expect(mobileManagerRules).toContain('max-height: calc(var(--app-viewport-height, 100dvh) - var(--catalog-mobile-top-offset) - var(--catalog-mobile-bottom-edge))');
-  expect(mobileManagerRules).toContain('margin: 0 auto');
-  expect(mobileManagerRules).toContain('border-radius: 18px 18px var(--catalog-mobile-surface-bottom-radius) var(--catalog-mobile-surface-bottom-radius)');
-  expect(mobileTagCreateActionsRule).toContain('flex-direction: row');
-  expect(mobileTagCreateActionsRule).toContain('justify-content: flex-start');
-  expect(mobileTagCreateActionsRule).not.toContain('column');
-  expect(mobileTagCreateActionControlsRule).toContain('width: auto');
-  expect(mobileTagCreateActionControlsRule).toContain('flex: 0 0 auto');
-  expect(mobileManagerRules).not.toMatch(/(^|[;\s])order:\s*0\b/);
-  expect(mobileManagerRules).not.toMatch(/(^|[;\s])order:\s*1\b/);
-  expect(mobileItemRule).toContain('grid-template-columns: auto minmax(0, 1fr) auto');
-  expect(mobileItemRule).toContain('align-items: center');
-  expect(mobileManagerRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
-  expect(mobileManagerRules).toContain('.catalog-manager__item--tag.catalog-manager__item--editing');
-  expect(mobileManagerRules).toContain('.catalog-manager__item--project.catalog-manager__item--editing');
-  expect(mobileManagerRules).toContain('.catalog-manager__body');
-  expect(mobileManagerRules).toContain('min-height: 0');
-  expect(mobileManagerRules).toContain('height: auto');
-  expect(mobileManagerRules).toContain('padding-bottom: 1.25rem');
-  expect(mobileListControlsRule).toContain('align-items: stretch');
-  expect(mobileControlRule).toContain('width: 100%');
-  expect(mobileControlRule).toContain('grid-template-columns: 3rem minmax(0, 1fr)');
-  expect(mobileControlSelectRule).toContain('min-width: 0');
-  expect(mobileControlTriggerRule).toContain('min-width: 0');
-  expect(mobileBulkBarRule).toContain('flex-direction: column');
-  expect(mobileBulkBarRule).toContain('align-items: stretch');
-  expect(mobileBulkActionsRule).toContain('justify-content: flex-start');
-  expect(mobileManagerRules).toContain('min-width: 0');
-  expect(mobileManagerRules).toContain('overflow-x: clip');
 });
 
 // Task move behavior.

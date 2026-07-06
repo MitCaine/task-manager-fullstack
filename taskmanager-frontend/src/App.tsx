@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Dispatch, RefObject, SetStateAction, TouchEvent } from 'react';
+import type { RefObject, TouchEvent } from 'react';
 import './App.css';
 import type { RecurrenceRule, Task } from './types/task';
 import { toDomainEntityId, toDomainStatusId, toLegacyRecurrenceRule, toLegacyTask, useRepositories } from './repositories';
@@ -28,7 +28,6 @@ import type { FilterStatus, SortBy, ViewTab } from './components/task-list/TaskL
 import TaskListToolbar from './components/task-list/TaskListToolbar';
 import ToastList from './components/shared/ToastList';
 import type { ToastListItem } from './components/shared/ToastList';
-import ConfirmDelete from './components/shared/ConfirmDelete';
 import InlineTaskEditCard from './components/task-list/InlineTaskEditCard';
 import TaskListItems from './components/task-list/TaskListItems';
 import { TaskListLoading } from './components/task-list/TaskListPresentation';
@@ -210,6 +209,8 @@ function App() {
 
   const [mobilePage, setMobilePage] = useState<MobilePage>('tasks');
   const [mobileEditLayout, setMobileEditLayout] = useState(() => mediaQueryMatches('(max-width: 720px), (pointer: coarse)'));
+  const mobilePageChosenRef = useRef(false);
+  const firstUseMobilePageAppliedRef = useRef(false);
   const swipeStartX = useRef<number | null>(null);
   const swipeStartY = useRef<number | null>(null);
   const ignoreInlineEditPullActions = useRef(false);
@@ -421,9 +422,19 @@ function App() {
   // Initial API hydration.
   useEffect(() => {
     repositories.tasks.list()
-      .then(data => { setTasks(data.map(toLegacyTask)); setLoading(false); })
+      .then(data => {
+        const loadedTasks = data.map(toLegacyTask);
+        setTasks(loadedTasks);
+        if (!firstUseMobilePageAppliedRef.current) {
+          firstUseMobilePageAppliedRef.current = true;
+          if (mobileEditLayout && loadedTasks.length === 0 && !mobilePageChosenRef.current) {
+            setMobilePage('add');
+          }
+        }
+        setLoading(false);
+      })
       .catch(() => { setError('Failed to load tasks. Is the backend running?'); setLoading(false); });
-    loadProjectTagCatalog();
+    void loadProjectTagCatalog();
   }, [repositories]);
 
   useEffect(() => {
@@ -1005,8 +1016,8 @@ function App() {
       if (currentTouchY === null || lastTextFocusTouchY === null) return true;
       const scrollDelta = lastTextFocusTouchY - currentTouchY;
       if (scrollDelta < 0 && textarea.scrollTop <= 0) return false;
-      if (scrollDelta > 0 && textarea.scrollTop >= maxScrollTop) return false;
-      return true;
+      return !(scrollDelta > 0 && textarea.scrollTop >= maxScrollTop);
+
     };
     const handleTextFocusTouchStart = (event: globalThis.TouchEvent) => {      if (!isMobileTouchEnvironment()) return;
       lastTextFocusTouchY = event.touches?.[0]?.clientY ?? null;
@@ -1419,12 +1430,12 @@ function App() {
     prepareInlineEditViewport();
     setOpenActionTaskId(null);
     setSelectedTaskId(null);
-    startEdit(task);
+    void startEdit(task);
   };
 
   const handleDuplicateTaskAction = (task: Task) => {
     setOpenActionTaskId(null);
-    duplicateTask(task);
+    void duplicateTask(task);
   };
 
   const handleDeleteTaskAction = (taskId: number) => {
@@ -1505,6 +1516,19 @@ function App() {
     setNewTaskTagIDs(prev => prev.filter(id => id !== tagID));
     setEditTaskTagIDs(prev => prev.filter(id => id !== tagID));
     if (Number(filterTagID) === tagID) setFilterTagID('');
+  };
+
+  const createAndSelectTagFromSearch = async (rawTitle: string) => {
+    const title = rawTitle.trim();
+    if (!title) return;
+    const existing = tags.find(tag => tag.title.trim().toLocaleLowerCase() === title.toLocaleLowerCase());
+    if (existing) {
+      setNewTaskTagIDs(prev => prev.includes(existing.tagID) ? prev : [...prev, existing.tagID]);
+      return;
+    }
+    const saved = await createTagInCatalog(title, newTagColor);
+    if (!saved) return;
+    setNewTaskTagIDs(prev => prev.includes(saved.tagID) ? prev : [...prev, saved.tagID]);
   };
 
   const removeProject = async (projectID: number) => {
@@ -1636,7 +1660,10 @@ function App() {
     });
   };
 
-  const goMobilePage = (page: MobilePage) => setMobilePage(page);
+  const goMobilePage = (page: MobilePage) => {
+    mobilePageChosenRef.current = true;
+    setMobilePage(page);
+  };
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
     if (ignoreInlineEditPullActions.current || shouldIgnoreSwipeStart(event.target)) {
@@ -1670,7 +1697,9 @@ function App() {
     setMobilePage(current => {
       const currentIndex = MOBILE_PAGES.indexOf(current);
       const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
-      return MOBILE_PAGES[Math.max(0, Math.min(MOBILE_PAGES.length - 1, nextIndex))];
+      const nextPage = MOBILE_PAGES[Math.max(0, Math.min(MOBILE_PAGES.length - 1, nextIndex))];
+      if (nextPage !== current) mobilePageChosenRef.current = true;
+      return nextPage;
     });
   };
 
@@ -1854,11 +1883,12 @@ function App() {
           if (showInlineTag) { inlineTagInputRef.current?.focus(); }
           else { setShowInlineTag(true); }
         }}
+        onCreateTagFromSearch={createAndSelectTagFromSearch}
         onDeleteTag={removeTag}
         tagDropdownRef={tagDropdownRef}
         colorPickerTagId={colorPickerTagId}
         onToggleTagColorPicker={tagID => setColorPickerTagId(prev => prev === tagID ? null : tagID)}
-        onChangeTagColor={(tagID, color, event) => { event.stopPropagation(); changeTagColor(tagID, color); }}
+        onChangeTagColor={(tagID, color, event) => { event.stopPropagation(); void changeTagColor(tagID, color); }}
         tagColors={TAG_COLORS}
         showInlineProject={showInlineProject}
         inlineProjectInputRef={inlineProjectInputRef}

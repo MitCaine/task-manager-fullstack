@@ -13,6 +13,8 @@ type SearchableCatalogListProps<T extends TitledCatalogItem> = {
   isItemSelected?: (item: T) => boolean;
   emptyMessage: string;
   noMatchesMessage: string;
+  createFromQueryLabel?: (query: string) => string;
+  onCreateFromQuery?: (query: string) => void;
 };
 
 export default function SearchableCatalogList<T extends TitledCatalogItem>({
@@ -23,6 +25,8 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
   isItemSelected,
   emptyMessage,
   noMatchesMessage,
+  createFromQueryLabel,
+  onCreateFromQuery,
 }: SearchableCatalogListProps<T>): JSX.Element {
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -38,6 +42,15 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
         ...filteredItems.filter(item => !isItemSelected(item)),
       ]
     : filteredItems;
+  const createAction = normalizedQuery !== '' && createFromQueryLabel && onCreateFromQuery ? (
+    <button
+      type="button"
+      className="tag-select__new-btn tag-select__new-btn--search"
+      onClick={() => onCreateFromQuery(query)}
+    >
+      {createFromQueryLabel(query)}
+    </button>
+  ) : null;
 
   return (
     <>
@@ -50,9 +63,19 @@ export default function SearchableCatalogList<T extends TitledCatalogItem>({
         aria-label={searchLabel}
       />
       {items.length === 0
-        ? <p className="tag-select__empty">{emptyMessage}</p>
+        ? (
+            <>
+              {createAction}
+              <p className="tag-select__empty">{normalizedQuery === '' ? emptyMessage : noMatchesMessage}</p>
+            </>
+          )
         : orderedItems.length === 0
-          ? <p className="tag-select__empty">{noMatchesMessage}</p>
+          ? (
+              <>
+                {createAction}
+                <p className="tag-select__empty">{noMatchesMessage}</p>
+              </>
+            )
           : orderedItems.map(renderItem)}
     </>
   );

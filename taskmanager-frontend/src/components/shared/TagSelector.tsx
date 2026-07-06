@@ -19,6 +19,7 @@ type TagSelectorProps = {
   selectedCountLabel: string;
   renderTagActions?: (tag: Tag) => ReactNode;
   renderTagDetails?: (tag: Tag) => ReactNode;
+  onCreateTagFromSearch?: (title: string) => void;
 };
 
 export default function TagSelector({
@@ -36,6 +37,7 @@ export default function TagSelector({
   selectedCountLabel,
   renderTagActions,
   renderTagDetails,
+  onCreateTagFromSearch,
 }: TagSelectorProps): JSX.Element {
   const toggleTag = (tagID: number, selected: boolean) => {
     onTagIDsChange(previous => selected ? previous.filter(id => id !== tagID) : [...previous, tagID]);
@@ -64,6 +66,8 @@ export default function TagSelector({
             searchPlaceholder="Search tags..."
             emptyMessage="No tags yet."
             noMatchesMessage="No tags match your search."
+            createFromQueryLabel={onCreateTagFromSearch ? query => `Create tag "${query.trim()}"` : undefined}
+            onCreateFromQuery={onCreateTagFromSearch}
             isItemSelected={tag => selectedTagIDs.includes(tag.tagID)}
             renderItem={tag => {
               const selected = selectedTagIDs.includes(tag.tagID);

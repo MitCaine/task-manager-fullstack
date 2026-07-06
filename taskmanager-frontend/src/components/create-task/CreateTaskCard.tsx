@@ -78,6 +78,7 @@ export type CreateTaskCardProps = {
   onToggleTags: () => void;
   onTagIDsChange: (updater: (previous: number[]) => number[]) => void;
   onRequestNewTag: () => void;
+  onCreateTagFromSearch: (title: string) => void;
   onDeleteTag: (tagID: number) => void;
   tagDropdownRef: RefObject<HTMLDivElement>;
   colorPickerTagId: number | null;
@@ -167,6 +168,7 @@ export default function CreateTaskCard({
   onToggleTags,
   onTagIDsChange,
   onRequestNewTag,
+  onCreateTagFromSearch,
   onDeleteTag,
   tagDropdownRef,
   colorPickerTagId,
@@ -309,6 +311,7 @@ export default function CreateTaskCard({
               onToggle={onToggleTags}
               onTagIDsChange={onTagIDsChange}
               onRequestNewTag={onRequestNewTag}
+              onCreateTagFromSearch={onCreateTagFromSearch}
               rootRef={tagDropdownRef}
               rootClassName="tag-select tag-select--create-tags"
               triggerAttributes={{ 'data-create-menu-trigger': true }}
@@ -347,7 +350,6 @@ export default function CreateTaskCard({
               ) : null}
             />
           </div>
-          <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
         </div>
         <SelectedProjectChip
           project={selectedProjectID !== '' ? findProjectById(projects, selectedProjectID) ?? null : null}
@@ -395,6 +397,7 @@ export default function CreateTaskCard({
           tags={previewTags}
         />
       </div>
+      <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
     </div>
   );
 }
