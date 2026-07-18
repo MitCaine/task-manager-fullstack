@@ -64,6 +64,7 @@ context but are not implementation authority.
 | [Repository Tour](repository-tour.md) | Where is code located, and where should a change begin? |
 | [Architecture Overview](architecture/overview.md) | Which layer owns each responsibility? |
 | [Why This Exists](reference/why-this-exists.md) | Why do the main boundaries and invariants exist? |
+| [Architecture Glossary](reference/glossary.md) | What does a recurring architecture term mean here? |
 | [Known Limitations](reference/known-limitations.md) | What does the system deliberately not claim to support? |
 | [ADR Index](adr/README.md) | Which stable decisions constrain a change? |
 | [Documentation Guide](development/documentation.md) | How are these documents kept authoritative? |
@@ -80,3 +81,4 @@ record only when that context is useful.
 - [Project README](../README.md)
 - [Architecture Decision Index](adr/README.md)
 - [Architecture Timeline](history/architecture-timeline.md)
+- [Architecture Glossary](reference/glossary.md)

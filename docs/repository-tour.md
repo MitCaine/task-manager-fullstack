@@ -85,27 +85,126 @@ tag association and recurrence management. Child-resource controllers use
 | Backend endpoint | Controller, entity/repository as needed, controller tests |
 | iOS lifecycle behavior | Platform or SQLite driver boundary, not a component |
 
-## Common Reading Paths
+## Typical Change Walkthroughs
 
-### Change task creation
+These walkthroughs are navigation maps, not implementation recipes. Start from
+the public behavior and ownership boundary, then follow the links to the canonical
+detail rather than inferring architecture from one implementation.
 
-`CreateTaskCard.tsx` -> `useCreateTaskWorkflow.ts` -> repository contracts ->
-selected adapter -> backend controller or SQLite repository.
+### Adding A New Task Field
 
-### Change task editing
+- **Begin with:** Decide whether the value is persisted domain state, derived
+  display state, or a workflow-only draft value. Start with
+  [Tasks and Scheduling](domains/tasks-and-scheduling.md).
+- **Read:** [Frontend Architecture](architecture/frontend.md),
+  [Repository Architecture](architecture/repositories.md), and
+  [Persistence Architecture](architecture/persistence.md).
+- **Layers involved:** Domain model and inputs, repository contract, REST DTO
+  mapping and backend storage, SQLite schema/row mapping, legacy UI adapter, then
+  the owning workflow and presentation.
+- **Typical directories:** `taskmanager-frontend/src/domain/`, `repositories/`,
+  `hooks/`, `components/`, `src/main/java/`, and the applicable schema location.
+- **Tests:** Shared task repository contract, REST mapper/adapter tests, SQLite
+  migration and repository tests, backend controller tests, workflow/UI tests, and
+  null/omission regression coverage when the field is nullable.
+- **Relevant ADRs:** [Repository Boundary](adr/adr-0009-repository-boundary.md),
+  [Canonical Domain IDs](adr/adr-0012-canonical-domain-ids.md), and the
+  [Change Impact Guide](reference/change-impact-guide.md).
 
-`InlineTaskEditCard.tsx` -> `useInlineEditWorkflow.ts` -> task/recurrence
-repositories. Editing is explicit Save; there is no active autosave path.
+### Adding A New Repository Method
 
-### Change persistence
+- **Begin with:** Establish the domain behavior the method must guarantee; do not
+  start from SQL or an existing REST endpoint.
+- **Read:** [Repository Architecture](architecture/repositories.md), the affected
+  domain guide, and [Testing](development/testing.md).
+- **Layers involved:** Public repository interface, shared contract suite, REST
+  adapter and transport/mappers, SQLite implementation and transaction behavior,
+  then the workflow that consumes the method.
+- **Typical directories:** `taskmanager-frontend/src/repositories/contracts.ts`,
+  `repositories/contracts/`, `repositories/api/`, and `repositories/sqlite/`.
+- **Tests:** Add one shared behavioral assertion when both adapters guarantee it;
+  keep transport limitations and SQLite-only constraints in adapter-specific tests.
+- **Relevant ADRs:** [Repository Boundary](adr/adr-0009-repository-boundary.md) and,
+  for multi-write behavior, [SQLite Lifecycle](adr/adr-0010-sqlite-lifecycle.md).
 
-Read [Repository Architecture](architecture/repositories.md), then the shared
-contract suite for the affected repository before changing either implementation.
+### Changing Recurrence Behavior
 
-### Change mobile interaction
+- **Begin with:** Identify whether the change affects interval calculation,
+  persistence ownership, editing, or recurring completion. Read
+  [Recurrence](domains/recurrence.md) first.
+- **Read:** [Tasks and Scheduling](domains/tasks-and-scheduling.md),
+  [SQLite Architecture](architecture/sqlite.md), and the REST section of
+  [Backend Architecture](architecture/backend.md).
+- **Layers involved:** Recurrence utilities, create/edit workflows, App-level
+  replacement orchestration, recurrence repository, REST controller, and SQLite
+  child relationship/hydration.
+- **Typical directories:** `src/utils/taskRecurrence.ts`, `src/hooks/`, `App.tsx`,
+  both recurrence repositories, `SQLiteTaskRepository.ts`, and
+  `TaskController.java`.
+- **Tests:** Recurrence calculation tests, workflow/App replacement tests, shared
+  recurrence contract tests, SQLite relationship/N+1/cascade tests, and backend
+  controller validation tests.
+- **Relevant ADRs:** [Recurring Task Replacement](adr/adr-0007-recurring-task-replacement.md)
+  and [Recurrence Ownership](adr/adr-0013-recurrence-ownership.md).
 
-Read [Mobile and iOS Architecture](architecture/mobile-ios.md) before editing
-focus, swipe, viewport, safe-area, or keyboard behavior.
+### Adding A Mobile-Specific Feature
+
+- **Begin with:** Define whether the behavior is presentation-only, a workflow, or
+  a platform capability. Read [Mobile and iOS Architecture](architecture/mobile-ios.md)
+  before changing shell, pager, focus, scroll, or viewport behavior.
+- **Read:** [Frontend Architecture](architecture/frontend.md),
+  [iOS Development](development/ios-development.md), and
+  [Change Impact](reference/change-impact-guide.md).
+- **Layers involved:** Component presentation, owning workflow hook or App
+  coordination, shared mobile shell CSS, and a platform abstraction when native
+  behavior is required.
+- **Typical directories:** `src/components/`, `src/hooks/`, `App.tsx`, `App.css`,
+  `src/utils/mobileFocusAssist.ts`, and only when necessary `ios/` or a driver
+  boundary.
+- **Tests:** Focused component/hook tests, App pager/focus regression tests, build,
+  and real iOS validation for keyboard, viewport, safe-area, or plugin behavior.
+- **Relevant ADRs:** [Mobile Edit Row](adr/adr-0004-mobile-edit-row.md),
+  [iOS Focus Guard](adr/adr-0005-ios-focus-guard.md), and when persistence is
+  involved [Runtime Provider Selection](adr/adr-0011-runtime-provider-selection.md).
+
+### Adding A New REST Endpoint
+
+- **Begin with:** Decide whether the endpoint supports an existing repository
+  capability or requires a new domain contract. Read
+  [Backend Architecture](architecture/backend.md) and [API Reference](reference/api.md).
+- **Read:** [Repository Architecture](architecture/repositories.md) when frontend
+  code will consume the endpoint, plus the affected domain guide.
+- **Layers involved:** Spring controller validation and repository access, JPA
+  entity/schema when needed, REST transport, DTO mapper, API repository, and the
+  shared contract only if behavior is provider-independent.
+- **Typical directories:** `src/main/java/com/example/taskmanager/`, `src/test/`,
+  `taskmanager-frontend/src/api/`, and `repositories/api/`.
+- **Tests:** Backend controller/repository tests, REST transport and mapper tests,
+  API repository contract coverage, and equivalent SQLite behavior if the public
+  repository contract changes.
+- **Relevant ADRs:** [No Backend Service Layer](adr/adr-0008-no-backend-service-layer.md)
+  and [Repository Boundary](adr/adr-0009-repository-boundary.md).
+
+### Extending SQLite Persistence
+
+- **Begin with:** Determine whether the change is repository behavior, a schema
+  migration, a relationship hydration change, or native driver lifecycle work.
+  Start with [SQLite Architecture](architecture/sqlite.md).
+- **Read:** [Persistence Architecture](architecture/persistence.md),
+  [Repository Architecture](architecture/repositories.md), and
+  [Synchronization Boundary](architecture/synchronization.md) so local storage is
+  not mistaken for sync.
+- **Layers involved:** Forward-only migration, row mapper, repository SQL,
+  transaction context, composition/service lifecycle, and native driver only when
+  the abstraction itself changes.
+- **Typical directories:** `repositories/sqlite/migrations.ts`, `mappers.ts`,
+  `SQLite*Repository.ts`, `SQLiteDatabaseService.ts`, and `sqlite/__tests__/`.
+- **Tests:** Fresh and upgrade migration tests, shared contract suite, SQLite
+  constraints/rollback/hydration/query-bound tests, composition tests, and native
+  smoke validation for service or driver changes.
+- **Relevant ADRs:** [SQLite Lifecycle](adr/adr-0010-sqlite-lifecycle.md),
+  [Runtime Provider Selection](adr/adr-0011-runtime-provider-selection.md), and
+  [Recurrence Ownership](adr/adr-0013-recurrence-ownership.md) when applicable.
 
 ## What To Ignore
 
@@ -119,3 +218,4 @@ focus, swipe, viewport, safe-area, or keyboard behavior.
 - [Architecture Overview](architecture/overview.md)
 - [Development Workflow](development/workflow.md)
 - [Testing Guide](development/testing.md)
+- [Glossary](reference/glossary.md)

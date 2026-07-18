@@ -119,3 +119,5 @@ SQLite behavior; an explicit native smoke harness validates the Capacitor driver
 - [Backend Architecture](backend.md)
 - [Repository Architecture](repositories.md)
 - [Persistence Architecture](persistence.md)
+- [Why This Exists](../reference/why-this-exists.md)
+- [Architecture Glossary](../reference/glossary.md)
