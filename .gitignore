@@ -36,6 +36,7 @@ yarn-error.log*
 
 # IDE files
 .idea/
+.vscode/
 *.iml
 
 # Local environment and assistant cache

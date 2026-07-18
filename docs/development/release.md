@@ -42,9 +42,23 @@ npm run ios:sync
 
 ## Versioning
 
-The Maven artifact currently reports `1.0.0`; the frontend reports `0.1.0`.
-There is no documented coordinated product-version policy or automated changelog.
-Do not infer release maturity from those values.
+The Maven artifact and private frontend package both report `1.0.0`. There is no
+automated coordinated product-version policy or changelog, so do not infer a
+published release from those values.
+
+## Review Package
+
+Create a source-review archive outside the repository with:
+
+```bash
+./scripts/create-review-package.sh
+```
+
+The script defaults to the system temporary directory. Pass an output directory as
+its first argument when a specific handoff location is required. The archive
+includes `REVIEW_MANIFEST.txt` with the branch, commit, working-tree state, recent
+commits, scope, and included file list. It excludes dependencies, build output,
+local environments, IDE state, and generated native web assets.
 
 ## Rollback Considerations
 
@@ -56,9 +70,8 @@ Do not infer release maturity from those values.
 
 ## Known Limitations
 
-- CI does not build the frontend or sync iOS.
-- No deployment, signing, distribution, rollback automation, or release evidence
-  archive exists.
+- CI does not sync or build the Xcode project.
+- No deployment, signing, distribution, or rollback automation exists.
 - No production security or secret-management guide exists because those systems
   are not implemented.
 

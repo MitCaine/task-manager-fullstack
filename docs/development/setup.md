@@ -15,26 +15,31 @@ iOS environment from a clean checkout.
 ## Prerequisites
 
 - Java 17 or newer
-- Node.js 20 and npm for parity with CI
-- MySQL for the normal REST runtime
+- Node.js 22 and npm 10 or newer (`.nvmrc` records the CI major version)
+- MySQL 8 or newer for the normal REST runtime
 - Xcode for simulator or physical iOS work
 
 Use the checked-in Maven Wrapper; a global Maven installation is not required.
 
 ## Backend Database
 
-The committed development configuration expects:
+The backend defaults to the following local settings:
 
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/taskmanagementdb
-spring.datasource.username=taskuser
-spring.datasource.password=taskpass
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/taskmanagementdb
+SPRING_DATASOURCE_USERNAME=taskuser
+SPRING_DATASOURCE_PASSWORD=taskpass
 ```
 
-Create that database and user, then import `SQL Files/databasemodel.sql`. The SQL
-file does not create the database or user. Apply every required script under
-`src/main/resources/schema-updates/` in chronological order. Hibernate will not
-create or update the schema because `ddl-auto=none`.
+Create that database and user, then import `database/mysql/schema.sql`. It is the
+complete fresh-install schema and does not create the database or user. Files under
+`database/mysql/historical-updates/` are upgrade records for older databases and
+must not be applied after the current schema. Follow the authoritative
+[MySQL setup](../../database/mysql/README.md), including reset instructions.
+
+The defaults are non-secret development values. Source
+`config/backend.env.example` as a starting point or provide the three standard
+Spring datasource environment variables through the process environment.
 
 ## Install And Verify
 
@@ -45,6 +50,7 @@ From the repository root:
 cd taskmanager-frontend
 npm ci
 npm test -- --watchAll=false
+npm run typecheck
 npm run build
 ```
 
@@ -90,13 +96,13 @@ Run the full repository check from the root:
 ./scripts/verify-all.sh
 ```
 
-It runs backend tests, frontend tests, frontend build, iOS sync, and
+It runs backend tests, frontend tests, TypeScript checking, frontend build, iOS sync, and
 `git diff --check`.
 
 ## Known Limitations
 
 There is no containerized development environment or automated MySQL bootstrap.
-Committed datasource credentials are local defaults, not production guidance.
+Production secret storage and database provisioning remain operator concerns.
 
 ## Related Documents
 

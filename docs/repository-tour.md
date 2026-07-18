@@ -16,13 +16,13 @@ the shortest reading path for common changes.
 
 ```text
 .
-|-- src/main/java/com/example/taskmanager/   Spring Boot API and JPA entities
-|-- src/main/resources/                      Backend configuration and SQL updates
+|-- src/main/java/com/mitchell/taskmanager/   Spring Boot API and JPA entities
+|-- src/main/resources/                      Backend runtime configuration
 |-- src/test/                                Backend controller/repository tests
-|-- SQL Files/                               MySQL baseline schema
+|-- database/mysql/                          MySQL schema and historical updates
 |-- taskmanager-frontend/src/                React application and repository layer
 |-- taskmanager-frontend/ios/                Generated/synced Capacitor iOS project
-|-- scripts/                                 Cross-project verification commands
+|-- scripts/                                 Verification and review-package commands
 |-- docs/                                    Canonical guides and historical records
 `-- .github/workflows/                       Continuous integration
 ```
@@ -177,7 +177,7 @@ detail rather than inferring architecture from one implementation.
 - **Layers involved:** Spring controller validation and repository access, JPA
   entity/schema when needed, REST transport, DTO mapper, API repository, and the
   shared contract only if behavior is provider-independent.
-- **Typical directories:** `src/main/java/com/example/taskmanager/`, `src/test/`,
+- **Typical directories:** `src/main/java/com/mitchell/taskmanager/`, `src/test/`,
   `taskmanager-frontend/src/api/`, and `repositories/api/`.
 - **Tests:** Backend controller/repository tests, REST transport and mapper tests,
   API repository contract coverage, and equivalent SQLite behavior if the public

@@ -1,0 +1,2 @@
+ALTER TABLE Task
+  ADD COLUMN endDateTimeScheduled DATETIME NULL;

@@ -25,6 +25,11 @@ npm run ios:open
 Package Manager artifacts under `ios/App/CapApp-SPM`; CocoaPods are not the current
 plugin integration.
 
+The checked-in project uses bundle ID `com.mitchell.taskmanager` without a committed
+Apple development team. For a physical device, select your own team in Xcode. If
+your account cannot sign that bundle ID, use a unique local bundle ID consistently
+in `capacitor.config.ts` and the Xcode target; do not commit personal signing data.
+
 ## REST Device Runtime
 
 REST remains the default. Set a device-reachable API URL in `.env.local`:

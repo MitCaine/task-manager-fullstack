@@ -29,29 +29,31 @@ machine-specific values.
 
 ## Backend Properties
 
-`src/main/resources/application.properties` currently defines:
+`src/main/resources/application.properties` defines local defaults and reads:
 
-- MySQL at `jdbc:mysql://localhost:3306/taskmanagementdb`;
-- development credentials `taskuser` / `taskpass`;
+- `SPRING_DATASOURCE_URL` with fallback `jdbc:mysql://localhost:3306/taskmanagementdb`;
+- `SPRING_DATASOURCE_USERNAME` with fallback `taskuser`;
+- `SPRING_DATASOURCE_PASSWORD` with fallback `taskpass`;
 - bind address `0.0.0.0`;
 - `spring.jpa.hibernate.ddl-auto=none`;
 - formatted SQL logging;
 - Open Session in View disabled;
 - standard physical naming to preserve the historical schema names.
 
-Spring properties can be overridden by normal Spring Boot mechanisms, but no
-project-specific production profile or secrets integration is supplied.
+`config/backend.env.example` records the non-secret development shape. Runtime
+environments must inject real credentials; no project-specific production secrets
+service is supplied.
 
 ## Frontend Package Configuration
 
 `taskmanager-frontend/package.json` proxies development requests to
 `http://localhost:8080`. `capacitor.config.ts` uses app ID
-`com.example.taskmanager`, app name `Task Manager`, web directory `build`, and a
+`com.mitchell.taskmanager`, app name `Task Manager`, web directory `build`, and a
 dark native background color.
 
 ## Security Notes
 
-Committed database credentials and HTTP examples are development defaults. They
+Fallback database credentials and HTTP examples are development defaults. They
 must not be reused as production secret-management or transport guidance.
 
 ## Related Documents

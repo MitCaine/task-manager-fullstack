@@ -78,7 +78,7 @@ versioned API envelope or generated client.
 
 ## Code Map
 
-- Controllers: `src/main/java/com/example/taskmanager/*Controller.java`
+- Controllers: `src/main/java/com/mitchell/taskmanager/*Controller.java`
 - REST transport: `taskmanager-frontend/src/api/tasks.ts`
 - Domain mapping: `taskmanager-frontend/src/repositories/api/mappers/`
 - REST repositories: `taskmanager-frontend/src/repositories/api/`

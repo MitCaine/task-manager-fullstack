@@ -38,6 +38,7 @@ Frontend, from `taskmanager-frontend/`:
 
 ```bash
 npm test -- --watchAll=false
+npm run typecheck
 npm run build
 ```
 
@@ -70,9 +71,10 @@ is structured and stage-specific; a passing Jest suite is not a substitute.
 
 ## CI
 
-GitHub Actions runs Maven tests and the frontend Jest suite on pushes and pull
-requests. It currently does not run the frontend production build, iOS sync, native
-smoke harness, or documentation link checks. Local full verification is broader.
+GitHub Actions uses the Maven Wrapper and Node 22 to run backend tests, a clean
+frontend install, the Jest suite, TypeScript checking, and the production build on
+pushes and pull requests. It does not run iOS sync, the native smoke harness, or
+documentation link checks. Local full verification is broader.
 
 ## Known Limitations
 
