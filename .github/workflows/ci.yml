@@ -28,7 +28,7 @@ jobs:
           cache: maven
 
       - name: Run Maven tests
-        run: mvn test
+        run: ./mvnw test
 
   frontend:
     name: Frontend tests
@@ -44,7 +44,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: taskmanager-frontend/package-lock.json
 
@@ -53,3 +53,9 @@ jobs:
 
       - name: Run React tests
         run: npm test -- --watchAll=false
+
+      - name: Check TypeScript
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: npm run build
