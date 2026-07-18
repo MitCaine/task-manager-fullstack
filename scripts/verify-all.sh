@@ -11,6 +11,9 @@ echo "=== Frontend tests ==="
 cd taskmanager-frontend
 npm test -- --watchAll=false --silent
 
+echo "=== Frontend type check ==="
+npm run typecheck
+
 echo "=== Frontend build ==="
 npm run build
 
