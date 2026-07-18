@@ -110,9 +110,34 @@ function openSettings() {
   fireEvent.click(screen.getByRole('button', { name: /settings/i }));
 }
 
-async function typeCatalogBulkText(input: Element, text: string) {
+async function typeUserText(input: Element, text: string) {
   await act(async () => {
     await userEvent.type(input, text);
+  });
+}
+
+async function clearUserText(input: Element) {
+  await act(async () => {
+    await userEvent.clear(input);
+  });
+}
+
+async function clickUser(element: Element) {
+  await act(async () => {
+    await userEvent.click(element);
+  });
+}
+
+async function waitForAppInitialization() {
+  const initialRepositoryLoads = [mockGetTasks, mockGetProjects, mockGetTags]
+    .map(repositoryMock => repositoryMock.mock.results[0]?.value)
+    .filter((result): result is Promise<unknown> => result instanceof Promise);
+
+  await act(async () => {
+    await Promise.allSettled(initialRepositoryLoads);
+  });
+  await waitFor(() => {
+    expect(screen.queryByLabelText('Loading tasks')).not.toBeInTheDocument();
   });
 }
 
@@ -434,19 +459,19 @@ async function openMobileEditPanel(task: Task = sampleTask): Promise<HTMLElement
 
 test('does not render the old Task Manager heading', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   expect(screen.queryByRole('heading', { name: /task manager/i })).not.toBeInTheDocument();
 });
 
 test('shows 0 tasks in footer when no tasks are loaded', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   expect(screen.getAllByText(/0 tasks/i).length).toBeGreaterThanOrEqual(1);
 });
 
 test('task list empty state points mobile users toward creating a task', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   expect(await screen.findByText('No tasks yet')).toBeInTheDocument();
   expect(screen.getByText('Swipe right to create your first task.')).toBeInTheDocument();
 });
@@ -641,9 +666,7 @@ test('search applies within default and done task views', async () => {
   await screen.findByText('Current report');
 
   const taskList = screen.getByRole('list', { name: /task list/i });
-  await act(async () => {
-    await userEvent.type(screen.getByLabelText(/search tasks/i), 'report');
-  });
+  await typeUserText(screen.getByLabelText(/search tasks/i), 'report');
 
   expect(within(taskList).getByText('Current report')).toBeInTheDocument();
   expect(within(taskList).queryByText('Done report')).not.toBeInTheDocument();
@@ -769,6 +792,7 @@ test('end time ranges format correctly in 12-hour and 24-hour modes', async () =
 
 test('title input is empty on initial render', async () => {
   render(<App />);
+  await waitForAppInitialization();
   const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
   expect(input.value).toBe('');
 });
@@ -785,16 +809,16 @@ test('format toggle buttons are rendered inside the settings panel', async () =>
 test('typing in the title input updates its value', async () => {
   render(<App />);
   const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
-  await userEvent.type(input, 'New task');
+  await typeUserText(input, 'New task');
   expect(input.value).toBe('New task');
 });
 
 test('clicking Add calls createTask and appends task to list', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk');
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Buy milk');
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(await screen.findByText('Buy milk')).toBeInTheDocument();
   expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -803,10 +827,10 @@ test('clicking Add calls createTask and appends task to list', async () => {
 test('clicking Add shows a non-disruptive task-created toast', async () => {
   mockCreateTask.mockResolvedValue({ ...sampleTask, title: 'Toast task' });
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Toast task');
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Toast task');
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   const toastMessage = await screen.findByText('Task added.');
   const toast = toastMessage.closest('.toast');
@@ -823,7 +847,7 @@ test('clicking Add shows a non-disruptive task-created toast', async () => {
 test('task-created confirmation toast auto-dismisses', async () => {
   mockCreateTask.mockResolvedValue({ ...sampleTask, title: 'Auto toast task' });
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   jest.useFakeTimers();
   try {
@@ -846,9 +870,9 @@ test('task-created confirmation toast auto-dismisses', async () => {
 
 test('pressing Enter in title input calls createTask', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Buy milk{enter}');
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Buy milk{enter}');
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
 });
@@ -886,7 +910,7 @@ test('clicking delete then Cancel leaves the task in place', async () => {
     await userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
   });
   const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
-  await userEvent.click(cancelBtn);
+  await clickUser(cancelBtn);
 
   expect(screen.getByText('Buy milk')).toBeInTheDocument();
   expect(mockDeleteTask).not.toHaveBeenCalled();
@@ -1269,8 +1293,9 @@ test('date input remains usable after create control switching', async () => {
   expect(getCreateDateInput()).not.toHaveAttribute('data-open');
 });
 
-test('create task date control renders the desktop-visible date display proxy', () => {
+test('create task date control renders the desktop-visible date display proxy', async () => {
   render(<App />);
+  await waitForAppInitialization();
 
   const dateInput = getCreateDateInput();
   expect(dateInput).toHaveClass('datetime-row__date--proxy');
@@ -1307,14 +1332,14 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
   render(<App />);
 
   const projectFilter = await screen.findByLabelText(/Project filter:/);
-  await userEvent.click(projectFilter);
+  await clickUser(projectFilter);
 
   const projectMenu = await screen.findByRole('menu', { name: 'Project options' });
   expect(projectMenu).toHaveClass('tag-select__dropdown', 'filter-field__dropdown');
   const projectMenuScope = within(projectMenu);
   expect(projectMenuScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
   const projectSearch = projectMenuScope.getByRole('searchbox', { name: 'Search project filters' });
-  await userEvent.type(projectSearch, 'TASK');
+  await typeUserText(projectSearch, 'TASK');
   expect(await projectMenuScope.findByRole('menuitemradio', { name: 'Task Manager' })).toBeInTheDocument();
   expect(projectMenuScope.queryByRole('menuitemradio', { name: 'Wedding Planning' })).not.toBeInTheDocument();
   await act(async () => {
@@ -1322,14 +1347,14 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
   });
   expect(screen.getByLabelText('Project filter: Task Manager')).toBeInTheDocument();
 
-  await userEvent.click(screen.getByLabelText('Project filter: Task Manager'));
+  await clickUser(screen.getByLabelText('Project filter: Task Manager'));
   const reopenedProjectMenu = await screen.findByRole('menu', { name: 'Project options' });
   const reopenedProjectScope = within(reopenedProjectMenu);
-  await userEvent.type(reopenedProjectScope.getByRole('searchbox', { name: 'Search project filters' }), 'missing');
+  await typeUserText(reopenedProjectScope.getByRole('searchbox', { name: 'Search project filters' }), 'missing');
   expect(reopenedProjectScope.getByText('No projects match your search.')).toBeInTheDocument();
   expect(reopenedProjectScope.getByRole('menuitemradio', { name: 'All' })).toBeInTheDocument();
 
-  await userEvent.click(screen.getByLabelText(/Tag filter:/));
+  await clickUser(screen.getByLabelText(/Tag filter:/));
   const tagMenu = await screen.findByRole('menu', { name: 'Tag options' });
   expect(within(tagMenu).getAllByRole('menuitemradio').map(item => item.textContent)).toEqual([
     'All',
@@ -1337,7 +1362,7 @@ test('filter dropdowns share left-aligned custom menu behavior and display long 
     'Deep Work',
   ]);
   const tagSearch = within(tagMenu).getByRole('searchbox', { name: 'Search tag filters' });
-  await userEvent.type(tagSearch, 'CAR');
+  await typeUserText(tagSearch, 'CAR');
   expect(await within(tagMenu).findByRole('menuitemradio', { name: 'Car Maintenance' })).toBeInTheDocument();
   expect(within(tagMenu).queryByRole('menuitemradio', { name: 'Deep Work' })).not.toBeInTheDocument();
   const tagColor = within(tagMenu).getByRole('menuitemradio', { name: 'Car Maintenance' }).querySelector('.tag-dot');
@@ -1410,15 +1435,15 @@ test('create project assignment searches case-insensitively and preserves projec
   const dropdownScope = within(dropdown);
   expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
   const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create projects' });
-  await userEvent.type(searchInput, 'WEDDING');
+  await typeUserText(searchInput, 'WEDDING');
 
   expect(dropdownScope.getByLabelText('📁 Wedding Planning')).toBeInTheDocument();
   expect(dropdownScope.queryByLabelText('📁 Home')).not.toBeInTheDocument();
-  await userEvent.click(dropdownScope.getByLabelText('📁 Wedding Planning'));
+  await clickUser(dropdownScope.getByLabelText('📁 Wedding Planning'));
   expect(createScope.getByLabelText('Remove project Wedding Planning')).toBeInTheDocument();
 
-  await userEvent.clear(searchInput);
-  await userEvent.type(searchInput, 'missing');
+  await clearUserText(searchInput);
+  await typeUserText(searchInput, 'missing');
   expect(dropdownScope.getByText('No projects match your search.')).toBeInTheDocument();
   expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
 });
@@ -1442,29 +1467,29 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   const dropdownScope = within(dropdown);
   const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search create tags' });
 
-  await userEvent.type(searchInput, 'DEEP');
+  await typeUserText(searchInput, 'DEEP');
   expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
   expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
 
   const colorButton = dropdownScope.getByRole('button', { name: 'Change tag color' });
   expect(colorButton).toHaveStyle({ background: '#6366f1' });
-  await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+  await clickUser(dropdownScope.getByLabelText('Deep Work'));
 
   expect(dropdown).toBeInTheDocument();
   expect(createScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
 
-  await userEvent.clear(searchInput);
+  await clearUserText(searchInput);
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
     'Deep Work',
     'Errand',
     'Planning',
   ]);
 
-  await userEvent.type(searchInput, 'work');
+  await typeUserText(searchInput, 'work');
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual(['Deep Work']);
 
-  await userEvent.clear(searchInput);
-  await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+  await clearUserText(searchInput);
+  await clickUser(dropdownScope.getByLabelText('Deep Work'));
   expect(dropdownScope.getAllByRole('checkbox').map(input => input.closest('label')?.textContent)).toEqual([
     'Errand',
     'Deep Work',
@@ -1472,7 +1497,7 @@ test('create tag assignment searches case-insensitively and preserves multi-sele
   ]);
   await waitFor(() => expect(createScope.queryByLabelText('Remove tag Deep Work')).not.toBeInTheDocument());
 
-  await userEvent.type(searchInput, 'missing');
+  await typeUserText(searchInput, 'missing');
   expect(dropdownScope.getByText('No tags match your search.')).toBeInTheDocument();
 });
 
@@ -1490,14 +1515,14 @@ test('create date selection updates the preview immediately', async () => {
 
 test('selected create date is used when creating the task', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   await openCreateDateInput();
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
   });
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Dated task');
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Dated task');
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
   expect(mockCreateTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -1508,10 +1533,10 @@ test('selected create date is used when creating the task', async () => {
 
 test('create task defaults to no recurrence', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'One-time task');
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'One-time task');
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
   expect(mockSetRepeat).not.toHaveBeenCalled();
@@ -1519,7 +1544,7 @@ test('create task defaults to no recurrence', async () => {
 
 test('create form keeps repeat before the action row controls', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const repeatButton = within(createCard).getByRole('button', { name: /repeat.*never repeat/i });
@@ -1535,9 +1560,9 @@ test('create task can select daily recurrence and saves it', async () => {
   mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task' });
   mockSetRepeat.mockResolvedValue({ ...sampleTask, taskID: 45, title: 'Daily task', recurrenceRuleID: 11 });
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Daily task');
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Daily task');
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
@@ -1548,7 +1573,7 @@ test('create task can select daily recurrence and saves it', async () => {
     await userEvent.click(screen.getByRole('option', { name: /^1$/i }));
   });
   expect(within(screen.getByLabelText(/task preview/i)).getByText('Every day')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(45, { intervalUnit: 'day', intervalValue: 1 }));
 });
@@ -1557,9 +1582,9 @@ test('create task can select weekly and monthly recurrence', async () => {
   mockCreateTask.mockResolvedValueOnce({ ...sampleTask, taskID: 46, title: 'Weekly task' });
   mockCreateTask.mockResolvedValueOnce({ ...sampleTask, taskID: 47, title: 'Monthly task' });
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Weekly task');
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Weekly task');
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
@@ -1569,11 +1594,11 @@ test('create task can select weekly and monthly recurrence', async () => {
   await act(async () => {
     await userEvent.click(screen.getByRole('option', { name: /^week$/i }));
   });
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(46, { intervalUnit: 'week', intervalValue: 1 }));
   await waitFor(() => expect(screen.getByRole('button', { name: /repeat.*never repeat/i })).toBeInTheDocument());
 
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), 'Monthly task');
+  await typeUserText(screen.getByPlaceholderText(/task title/i), 'Monthly task');
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /repeat.*never repeat/i }));
   });
@@ -1583,7 +1608,7 @@ test('create task can select weekly and monthly recurrence', async () => {
   await act(async () => {
     await userEvent.click(screen.getByRole('option', { name: /^month$/i }));
   });
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
   await waitFor(() => expect(mockSetRepeat).toHaveBeenCalledWith(47, { intervalUnit: 'month', intervalValue: 1 }));
 });
 
@@ -1654,7 +1679,7 @@ test('mobile description textareas keep a 16px font size above the iOS focus zoo
 test('mobile text focus guard resets document scroll after create title blur', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   await act(async () => {
@@ -1674,7 +1699,7 @@ test('mobile text focus guard resets document scroll after create title blur', a
 test('mobile text focus guard resets document scroll after create description blur', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const description = getCreateDescriptionTextarea();
   await act(async () => {
@@ -1694,7 +1719,7 @@ test('mobile text focus guard resets document scroll after create description bl
 test('mobile text focus guard reinitializes title after description focus', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -1717,7 +1742,7 @@ test('mobile text focus guard reinitializes title after description focus', asyn
 test('mobile text focus guard reinitializes description after title focus', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -1879,7 +1904,7 @@ test('unmounting an edit textarea after create title focus does not disable scro
 test('repeated create title and description swaps preserve scroll correction', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -1931,7 +1956,7 @@ test('repeated inline edit title and description swaps preserve scroll correctio
 test('delayed blur cannot disable keyboard text mode while another app text field is active', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -1956,7 +1981,7 @@ test('delayed blur cannot disable keyboard text mode while another app text fiel
 test('null relatedTarget during create text transition preserves active DOM text field state', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -1981,7 +2006,7 @@ test('null relatedTarget during create text transition preserves active DOM text
 test('scroll correction follows the current active text field after stale previous blur', async () => {
   const scrollTo = jest.spyOn(window, 'scrollTo').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const title = getCreateTitleInput();
   const description = getCreateDescriptionTextarea();
@@ -2015,7 +2040,7 @@ test('text focus debug schedules exactly three summaries for one transition', as
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   jest.useFakeTimers();
   try {
@@ -2040,7 +2065,7 @@ test('deduped text focusin does not schedule duplicate debug summaries', async (
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   jest.useFakeTimers();
   try {
@@ -2066,7 +2091,7 @@ test('focusout body gap followed by text focus does not schedule duplicate summa
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   jest.useFakeTimers();
   try {
@@ -2101,7 +2126,7 @@ test('repeated focusin events for the same text field reuse the same summary sch
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   jest.useFakeTimers();
   try {
@@ -2252,7 +2277,7 @@ test('correction-result debug log is emitted only behind the text focus debug fl
   const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   await focusTextField(getCreateTitleInput());
   dirtyDocumentScroll();
@@ -2272,7 +2297,7 @@ test('text focus correction summary emits scalar scroll and viewport evidence be
   const info = jest.spyOn(console, 'info').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   const search = screen.getByPlaceholderText(/search tasks/i);
   if (!(search instanceof HTMLInputElement)) throw new Error('Search input not found');
@@ -2316,7 +2341,7 @@ test('visual viewport drift is detected after document scroll has been corrected
   const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
   window.localStorage.setItem('taskManagerTextFocusDebug', '1');
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     await focusTextField(getCreateTitleInput());
@@ -2343,7 +2368,7 @@ test('visual viewport drift is detected after document scroll has been corrected
 test('mobile text focus prevents touchmove outside the active text field by default', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     await focusTextField(getCreateTitleInput());
@@ -2359,7 +2384,7 @@ test('mobile text focus prevents touchmove outside the active text field by defa
 test('mobile text focus touch guard is enabled by default', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     await focusTextField(getCreateTitleInput());
@@ -2375,7 +2400,7 @@ test('mobile text focus touch guard is enabled by default', async () => {
 test('mobile text focus touch guard does not prevent touchmove when keyboard text mode is inactive', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const taskList = document.querySelector('.app__list');
@@ -2390,7 +2415,7 @@ test('mobile text focus touch guard does not prevent touchmove when keyboard tex
 test('mobile text focus touch guard prevents active textarea touchmove when it has no internal scroll', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const description = getCreateDescriptionTextarea();
@@ -2406,7 +2431,7 @@ test('mobile text focus touch guard prevents active textarea touchmove when it h
 test('mobile text focus touch guard allows active textarea scrolling within bounds', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const description = getCreateDescriptionTextarea();
@@ -2423,7 +2448,7 @@ test('mobile text focus touch guard allows active textarea scrolling within boun
 test('mobile text focus touch guard prevents textarea overscroll at the top and bottom', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const description = getCreateDescriptionTextarea();
@@ -2444,7 +2469,7 @@ test('mobile text focus touch guard prevents textarea overscroll at the top and 
 test('create description textarea without internal scroll does not leak visual viewport drag', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const description = getCreateDescriptionTextarea();
@@ -2474,7 +2499,7 @@ test('mobile edit description renders title-style input by default', async () =>
 test('create description remains textarea with description class on mobile', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const createDescription = getCreateDescriptionTextarea();
@@ -2704,7 +2729,7 @@ test('mobile edit text fields use proxy focus assist before native focus', async
 test('create task title does not use mobile edit proxy focus assist', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     const titleInput = getCreateTitleInput();
@@ -3128,11 +3153,11 @@ test('mobile edit tag search filters and selects without changing panel or scrol
     if (!(dropdown instanceof HTMLElement)) throw new Error('Mobile edit tag dropdown not found');
     const dropdownScope = within(dropdown);
     const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit tags' });
-    await userEvent.type(searchInput, 'deep');
+    await typeUserText(searchInput, 'deep');
 
     expect(dropdownScope.getByLabelText('Deep Work')).toBeInTheDocument();
     expect(dropdownScope.queryByLabelText('Errand')).not.toBeInTheDocument();
-    await userEvent.click(dropdownScope.getByLabelText('Deep Work'));
+    await clickUser(dropdownScope.getByLabelText('Deep Work'));
 
     expect(dropdown).toBeInTheDocument();
     expect(editScope.getByLabelText('Remove tag Deep Work')).toBeInTheDocument();
@@ -3167,7 +3192,7 @@ test('mobile edit project search filters and selects without changing panel or s
     expect(dropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
     expect(dropdownScope.getByRole('button', { name: /\+ new project/i })).toBeInTheDocument();
     const searchInput = dropdownScope.getByRole('searchbox', { name: 'Search edit projects' });
-    await userEvent.type(searchInput, 'wedding');
+    await typeUserText(searchInput, 'wedding');
 
     expect(dropdownScope.getByRole('button', { name: 'Wedding Planning' })).toBeInTheDocument();
     expect(dropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
@@ -3295,7 +3320,7 @@ test('mobile text focus touch guard keeps debug logs gated', async () => {
   const restoreTouchEnvironment = mockMobileTouchEnvironment();
   const debug = jest.spyOn(console, 'debug').mockImplementation(() => {});
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   try {
     await focusTextField(getCreateTitleInput());
@@ -3389,7 +3414,7 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
   mockGetTags.mockResolvedValue([{ tagID: 8, title: 'Errand', color: '#22c55e' }]);
   mockCreateTask.mockResolvedValue({ ...sampleTask, taskID: 44, title: 'Full task' });
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const createScope = within(createCard);
@@ -3423,7 +3448,7 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
   await act(async () => {
     await userEvent.click(createScope.getByLabelText(/errand/i));
   });
-  await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Full task');
+  await typeUserText(createScope.getByPlaceholderText(/task title/i), 'Full task');
   await userEvent.click(createScope.getByRole('button', { name: /^add task$/i }));
 
   await waitFor(() => expect(mockCreateTask).toHaveBeenCalledTimes(1));
@@ -3439,14 +3464,14 @@ test('create task with start and end sends endDateTimeScheduled with priority pr
 
 test('create task blocks end time before start time', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const createScope = within(createCard);
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid range');
+    await typeUserText(createScope.getByPlaceholderText(/task title/i), 'Invalid range');
   });
   await act(async () => {
     await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
@@ -3470,14 +3495,14 @@ test('create task blocks end time before start time', async () => {
 
 test('create task blocks end time equal to start time and clears when valid', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const createScope = within(createCard);
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Equal range');
+    await typeUserText(createScope.getByPlaceholderText(/task title/i), 'Equal range');
   });
   await act(async () => {
     await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
@@ -3509,7 +3534,7 @@ test('create task blocks end time equal to start time and clears when valid', as
 
 test('create warning appears when start time changes after end time exists', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   const createCard = document.querySelector('.app__add');
   if (!(createCard instanceof HTMLElement)) throw new Error('Create card not found');
   const createScope = within(createCard);
@@ -3632,7 +3657,7 @@ test('inline edit form hydrates and saves changed project and tags', async () =>
   if (!(projectDropdown instanceof HTMLElement)) throw new Error('Project dropdown not found');
   const projectDropdownScope = within(projectDropdown);
   expect(projectDropdownScope.getByRole('button', { name: /no project/i })).toBeInTheDocument();
-  await userEvent.type(projectDropdownScope.getByRole('searchbox', { name: 'Search edit projects' }), 'WORK');
+  await typeUserText(projectDropdownScope.getByRole('searchbox', { name: 'Search edit projects' }), 'WORK');
   expect(projectDropdownScope.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
   await act(async () => {
     await userEvent.click(projectDropdownScope.getByRole('button', { name: 'Work' }));
@@ -4037,7 +4062,7 @@ test('edit warning clears when end time is removed', async () => {
 
 test('24-hour create validation still blocks end time before start time', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   await act(async () => { openSettings(); });
   await act(async () => { await userEvent.click(screen.getByRole('button', { name: /24-hour/i })); });
   const createCard = document.querySelector('.app__add');
@@ -4046,7 +4071,7 @@ test('24-hour create validation still blocks end time before start time', async 
 
   await act(async () => {
     fireEvent.change(getCreateDateInput(), { target: { value: '2026-06-20' } });
-    await userEvent.type(createScope.getByPlaceholderText(/task title/i), 'Invalid 24 hour range');
+    await typeUserText(createScope.getByPlaceholderText(/task title/i), 'Invalid 24 hour range');
   });
   await act(async () => {
     await userEvent.click(createScope.getByRole('button', { name: /\+ start time/i }));
@@ -4090,9 +4115,7 @@ test('creating a new project from inline edit applies it on save', async () => {
   await act(async () => {
     await userEvent.click(editScope.getByRole('button', { name: /\+ new project/i }));
   });
-  await act(async () => {
-    await userEvent.type(editScope.getByLabelText(/project name/i), 'Office');
-  });
+  await typeUserText(editScope.getByLabelText(/project name/i), 'Office');
   await act(async () => {
     await userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
   });
@@ -4128,9 +4151,7 @@ test('creating a new tag from inline edit applies it on save', async () => {
   await act(async () => {
     await userEvent.click(editScope.getByRole('button', { name: /\+ new tag/i }));
   });
-  await act(async () => {
-    await userEvent.type(editScope.getByLabelText(/tag name/i), 'Deep Work');
-  });
+  await typeUserText(editScope.getByLabelText(/tag name/i), 'Deep Work');
   await act(async () => {
     await userEvent.click(editScope.getByRole('button', { name: /^create$/i }));
   });
@@ -4198,17 +4219,17 @@ test('existing task without end time still opens edit without an end summary', a
 
 test('clicking Add with empty title does NOT call createTask', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
 
 test('clicking Add with whitespace-only title does NOT call createTask', async () => {
   render(<App />);
-  await userEvent.type(screen.getByPlaceholderText(/task title/i), '   ');
-  await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
+  await typeUserText(screen.getByPlaceholderText(/task title/i), '   ');
+  await clickUser(screen.getByRole('button', { name: /^add task$/i }));
 
   expect(mockCreateTask).not.toHaveBeenCalled();
 });
@@ -4223,12 +4244,12 @@ test('getTasks rejection shows error banner and renders app', async () => {
 
 test('createTask rejection shows error banner, list unchanged', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
 
   mockCreateTask.mockRejectedValue(new Error('Server error'));
   const input = screen.getByPlaceholderText(/task title/i) as HTMLInputElement;
 
-  await userEvent.type(input, 'Failing task');
+  await typeUserText(input, 'Failing task');
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /^add task$/i }));
   });
@@ -4262,6 +4283,7 @@ test('deleteTask rejection shows error banner — task remains in list', async (
 
 test('Stats button is rendered in the header', async () => {
   render(<App />);
+  await waitForAppInitialization();
   expect(screen.getByRole('button', { name: /stats/i })).toBeInTheDocument();
 });
 
@@ -4346,12 +4368,14 @@ test('project management searches creates renames and confirms deletion with usa
   expect(dialog.querySelector('.catalog-manager__body')).toBeInTheDocument();
   expect(scope.queryByLabelText('New project name')).not.toBeInTheDocument();
   expect(scope.getByText('1 task')).toBeInTheDocument();
-  await userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'wedding');
+  const projectSearch = scope.getByRole('searchbox', { name: /search managed projects/i });
+  await typeUserText(projectSearch, 'wedding');
+  expect(projectSearch).toHaveValue('wedding');
   expect(scope.getByText('Wedding Planning')).toBeInTheDocument();
   expect(scope.queryByText('Home')).not.toBeInTheDocument();
-  await userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
+  await clearUserText(projectSearch);
 
-  await typeCatalogBulkText(scope.getByLabelText('Project names'), 'Office');
+  await typeUserText(scope.getByLabelText('Project names'), 'Office');
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
   expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
 
@@ -4365,8 +4389,8 @@ test('project management searches creates renames and confirms deletion with usa
   expect(renameInput).toHaveClass('input');
   expect(renameInput).toHaveClass('catalog-manager__edit-input');
   expect(renameInput).not.toHaveClass('input--sm');
-  await userEvent.clear(renameInput);
-  await userEvent.type(renameInput, 'House');
+  await clearUserText(renameInput);
+  await typeUserText(renameInput, 'House');
   await act(async () => { await userEvent.click(within(homeRow).getByRole('button', { name: /^save$/i })); });
   expect(mockUpdateProject).toHaveBeenCalledWith(7, expect.objectContaining({ title: 'House' }));
 
@@ -4399,7 +4423,7 @@ test('project management multiline add creates multiple projects and summarizes 
 
   const projectNames = scope.getByLabelText('Project names');
   const projectNamesText = ' Office \nHome\nOffice\n\nTask Manager\nhome ';
-  await typeCatalogBulkText(projectNames, projectNamesText);
+  await typeUserText(projectNames, projectNamesText);
   expect(projectNames).toHaveValue(projectNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
@@ -4428,7 +4452,7 @@ test('project management multiline add truncates long skipped duplicate lists', 
 
   const projectNames = scope.getByLabelText('Project names');
   const projectNamesText = 'Alpha\nBeta\nGamma\nDelta\nalpha';
-  await typeCatalogBulkText(projectNames, projectNamesText);
+  await typeUserText(projectNames, projectNamesText);
   expect(projectNames).toHaveValue(projectNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
@@ -4505,7 +4529,7 @@ test('project management composes search usage filter and sort controls', async 
   expect(scope.getByText('0 tasks')).toBeInTheDocument();
   expect(dialog.querySelector('select')).not.toBeInTheDocument();
 
-  await act(async () => { await userEvent.type(scope.getByRole('searchbox', { name: /search managed projects/i }), 'ga'); });
+  await typeUserText(scope.getByRole('searchbox', { name: /search managed projects/i }), 'ga');
   expect(scope.getByText('No projects match your search.')).toBeInTheDocument();
 });
 
@@ -4533,7 +4557,7 @@ test('catalog management edit search and selection modes are mutually exclusive'
   expect(scope.getByLabelText('Select project Home')).not.toBeChecked();
   expect(scope.getByLabelText('Rename project Wedding Planning')).toBeInTheDocument();
 
-  await act(async () => { await userEvent.type(search, 'home'); });
+  await typeUserText(search, 'home');
   expect(scope.queryByLabelText('Rename project Wedding Planning')).not.toBeInTheDocument();
   expect(search).toHaveValue('home');
   expect(scope.getByText('Home')).toBeInTheDocument();
@@ -4748,13 +4772,15 @@ test('tag management creates edits color and confirms deletion with usage count'
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'focus');
+  const tagSearch = scope.getByRole('searchbox', { name: /search managed tags/i });
+  await typeUserText(tagSearch, 'focus');
+  expect(tagSearch).toHaveValue('focus');
   expect(scope.getByText('Focus')).toBeInTheDocument();
   expect(scope.queryByText('Errand')).not.toBeInTheDocument();
-  await userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
+  await clearUserText(tagSearch);
 
   expect(scope.queryByLabelText('New tag name')).not.toBeInTheDocument();
-  await typeCatalogBulkText(scope.getByLabelText('Tag names'), 'Docs');
+  await typeUserText(scope.getByLabelText('Tag names'), 'Docs');
   const newTagColor = scope.getByLabelText('New tag color');
   expect(newTagColor).toHaveClass('catalog-manager__color-input');
   expect(newTagColor.closest('.catalog-manager__create-actions')).toBeInTheDocument();
@@ -4778,8 +4804,8 @@ test('tag management creates edits color and confirms deletion with usage count'
   expect(within(errandRow).getByLabelText('Color for tag Errand')).toHaveClass('catalog-manager__color-input');
   expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__main')).toBeInTheDocument();
   expect(within(errandRow).getByLabelText('Color for tag Errand').closest('.catalog-manager__color-control')).toHaveTextContent('Tag Color');
-  await userEvent.clear(renameInput);
-  await userEvent.type(renameInput, 'Chores');
+  await clearUserText(renameInput);
+  await typeUserText(renameInput, 'Chores');
   fireEvent.change(within(errandRow).getByLabelText('Color for tag Errand'), { target: { value: '#ef4444' } });
   await act(async () => { await userEvent.click(within(errandRow).getByRole('button', { name: /^save$/i })); });
   expect(mockUpdateTag).toHaveBeenCalledWith(8, { title: 'Chores', color: '#ef4444' });
@@ -4858,7 +4884,7 @@ test('tag management composes search usage filter and sort controls', async () =
   expect(scope.queryByRole('menuitem', { name: /^used only$/i })).not.toBeInTheDocument();
   expect(listNames()).toEqual(['Errand', 'Work']);
 
-  await act(async () => { await userEvent.type(scope.getByRole('searchbox', { name: /search managed tags/i }), 'wo'); });
+  await typeUserText(scope.getByRole('searchbox', { name: /search managed tags/i }), 'wo');
   expect(listNames()).toEqual(['Work']);
   expect(scope.getByText('2 tasks')).toBeInTheDocument();
 });
@@ -4883,7 +4909,7 @@ test('tag management multiline add uses selected color and skips existing or rep
   fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
   const tagNames = scope.getByLabelText('Tag names');
   const tagNamesText = 'Docs\nErrand\ndocs\nFocus\n';
-  await typeCatalogBulkText(tagNames, tagNamesText);
+  await typeUserText(tagNames, tagNamesText);
   expect(tagNames).toHaveValue(tagNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
 
@@ -4903,6 +4929,7 @@ test('tag management multiline add uses selected color and skips existing or rep
 
 test('Board tab is not rendered in the view tabs', async () => {
   render(<App />);
+  await waitForAppInitialization();
   expect(screen.queryByRole('button', { name: /^board$/i })).not.toBeInTheDocument();
 });
 
@@ -5355,13 +5382,13 @@ test('completing a recurring task with end time creates the next occurrence with
 
 test('"Select" button is rendered in the task count row', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   expect(screen.getByRole('button', { name: /^select$/i })).toBeInTheDocument();
 });
 
 test('clicking Select shows Cancel button', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
@@ -5370,7 +5397,7 @@ test('clicking Select shows Cancel button', async () => {
 
 test('clicking Cancel exits bulk mode', async () => {
   render(<App />);
-  await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
+  await waitForAppInitialization();
   await act(async () => {
     await userEvent.click(screen.getByRole('button', { name: /^select$/i }));
   });
@@ -5713,6 +5740,7 @@ test('"Delete" in bulk bar calls deleteTask for each selected task', async () =>
 
 test('search input has a concise placeholder', async () => {
   render(<App />);
+  await waitForAppInitialization();
   const searchInput = screen.getByPlaceholderText(/search tasks/i);
   expect(searchInput).toBeInTheDocument();
 });
