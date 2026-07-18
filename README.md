@@ -9,6 +9,28 @@ REST remains the default on web and native builds. SQLite is independent local
 storage: the project does not synchronize, migrate, or dual-write data between
 REST and SQLite.
 
+## Engineering Highlights
+
+- One domain-facing repository boundary supports complete REST and SQLite
+  compositions without mixing providers at runtime.
+- Shared repository contract suites verify transport-independent behavior; SQL.js
+  tests add transaction, cascade, constraint, and bounded-hydration coverage.
+- Native SQLite uses forward-only migrations, canonical string IDs, serialized
+  transactions, explicit connection ownership, and real-iOS smoke validation.
+- Workflow hooks isolate editing, recurrence, catalog, and child-resource behavior
+  from the large integration surface in `App`.
+- Legacy adapters preserve the current UI/backend boundary while newer persistence
+  code returns canonical domain models.
+
+## Project Status
+
+| Area | Current status |
+| --- | --- |
+| Web and normal native runtime | REST repositories, Spring Boot, and MySQL |
+| Optional native persistence | Complete SQLite repository set; explicit iOS build flag |
+| Automated validation | Backend, frontend, repository contract, SQL.js, type, and build checks |
+| Deliberately not implemented | REST/SQLite sync, data migration, dual writes, native notifications |
+
 ## Features
 
 - Create, edit, duplicate, complete, filter, sort, and bulk-manage tasks.
@@ -53,26 +75,43 @@ ownership and the [Repository Tour](docs/repository-tour.md) for code navigation
 | Server persistence | MySQL; H2 for backend tests |
 | SQLite tests | SQL.js test driver plus explicit native smoke validation |
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/task-list.png" alt="Task list with filters, projects, tags, scheduling, and recurrence" width="260"><br><strong>Task list</strong></td>
+    <td align="center"><img src="docs/images/task-editing.png" alt="Inline mobile task editing" width="260"><br><strong>Task editing</strong></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/images/statistics-dashboard.png" alt="Task statistics dashboard" width="260"><br><strong>Statistics</strong></td>
+    <td align="center"><img src="docs/images/light-theme.png" alt="Task Manager light theme" width="260"><br><strong>Light theme</strong></td>
+  </tr>
+</table>
+
 ## Repository Layout
 
 ```text
-src/main/                   Spring Boot backend
-src/test/                   Backend tests
-SQL Files/                  MySQL baseline schema
-taskmanager-frontend/src/   React application and persistence adapters
-taskmanager-frontend/ios/   Capacitor iOS project
-scripts/                    Repository verification
-docs/                       Canonical guides and historical records
+src/main/                    Spring Boot backend
+src/test/                    Backend tests
+database/mysql/              MySQL schema and historical update records
+taskmanager-frontend/src/    React application and persistence adapters
+taskmanager-frontend/ios/    Capacitor iOS project
+scripts/                     Verification and review-package tooling
+docs/                        Canonical guides and historical records
 ```
 
 ## Quick Start
 
-Prerequisites are Java 17+, Node.js 20 with npm, and MySQL. Xcode is required only
-for iOS work.
+Prerequisites are Java 17+, Node.js 22 with npm 10+, and MySQL 8+. Xcode is
+required only for iOS work. The checked-in `.nvmrc` selects the supported Node
+major version.
 
-Create `taskmanagementdb` and the configured `taskuser` / `taskpass` MySQL user,
-then import `SQL Files/databasemodel.sql` and applicable scripts under
-`src/main/resources/schema-updates/`. Hibernate schema generation is disabled.
+Create `taskmanagementdb` and a local MySQL user, then import
+`database/mysql/schema.sql`. That file is the complete fresh-install schema;
+scripts under `database/mysql/historical-updates/` are retained only for older
+database upgrades and must not be applied afterward. Hibernate schema generation
+is disabled. See the [MySQL setup](database/mysql/README.md) for exact commands and
+environment-variable overrides.
 
 Start the backend from the repository root:
 
@@ -104,8 +143,9 @@ Run all repository checks from the root:
 ```
 
 This runs backend tests, frontend tests, the frontend production build, iOS sync,
-and a whitespace/error diff check. GitHub Actions currently runs backend and
-frontend test suites on pushes and pull requests.
+and a whitespace/error diff check. GitHub Actions gates clean frontend dependency
+installation, frontend tests, TypeScript checking, production build, and backend
+tests on pushes and pull requests.
 
 ## Documentation
 
@@ -124,3 +164,9 @@ Start at the [Documentation Index](docs/README.md).
 
 Historical stage records live under `docs/history/` and are not current
 implementation authority.
+
+## Contributing And License
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development and review workflow and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting. Task Manager is
+available under the [MIT License](LICENSE).
