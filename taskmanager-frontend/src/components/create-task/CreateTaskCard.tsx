@@ -350,6 +350,7 @@ export default function CreateTaskCard({
               ) : null}
             />
           </div>
+          <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
         </div>
         <SelectedProjectChip
           project={selectedProjectID !== '' ? findProjectById(projects, selectedProjectID) ?? null : null}
@@ -397,7 +398,6 @@ export default function CreateTaskCard({
           tags={previewTags}
         />
       </div>
-      <button className="btn add-task-submit" onClick={onAddTask}>Add Task</button>
     </div>
   );
 }

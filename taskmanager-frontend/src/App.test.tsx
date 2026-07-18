@@ -110,6 +110,12 @@ function openSettings() {
   fireEvent.click(screen.getByRole('button', { name: /settings/i }));
 }
 
+async function typeCatalogBulkText(input: Element, text: string) {
+  await act(async () => {
+    await userEvent.type(input, text);
+  });
+}
+
 async function openTaskActions(item?: HTMLElement) {
   const scope = item ? within(item) : screen;
   const actionButton = item
@@ -443,6 +449,52 @@ test('task list empty state points mobile users toward creating a task', async (
   await waitFor(() => expect(mockGetTasks).toHaveBeenCalled());
   expect(await screen.findByText('No tasks yet')).toBeInTheDocument();
   expect(screen.getByText('Swipe right to create your first task.')).toBeInTheDocument();
+});
+
+test('empty mobile first load opens Create Task', async () => {
+  const restoreMedia = mockMobileTouchEnvironment();
+
+  try {
+    render(<App />);
+    await waitFor(() => expectMobilePage('Add'));
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('non-empty mobile first load keeps the task list open', async () => {
+  const restoreMedia = mockMobileTouchEnvironment();
+  mockGetTasks.mockResolvedValue([sampleTask]);
+
+  try {
+    render(<App />);
+    expect(await screen.findByText(sampleTask.title)).toBeInTheDocument();
+    expectMobilePage('Tasks');
+  } finally {
+    restoreMedia();
+  }
+});
+
+test('empty task hydration does not override mobile navigation made while loading', async () => {
+  const restoreMedia = mockMobileTouchEnvironment();
+  let resolveTasks: (tasks: Task[]) => void = () => {};
+  mockGetTasks.mockReturnValue(new Promise<Task[]>(resolve => {
+    resolveTasks = resolve;
+  }));
+
+  try {
+    render(<App />);
+    swipeOn(mobilePager(), 320, 120);
+    expectMobilePage('Calendar');
+
+    await act(async () => {
+      resolveTasks([]);
+    });
+
+    expectMobilePage('Calendar');
+  } finally {
+    restoreMedia();
+  }
 });
 
 test('shows task titles after loading', async () => {
@@ -4299,7 +4351,7 @@ test('project management searches creates renames and confirms deletion with usa
   expect(scope.queryByText('Home')).not.toBeInTheDocument();
   await userEvent.clear(scope.getByRole('searchbox', { name: /search managed projects/i }));
 
-  await userEvent.type(scope.getByLabelText('Project names'), 'Office');
+  await typeCatalogBulkText(scope.getByLabelText('Project names'), 'Office');
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
   expect(mockCreateProject).toHaveBeenCalledWith({ title: 'Office' });
 
@@ -4345,12 +4397,16 @@ test('project management multiline add creates multiple projects and summarizes 
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await userEvent.type(scope.getByLabelText('Project names'), ' Office \nHome\nOffice\n\nTask Manager\nhome ');
+  const projectNames = scope.getByLabelText('Project names');
+  const projectNamesText = ' Office \nHome\nOffice\n\nTask Manager\nhome ';
+  await typeCatalogBulkText(projectNames, projectNamesText);
+  expect(projectNames).toHaveValue(projectNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
   expect(mockCreateProject).toHaveBeenCalledTimes(2);
   expect(mockCreateProject).toHaveBeenNthCalledWith(1, { title: 'Office' });
   expect(mockCreateProject).toHaveBeenNthCalledWith(2, { title: 'Task Manager' });
+  expect(projectNames).toHaveValue('');
   expect(scope.getByRole('status')).toHaveTextContent('Created 1 projects. Skipped 3 duplicates: Home, Office. Failed 1.');
   expect(scope.getByText('Office')).toBeInTheDocument();
 });
@@ -4370,10 +4426,14 @@ test('project management multiline add truncates long skipped duplicate lists', 
   const dialog = screen.getByRole('dialog', { name: /manage projects and tags/i });
   const scope = within(dialog);
 
-  await userEvent.type(scope.getByLabelText('Project names'), 'Alpha\nBeta\nGamma\nDelta\nalpha');
+  const projectNames = scope.getByLabelText('Project names');
+  const projectNamesText = 'Alpha\nBeta\nGamma\nDelta\nalpha';
+  await typeCatalogBulkText(projectNames, projectNamesText);
+  expect(projectNames).toHaveValue(projectNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create projects$/i })); });
 
   expect(mockCreateProject).not.toHaveBeenCalled();
+  expect(projectNames).toHaveValue(projectNamesText);
   expect(scope.getByRole('status')).toHaveTextContent('Created 0 projects. Skipped 5 duplicates: Alpha, Beta, Gamma, +1 more. Failed 0.');
 });
 
@@ -4694,7 +4754,7 @@ test('tag management creates edits color and confirms deletion with usage count'
   await userEvent.clear(scope.getByRole('searchbox', { name: /search managed tags/i }));
 
   expect(scope.queryByLabelText('New tag name')).not.toBeInTheDocument();
-  await userEvent.type(scope.getByLabelText('Tag names'), 'Docs');
+  await typeCatalogBulkText(scope.getByLabelText('Tag names'), 'Docs');
   const newTagColor = scope.getByLabelText('New tag color');
   expect(newTagColor).toHaveClass('catalog-manager__color-input');
   expect(newTagColor.closest('.catalog-manager__create-actions')).toBeInTheDocument();
@@ -4821,12 +4881,16 @@ test('tag management multiline add uses selected color and skips existing or rep
   const scope = within(dialog);
 
   fireEvent.change(scope.getByLabelText('New tag color'), { target: { value: '#f97316' } });
-  await userEvent.type(scope.getByLabelText('Tag names'), 'Docs\nErrand\ndocs\nFocus\n');
+  const tagNames = scope.getByLabelText('Tag names');
+  const tagNamesText = 'Docs\nErrand\ndocs\nFocus\n';
+  await typeCatalogBulkText(tagNames, tagNamesText);
+  expect(tagNames).toHaveValue(tagNamesText);
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /^create tags$/i })); });
 
   expect(mockCreateTag).toHaveBeenCalledTimes(2);
   expect(mockCreateTag).toHaveBeenNthCalledWith(1, { title: 'Docs', color: '#f97316' });
   expect(mockCreateTag).toHaveBeenNthCalledWith(2, { title: 'Focus', color: '#f97316' });
+  expect(tagNames).toHaveValue('');
   expect(scope.getByRole('status')).toHaveTextContent('Created 2 tags. Skipped 2 duplicates: Errand, docs. Failed 0.');
   expect(scope.getByRole('button', { name: /dismiss creation summary/i })).toBeInTheDocument();
   await act(async () => { await userEvent.click(scope.getByRole('button', { name: /dismiss creation summary/i })); });

@@ -118,9 +118,26 @@ export default function useTaskDetailResources({ is24Hour, setError }: UseTaskDe
   };
 
   const clearDeletedTaskResources = (taskId: number) => {
-    setSubtasks(prev => { const next = { ...prev }; delete next[taskId]; return next; });
-    setNotes(prev =>    { const next = { ...prev }; delete next[taskId]; return next; });
-    setReminders(prev => { const next = { ...prev }; delete next[taskId]; return next; });
+    setSubtasks(prev => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+    setNotes(prev => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+    setReminders(prev => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+    setAttachments(prev => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
   };
 
   const addSubtask = async (taskId: number) => {
