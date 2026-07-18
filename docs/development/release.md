@@ -48,17 +48,18 @@ published release from those values.
 
 ## Review Package
 
-Create a source-review archive outside the repository with:
+Create a source-review archive in the ignored review-package directory with:
 
 ```bash
 ./scripts/create-review-package.sh
 ```
 
-The script defaults to the system temporary directory. Pass an output directory as
-its first argument when a specific handoff location is required. The archive
-includes `REVIEW_MANIFEST.txt` with the branch, commit, working-tree state, recent
-commits, scope, and included file list. It excludes dependencies, build output,
-local environments, IDE state, and generated native web assets.
+The script defaults to `review-packages/` at the repository root; that directory is
+ignored by Git. Pass an output directory as its first argument when a specific
+handoff location is required. The archive includes `REVIEW_MANIFEST.txt` with the
+branch, commit, working-tree state, recent commits, scope, and included file list.
+It excludes dependencies, build output, local environments, IDE state, and
+generated native web assets.
 
 ## Rollback Considerations
 

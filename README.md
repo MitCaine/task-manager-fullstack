@@ -142,10 +142,10 @@ Run all repository checks from the root:
 ./scripts/verify-all.sh
 ```
 
-This runs backend tests, frontend tests, the frontend production build, iOS sync,
-and a whitespace/error diff check. GitHub Actions gates clean frontend dependency
-installation, frontend tests, TypeScript checking, production build, and backend
-tests on pushes and pull requests.
+This runs backend tests, frontend tests, TypeScript checking, the frontend
+production build, iOS sync, and a whitespace/error diff check. GitHub Actions
+gates clean frontend dependency installation, frontend tests, TypeScript checking,
+production build, and backend tests on pushes and pull requests.
 
 ## Documentation
 
