@@ -80,7 +80,7 @@ change can affect Create Task, Task List, Calendar, and mobile editing together.
 ## Native Runtime
 
 Capacitor packages the React build from `build/`. `capacitor.config.ts` defines
-app ID `com.example.taskmanager`, app name, web directory, and background color.
+app ID `com.mitchell.taskmanager`, app name, web directory, and background color.
 Swift Package Manager supplies native plugins.
 
 REST remains the default in the native shell. SQLite requires the explicit

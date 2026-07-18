@@ -38,12 +38,14 @@ selected runtime. This is expected in the current migration stage.
 
 ## MySQL Schema Evolution
 
-`SQL Files/databasemodel.sql` is the baseline schema. Incremental scripts under
-`src/main/resources/schema-updates/` are applied manually. Hibernate uses
-`ddl-auto=none`; application startup does not create or migrate MySQL tables.
+`database/mysql/schema.sql` is the authoritative fresh-install schema. Scripts
+under `database/mysql/historical-updates/` are retained only to upgrade databases
+that predate columns already present in the current baseline. They must not be
+replayed after the baseline. Hibernate uses `ddl-auto=none`; application startup
+does not create or migrate MySQL tables.
 
-There is no migration history table or automated ordering. Operators must know
-which scripts have been applied.
+There is no migration history table or automated ordering. Existing-database
+operators must inspect their schema before selecting a historical update.
 
 ## SQLite Schema Evolution
 
@@ -80,8 +82,8 @@ iOS app-container lifetime. App deletion or data clearing removes local storage.
 
 ## Code Map
 
-- MySQL baseline: `SQL Files/databasemodel.sql`
-- MySQL updates: `src/main/resources/schema-updates/`
+- MySQL baseline: `database/mysql/schema.sql`
+- Historical MySQL updates: `database/mysql/historical-updates/`
 - Backend config: `src/main/resources/application.properties`
 - SQLite migrations: `taskmanager-frontend/src/repositories/sqlite/migrations.ts`
 - Runtime selector: `taskmanager-frontend/src/repositories/runtimeRepositories.ts`

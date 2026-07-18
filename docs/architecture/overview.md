@@ -90,7 +90,7 @@ details.
 - Contracts and provider: `taskmanager-frontend/src/repositories/`
 - Domain models: `taskmanager-frontend/src/domain/models.ts`
 - REST transport: `taskmanager-frontend/src/api/tasks.ts`
-- Backend: `src/main/java/com/example/taskmanager/`
+- Backend: `src/main/java/com/mitchell/taskmanager/`
 - SQLite: `taskmanager-frontend/src/repositories/sqlite/`
 
 ## Testing

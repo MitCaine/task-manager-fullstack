@@ -65,10 +65,10 @@ Primary references:
 
 - `taskmanager-frontend/src/types/task.ts`
 - `taskmanager-frontend/src/hooks/useProjectTagCatalog.ts`
-- `src/main/java/com/example/taskmanager/Task.java`
-- `src/main/java/com/example/taskmanager/Project.java`
-- `src/main/java/com/example/taskmanager/Tag.java`
-- `SQL Files/databasemodel.sql`
+- `src/main/java/com/mitchell/taskmanager/Task.java`
+- `src/main/java/com/mitchell/taskmanager/Project.java`
+- `src/main/java/com/mitchell/taskmanager/Tag.java`
+- `database/mysql/schema.sql`
 
 ### Project Assignment and Catalog Behavior
 
@@ -106,8 +106,8 @@ Primary references:
 - `taskmanager-frontend/src/App.tsx`
 - `taskmanager-frontend/src/components/task-list/TaskListControls.tsx`
 - `taskmanager-frontend/src/api/tasks.ts`
-- `src/main/java/com/example/taskmanager/ProjectController.java`
-- `src/test/java/com/example/taskmanager/ProjectControllerTest.java`
+- `src/main/java/com/mitchell/taskmanager/ProjectController.java`
+- `src/test/java/com/mitchell/taskmanager/ProjectControllerTest.java`
 
 ### Tag Assignment and Catalog Behavior
 
@@ -147,10 +147,10 @@ Primary references:
 - `taskmanager-frontend/src/App.tsx`
 - `taskmanager-frontend/src/components/create-task/TagProjectChips.tsx`
 - `taskmanager-frontend/src/api/tasks.ts`
-- `src/main/java/com/example/taskmanager/TagController.java`
-- `src/main/java/com/example/taskmanager/TaskController.java`
-- `src/test/java/com/example/taskmanager/TagControllerTest.java`
-- `src/test/java/com/example/taskmanager/TaskControllerTest.java`
+- `src/main/java/com/mitchell/taskmanager/TagController.java`
+- `src/main/java/com/mitchell/taskmanager/TaskController.java`
+- `src/test/java/com/mitchell/taskmanager/TagControllerTest.java`
+- `src/test/java/com/mitchell/taskmanager/TaskControllerTest.java`
 
 ### Current Display Behavior
 
@@ -204,9 +204,9 @@ Primary references:
 - `taskmanager-frontend/src/App.test.tsx`
 - `taskmanager-frontend/src/api/tasks.test.ts`
 - `taskmanager-frontend/src/components/Calendar.test.tsx`
-- `src/test/java/com/example/taskmanager/ProjectControllerTest.java`
-- `src/test/java/com/example/taskmanager/TagControllerTest.java`
-- `src/test/java/com/example/taskmanager/TaskControllerTest.java`
+- `src/test/java/com/mitchell/taskmanager/ProjectControllerTest.java`
+- `src/test/java/com/mitchell/taskmanager/TagControllerTest.java`
+- `src/test/java/com/mitchell/taskmanager/TaskControllerTest.java`
 - `docs/development/testing.md`
 
 ## Problems at 20+ Catalog Items
@@ -534,8 +534,8 @@ Likely files:
 - `taskmanager-frontend/src/hooks/useProjectTagCatalog.ts`
 - `taskmanager-frontend/src/api/tasks.ts`
 - `taskmanager-frontend/src/App.tsx`
-- `src/main/java/com/example/taskmanager/ProjectController.java`
-- `src/main/java/com/example/taskmanager/TagController.java`
+- `src/main/java/com/mitchell/taskmanager/ProjectController.java`
+- `src/main/java/com/mitchell/taskmanager/TagController.java`
 - Frontend and backend tests
 
 Testing:

@@ -66,17 +66,18 @@ flowchart LR
 Tasks reference numeric status, project, schedule, and recurrence IDs. Task-tag
 membership is a JPA many-to-many relationship through `TaskTag`. Child entities
 store a task ID rather than a mapped JPA task object. The baseline DDL is in
-`SQL Files/databasemodel.sql`; later manual changes live under
-`src/main/resources/schema-updates/`.
+`database/mysql/schema.sql`; manual updates retained for older database instances
+live under `database/mysql/historical-updates/` and are not applied after the
+current baseline.
 
 ## Code Map
 
 - Application entry: `TaskManagerApplication.java`
-- Controllers and entities: `src/main/java/com/example/taskmanager/`
+- Controllers and entities: `src/main/java/com/mitchell/taskmanager/`
 - Runtime configuration: `src/main/resources/application.properties`
-- Baseline schema: `SQL Files/databasemodel.sql`
-- Incremental SQL: `src/main/resources/schema-updates/`
-- Tests: `src/test/java/com/example/taskmanager/`
+- Baseline schema: `database/mysql/schema.sql`
+- Historical update SQL: `database/mysql/historical-updates/`
+- Tests: `src/test/java/com/mitchell/taskmanager/`
 
 ## Testing
 

@@ -53,8 +53,8 @@ start at current domain/repository contracts and then map to each store.
 
 ## Source Records
 
-- MySQL baseline: `../../SQL Files/databasemodel.sql`
-- Backend entities: `../../src/main/java/com/example/taskmanager/`
+- MySQL baseline: `../../database/mysql/schema.sql`
+- Backend entities: `../../src/main/java/com/mitchell/taskmanager/`
 - SQLite schema: `../../taskmanager-frontend/src/repositories/sqlite/migrations.ts`
 
 ## Related Documents
