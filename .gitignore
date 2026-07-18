@@ -52,3 +52,6 @@ yarn-error.log*
 !.mvn/wrapper/
 !.mvn/wrapper/maven-wrapper.properties
 !taskmanager-frontend/package-lock.json
+
+# Generated repository review packages
+review-packages/
