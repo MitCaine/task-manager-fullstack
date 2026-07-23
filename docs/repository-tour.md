@@ -17,14 +17,14 @@ the shortest reading path for common changes.
 ```text
 .
 |-- src/main/java/com/mitchell/taskmanager/   Spring Boot API and JPA entities
-|-- src/main/resources/                      Backend runtime configuration
-|-- src/test/                                Backend controller/repository tests
-|-- database/mysql/                          MySQL schema and historical updates
-|-- taskmanager-frontend/src/                React application and repository layer
-|-- taskmanager-frontend/ios/                Generated/synced Capacitor iOS project
-|-- scripts/                                 Verification and review-package commands
-|-- docs/                                    Canonical guides and historical records
-`-- .github/workflows/                       Continuous integration
+|-- src/main/resources/                       Backend runtime configuration
+|-- src/test/                                 Backend controller/repository tests
+|-- database/mysql/                           MySQL schema and historical updates
+|-- taskmanager-frontend/src/                 React application and repository layer
+|-- taskmanager-frontend/ios/                 Generated/synced Capacitor iOS project
+|-- scripts/                                  Verification and review-package commands
+|-- docs/                                     Canonical guides and historical records
+`-- .github/workflows/                        Continuous integration
 ```
 
 ## Runtime Roots
