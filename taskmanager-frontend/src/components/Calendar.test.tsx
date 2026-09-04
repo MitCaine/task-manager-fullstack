@@ -163,7 +163,7 @@ test('calendar project and tag chips share a wrapping body metadata row', () => 
   expect(metadata).toContainElement(within(taskEntry).getByLabelText('More tags: Third, Fourth'));
   expect(statusBadges.querySelector('.cal-item__tag-chip')).not.toBeInTheDocument();
 
-  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const css = readFileSync('./src/components/Calendar.css', 'utf8');
   const bodyRule = css.match(/\.cal-item__body\s*\{[^}]*\}/)?.[0] ?? '';
   const metadataRule = css.match(/\.cal-item__meta\s*\{[^}]*\}/)?.[0] ?? '';
   expect(bodyRule).toContain('width: 100%');
@@ -211,7 +211,7 @@ test('calendar task entry uses a stacked schedule title description and metadata
   await clickCalendar(taskEntry);
   expect(onEditTask).toHaveBeenCalledWith(1);
 
-  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const css = readFileSync('./src/components/Calendar.css', 'utf8');
   const itemRule = css.match(/^\.cal-item\s*\{[^}]*\}/m)?.[0] ?? '';
   const scheduleRule = css.match(/^\.cal-item__schedule-row\s*\{[^}]*\}/m)?.[0] ?? '';
   expect(itemRule).toContain('flex-direction: column');
@@ -270,7 +270,7 @@ test('calendar overview uses three-month ranges in desktop shell', async () => {
 test('calendar stylesheet does not retain stale week or hide-done selectors', () => {
   mockDesktopCalendarQuery(false);
 
-  const css = readFileSync(`${process.cwd()}/src/components/Calendar.css`, 'utf8');
+  const css = readFileSync('./src/components/Calendar.css', 'utf8');
   expect(css).not.toContain('cal-hide-completed');
   expect(css).not.toContain('cal-empty--week');
   expect(css).not.toContain('cal-week-row');

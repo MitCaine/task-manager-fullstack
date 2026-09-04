@@ -1666,7 +1666,7 @@ test('swipe starting inside the title input does not change mobile view', async 
 });
 
 test('mobile description textareas keep a 16px font size above the iOS focus zoom threshold', () => {
-  const css = readFileSync(`${process.cwd()}/src/App.css`, 'utf8');
+  const css = readFileSync('./src/App.css', 'utf8');
   const mobileInputRules = css.match(/input\.input\[type="text"][\s\S]*?textarea\.input\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
   const mobileTextareaRules = css.match(/\.controls__description\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
   const mobileTextareaFocusRules = css.match(/\.controls__description:focus\s*\{[^}]*font-size:\s*16px;[^}]*}/g) ?? [];
