@@ -29,9 +29,9 @@
     }
   },
   "dependencies": {
-    "@capacitor-community/sqlite": "^8.1.0",
-    "@capacitor/core": "^8.3.4",
-    "@capacitor/ios": "^8.3.4",
+    "@capacitor-community/sqlite": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@testing-library/dom": "10.4.0",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "13.4.0",
@@ -41,7 +41,7 @@
     "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.3.4",
+    "@capacitor/cli": "^8.5.2",
     "@types/jest": "29.5.14",
     "@types/node": "18.19.127",
     "@types/react": "18.3.7",
